@@ -1,0 +1,240 @@
+# Every key carries the source it comes from. Unknown keys raise at load.
+
+[market]
+# AEMC schedule of reliability settings, 2026-27 financial year (27 February 2026).
+# These are the values applying from 1 July 2025 to 30 June 2026, taken as one
+# internally consistent pair. Do not mix years: the cap and the threshold are
+# indexed together and their ratio is what decides when the market is suspended.
+market_price_cap_per_mwh = 20300.0          # value of lost load, the market price cap
+administered_price_cap_per_mwh = 600.0      # permanent since the December 2023 rule
+cumulative_price_threshold = 1823600.0      # AS published: see the interval note
+cumulative_price_threshold_intervals_per_hour = 12
+cumulative_price_window_hours = 168
+# The threshold is published as a sum of trading interval prices, and a trading
+# interval has been five minutes since five-minute settlement. That is what makes
+# the AEMC's own gloss exact: $1,823,600 / $20,300 = 89.8 intervals = 7.5 hours at
+# the cap, and the 2027 base $2,325,600 / $22,800 = 102 intervals = 8.5 hours.
+# This model settles hourly, so one of its intervals stands for 12 of the
+# market's. The threshold is therefore divided by 12, not by two. Dividing by
+# two would assume half-hourly settlement and let the market run about 45 hours at
+# the cap before suspension instead of 7.5, leaving six times the scarcity rent
+# standing.
+minimum_price_per_mwh = -1000.0
+
+[reliability]
+# AEMC Reliability Panel. The standard in force is 0.002 per cent of unserved
+# energy. The Panel's 2026 Reliability Standard and Settings Review final report
+# (23 April 2026) recommends 0.003 per cent for 1 July 2028 to 30 June 2032, and
+# nothing is published beyond that. This model uses the recommended figure for the
+# whole horizon rather than stepping it at 2028, so the early years are measured
+# against a standard slightly looser than the one in force today.
+standard_use_fraction = 0.00003
+interim_measure_use_fraction = 0.000006
+
+[dispatch]
+must_run_offer_per_mwh = -60.0              # a coal band bidding to avoid a shutdown
+# Set from the economics, not to hit a price: a coal unit will accept a negative
+# price down to about the cost of shutting down and restarting, spread over the
+# hours it would be off. That is tens of dollars a MWh, not hundreds. It matters
+# because this band is marginal in roughly a sixth of the year in a system with
+# this much rooftop solar, so it moves the annual average price more than any
+# other single number here.
+# Wind and solar offers are per unit in fleet.csv, not a single constant here: the
+# price in a surplus hour is set by whichever plant is on the margin of curtailment,
+# so they have to be able to differ.
+storage_spread_per_mwh = 8.0                # the round trip a day's spread must cover
+# There is no re-stack loop here any more, and so no pass ceiling and no convergence
+# tolerance. Both existed because storage used to pick its hours by ranking a price
+# that its own schedule then moved, which is a cobweb: the dispatch had to iterate
+# toward a fixed point, damp the iterates to stop a two-cycle, and report whether it
+# had got there. Storage now shaves quantities off the residual, and the residual
+# does not depend on the price, so there is nothing left to iterate. Removing the
+# loop took a dispatched year from about 40 milliseconds to about 22.
+
+[time]
+# Time-of-day blocks, start hour inclusive to end hour exclusive.
+block_overnight = [22, 6]
+block_morning = [6, 10]
+block_solar = [10, 16]
+block_peak = [16, 22]
+
+[weather]
+shape_years = 5
+hours_per_year = 8760
+seed = 20260904
+# Peak bands scale the peak, not annual energy.
+peak_band_multipliers = [1.08, 1.00, 0.95]
+peak_band_weights = [0.1, 0.8, 0.1]
+
+[forward]
+# Three anchors, at four, eight and 12 years ahead. A plant decided today
+# commissions inside the first anchor and lives well past the last, so the anchors
+# bracket the years its decision actually turns on and the tail beyond them is
+# assumed rather than projected.
+anchor_offsets = [4, 8, 12]
+# Projected entry: one adaptive step a tick, for one technology a tick - the
+# marginal one, growing while its projected rent clears its own fixed cost and
+# decaying below it. No technology is named here. Naming one would price
+# replacement capacity at that technology's running cost while the investment step
+# went and built something else. The step is damping, not physics, and it is
+# deliberately coarse: the fixed point is what carries meaning, not the path to it.
+entry_step_min_mw = 250.0
+entry_decay = 0.5
+# There is deliberately no tolerance on rent here. Rent is a step function of
+# assumed entry, so there may be no quantity of entry at which it lands inside any
+# band around break-even, and a rule that stops only when it lands there does not
+# stop. The state converges in megawatts instead, and the resolution it stops at is
+# one generating unit, which is read from unit_size_mw in tech_costs.csv because
+# that is the finest distinction entry can actually be built in.
+
+
+[investment]
+# lambda = risk aversion x this. Risk aversion is the archetype fraction on a 0 to
+# 1 scale in agents.py; this turns it into the weight on the certainty-equivalent
+# gap.
+risk_premium = 0.25
+# The scale that turns risk aversion into a CARA coefficient over dollars per
+# MW-year. The cap lane and the investment rule both build their coefficient from
+# it, through one function, because a firm that priced the tail one way when
+# writing a cap and another when building the peaker that would cover it could
+# arbitrage the difference between the two. Set so that a representative writer's
+# coefficient is unchanged from the value the cap lane was calibrated at.
+cara_scale = 4.0e-5
+# A producer is never fully hedged: a contract covers a forecast of its output.
+hedge_fraction_cap = 0.85
+# The tenor a bilateral swap book is taken to cover, in years.
+bilateral_contract_years = 3
+# A capacity underwrite for firm technologies, in years. Zero is the policy-free
+# market-led counterfactual, which is what the merchant leg is for. An exercise
+# raises it to ask what a ten-year underwrite would have done instead. It is off
+# rather than absent so that the counterfactual is a setting somebody chose, not a
+# mechanism nobody wrote.
+merchant_underwrite_years = 0
+# The rate an incumbent discounts its going-forward position at. A candidate uses
+# its own technology's wacc from tech_costs.csv, because a project has to be
+# financed; a plant that already exists has no project to finance.
+discount_rate = 0.07
+# Pacing. These are choices, not physics, and they are here rather than in the code
+# so that a reader can see them and change them.
+build_fraction_of_peak = 0.05
+candidates_per_producer = 3
+# The annual build ceiling, as the number of producers' worth of one technology that
+# can be delivered in a year. It is a damper, so that the bust in the boom-and-bust
+# exercise comes from lead times, which are real, rather than from the absence of any
+# limit, which is an oversight rather than a mechanism.
+#
+# It is stated this way, rather than as megawatts per technology, for two reasons.
+# A megawatt figure has no published source and would be seven invented numbers
+# instead of one. And a fixed megawatt figure does not scale: the ceiling that damps
+# a 12 gigawatt system dominates a 23 gigawatt one, and on the high
+# growth path it bound in every single year of a 20-year run, so what the model
+# was showing was the ceiling rather than the market.
+concurrent_builds_per_year = 2
+# Exit. Two consecutive negative positions, because one bad year is weather and
+# this model has a one-in-five drought shape-year in it by construction. The notice
+# mirrors the three-year minimum notice of closure for scheduled plant. The cap
+# staggers notices so that a whole cohort cannot leave against a forward in which
+# all of them stayed.
+exit_consecutive_negatives = 2
+exit_notice_years = 3
+max_exit_notices_per_tick = 3
+
+[contracts]
+# The strike a cap is written at. It sits above the running cost of everything in
+# the fleet except the high-cost peaking tier, so a cap pays only when the system
+# is genuinely tight, which is what makes it insurance rather than a swap.
+cap_strike_per_mwh = 300.0
+# Bilateral tenor. Retailers hedge on a ladder: each year they write a strip of
+# this length sized at one third of their target cover, so three overlapping
+# strips carry the target in steady state. That is how a book is actually run, and
+# it is why the bootstrap writes tenors of one, two and three years before the
+# first tick: without it the model would open with a market that had never traded.
+swap_tenor_years = 3
+# The anchor is an exponentially weighted average of realised block prices. Nobody
+# here forecasts; they extrapolate, and the half-life is how long a memory that is.
+# It is what makes the boom-and-bust exercise work, so it is a setting rather than
+# a number buried in a function.
+anchor_half_life_years = 2.0
+# The negotiated market. Instead of both sides accepting the reference price, each
+# steps away from it in this many slices,
+# reaching this far from it as a fraction. They decide how elastic each side is, and
+# elasticity is the only thing in that construction that changes the volume traded.
+# They do nothing on the anchor path, which is the default: which market clears is a
+# scenario's choice, named in its [run] table, not a flag hidden in a settings file.
+crossing_steps = 5
+crossing_spread = 0.25
+
+[esem]
+# The procurement scheme. Nothing here is on by default: the scheme is a leg you
+# choose to run, and the merchant leg is what it is compared against. A mechanism
+# this consequential switched on quietly would make every result an argument for
+# itself.
+#
+# Award tenor. Long enough to cover a meaningful share of a plant's life, which is
+# the whole reason the instrument moves an investment decision at all: a three-year
+# bilateral book cannot underwrite a 25 year asset however much of the
+# output it covers.
+contract_tenor_years = 12
+# The cost of capital a fully contracted megawatt is financed at. A contracted
+# megawatt is financed as debt would be and an uncontracted one as equity is, so
+# this is the channel through which a long-dated contract lowers the cost of a plant
+# rather than only the risk of its investor.
+contracted_wacc = 0.055
+# The sanity screen, as the larger of a multiple of spot and a floor, so it scales
+# with a genuinely expensive market without collapsing to nothing in a cheap year.
+# It is a screen against nonsense, not a price cap: a scheme that quietly capped its
+# own clearing price would report a cost it did not pay.
+#
+# Measured, it cannot bind. Both numbers below are in $/MWh and screen() turns them
+# into an annual figure over the year's hours, so the lowest ceiling this can set is
+# $4,380,000 per MW-year. The dearest bid the model can construct is an eight-hour
+# battery earning nothing at all in the pool, at $306,517 per MW-year, and a real bid
+# is net of pool earnings and lower again, so both settings are inert.
+#
+# The cause is the basis rather than the arithmetic: a ceiling on a plant's annual
+# fixed cost is written as a spot price, which invites a spot-sized number and then
+# annualises it. Restating it in $/MW-year would make it mean something. Choosing the
+# value is a design decision, because a screen that can bind changes which bids clear,
+# so nothing here has been changed to make it bind.
+screen_multiple_of_spot = 5.0
+screen_floor_per_mwh = 500.0
+# Recycling. Each delivery year from now to this many years ahead is offered back to
+# retailers as a one-year strip, in the shape the position is held and at the market
+# price for that delivery.
+recycling_window_years = 3
+# What the administrator does with volume nobody buys. "warehouse" holds it,
+# "fire_sale" clears it at a fraction of the anchor. Warehousing is the default
+# because it is the conduct that does not require the administrator to have a view.
+recycling_conduct = "warehouse"
+fire_sale_fraction = 0.5
+# Administrator running costs, in dollars a year. A stylised figure for a small
+# statutory body: it is here so the levy is not silently understated by the cost of
+# the thing collecting it.
+overhead_per_year = 25000000.0
+# Reserve margin, for reporting only, never for sizing the lane. A margin is a rule
+# of thumb about how much capacity a peak needs; the lane is sized on the shortfall
+# itself, and showing both is how an audience sees the difference.
+reserve_margin = 0.15
+
+[scheme]
+# A state scheme, buying a named service against a milestone in a policy rather than
+# a quantity computed from the system. It runs only when a scenario asks for it.
+#
+# note what the milestone IS IN. The reliability lane buys delivered firm megawatts,
+# because that is what closes a reliability gap. A capacity target is written in
+# nameplate megawatts, because that is what such a target is written in. The two are
+# not the same product and conflating them is how a target comes to be credited with
+# reliability it did not buy: nine gigawatts of nameplate wind at a firm factor of a
+# tenth is nine hundred megawatts of firm capacity, and a scheme that reported the
+# first number as though it were the second would be out by a factor of ten.
+technologies = ["wind", "solar"]
+# The most the scheme will pay, per MW-year of nameplate, net of what the plant
+# expects to earn in the pool. A policy parameter with no published source: it is
+# here so that a ceiling binding is a visible outcome rather than an assumption.
+ceiling_per_mw_year = 120000.0
+# The most it will spend in a year. Also a policy parameter, and the other way a
+# milestone can be missed.
+budget_per_year = 250000000.0
+# How long an award is contracted for. Longer than the reliability lane's, because a
+# capacity target is usually underwriting a build rather than keeping plant open.
+tenor_years = 15

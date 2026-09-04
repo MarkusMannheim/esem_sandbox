@@ -1,0 +1,21 @@
+# A coal station closes five years early, and the market has two years' notice.
+#
+# Boom and bust. Gas takes two years to build and combined cycle three,
+# so a retirement pulled forward inside those leads cannot be replaced in time
+# whatever the price does. Watch entry cluster in the years after the gap opens,
+# arrive together, and overshoot into a market that no longer needs it.
+#
+# coal_b retires in 2033 in fleet.csv, so 2028 is five years early and, from a run
+# starting in 2026, two years' notice. Both numbers matter and they are the ones the
+# paragraph above quotes: this file previously closed it in 2031, which is two years
+# early with FIVE years' notice, and five years is long enough to replace it. The
+# exercise did not show what it said it showed.
+#
+# This is a FORCED retirement: the plant closes because something decided it should,
+# not because it stopped covering its costs. It is deliberately separate from the
+# economic exit rule, so that a run with economic exit doing nothing still honours a
+# policy.
+[run]
+leg = "merchant"
+ticks = 20
+retire = { coal_b = 2028 }

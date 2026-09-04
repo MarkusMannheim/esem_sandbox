@@ -1,0 +1,8 @@
+technology,capex_per_kw,fom_per_kw_year,srmc_per_mwh,wacc,lead_years,life_years,unit_size_mw,availability,firm_factor,duration_h,cap_eligible,derivation
+ocgt,1400,16,181,0.070,2,25,200,0.73,0.85,,1,Rounded within the GenCost and IASR ranges for open cycle gas
+ccgt,2000,32,96,0.070,3,25,250,0.71,0.85,,1,Rounded within the GenCost and IASR ranges for combined cycle gas
+wind,3100,28,0,0.065,3,25,200,1.00,0.10,,0,Rounded within the GenCost ranges for onshore wind
+solar,1600,17,0,0.060,2,25,150,1.00,0.05,,0,Rounded within the GenCost ranges for large scale solar
+battery_2h,900,12,0,0.065,2,15,100,0.98,0.40,2,0,Rounded within the GenCost ranges for two hour storage
+battery_4h,1500,19,0,0.065,2,15,100,0.98,0.65,4,0,Rounded within the GenCost ranges for four hour storage
+battery_8h,2600,30,0,0.065,3,15,100,0.98,0.85,8,1,Rounded within the GenCost ranges for eight hour storage

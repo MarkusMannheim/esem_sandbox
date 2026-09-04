@@ -1,0 +1,19 @@
+# The other end of the bracket on how much a market builds.
+#
+# Under the default rule every producer prices its project against one forecast drawn
+# before anybody decided anything, so nobody sees anybody and everybody builds the
+# maximum the year allows. This rule redraws the forecast after each producer decides,
+# so the second one is offered a market containing the first.
+#
+# Neither is right. Real investors observe each other slowly and partially, so the
+# truth sits between the two and this model cannot say where. What it can say is how
+# wide the gap is, and that is the exercise: the disagreement is modest in megawatts
+# and enormous in blackouts.
+#
+# Run it against merchant.toml, and then against scheme.toml, because the verdict on
+# the scheme is not the same at the two ends. The direction of the scheme's effect on
+# reliability survives; whether the scheme is worth having does not.
+[run]
+leg = "merchant"
+ticks = 20
+investment = "sequential"

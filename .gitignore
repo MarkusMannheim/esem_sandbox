@@ -1,0 +1,14 @@
+# Working notes are kept outside this repository.
+design/
+
+# Run output. Canonical outputs are committed under outputs/canonical/.
+outputs/*
+!outputs/canonical/
+
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+*.egg-info/
+build/
+dist/
