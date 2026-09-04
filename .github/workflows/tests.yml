@@ -1,0 +1,44 @@
+name: tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+      - name: Tests
+        run: pytest -q
+
+  wheel:
+    # The package must be complete from any working directory: the data bundle
+    # is inside the package, so an install into a temporary directory has to
+    # run without the repository present.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Build and install the wheel elsewhere
+        run: |
+          python -m pip install --upgrade pip build
+          python -m build --wheel
+          mkdir -p "$RUNNER_TEMP/smoke"
+          cd "$RUNNER_TEMP/smoke"
+          pip install "$GITHUB_WORKSPACE"/dist/*.whl
+          esem-sandbox run --out "$RUNNER_TEMP/smoke/out"
+          test -f "$RUNNER_TEMP/smoke/out/dispatch_summary.csv"

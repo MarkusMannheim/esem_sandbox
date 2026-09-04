@@ -1,0 +1,16 @@
+unit,technology,capacity_mw,availability,srmc_per_mwh,retirement_year,must_run_mw,energy_budget_gwh,duration_h,round_trip_efficiency,firm_factor,cap_eligible,derivation
+coal_a,coal,2880,0.69,47,2029,600,,,,0.85,0,Stylised black coal station sized within the range of published NSW units; availability is the IASR black coal planned+forced availability
+coal_b,coal,2640,0.69,44,2033,800,,,,0.85,0,Stylised black coal station; capacity rounded from published NSW unit ratings
+coal_c,coal,1320,0.69,52,2035,400,,,,0.85,0,Stylised black coal station; capacity rounded from published NSW unit ratings
+coal_d,coal,1400,0.69,50,2042,420,,,,0.85,0,Stylised black coal station; capacity rounded from published NSW unit ratings
+ccgt_a,ccgt,500,0.71,96,2045,0,,,,0.85,1,Stylised combined cycle plant; short run cost from IASR gas price and heat rate ranges
+ocgt_a,ocgt,600,0.73,181,2050,0,,,,0.85,1,Stylised open cycle peaker; short run cost from IASR gas price and heat rate ranges
+ocgt_b,ocgt,400,0.73,190,2050,0,,,,0.85,1,Stylised open cycle peaker
+hydro_a,hydro,1300,0.95,0,2060,0,4200,,,0.85,1,Stylised hydro capacity and annual energy; energy budget is illustrative and not any single scheme's published figure
+phes_a,phes,600,0.95,0,2060,0,,12,0.80,0.85,1,Stylised long duration pumped hydro; duration illustrative
+battery_2h,battery,500,0.98,0,2050,0,,2,0.85,0.40,0,Stylised two hour battery; round trip efficiency from IASR storage properties ranges
+battery_4h,battery,800,0.98,0,2050,0,,4,0.85,0.65,0,Stylised four hour battery
+wind_a,wind,2200,1.00,0,2050,0,,,,0.10,0,Stylised onshore wind fleet sized within published NSW registered capacity
+solar_a,solar,2600,1.00,0,2050,0,,,,0.05,0,Stylised utility solar fleet sized within published NSW registered capacity
+rooftop,rooftop,5200,1.00,0,2060,0,,,,0.00,0,Stylised distributed rooftop solar; treated as a reduction to demand, never dispatched
+import_link,import,2200,0.90,120,2060,0,,,,0.85,0,Stylised interconnector import capability derived from published interconnector ratings with a coincidence derate; a documented scarcity parameter, see the sensitivity in the README

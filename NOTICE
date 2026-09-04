@@ -1,0 +1,27 @@
+esem-sandbox
+Copyright (c) 2026 Commonwealth of Australia
+
+Code in this repository is licensed under the MIT Licence; see LICENSE.
+
+The small data files under src/esem_sandbox/data/ are NOT covered by the MIT
+Licence. They are stylised figures derived from published sources and are
+provided under those sources' terms. See DATA_SOURCES.md, where every file
+carries its source and its derivation.
+
+This product includes material derived from:
+
+  - Australian Energy Market Operator Limited (AEMO): Integrated System Plan
+    inputs, assumptions and scenarios, and public generation information. Used
+    under AEMO's copyright permissions. AEMO is the author of the source
+    material. AEMO has not endorsed this work, is not responsible for it, and
+    nothing here should be read as AEMO's view.
+
+  - Commonwealth Scientific and Industrial Research Organisation (CSIRO):
+    GenCost. Entrant technology costs are rounded figures lying inside the
+    published ranges. CSIRO has not endorsed this work.
+
+  - Australian Energy Market Commission (AEMC): reliability settings and the
+    reliability standard, cited by figure and date, not redistributed.
+
+No source dataset is reproduced, in whole or in part. Weather is generated
+synthetically at runtime from a seed, so no source trace data ships here.

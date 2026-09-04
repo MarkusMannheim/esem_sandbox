@@ -1,0 +1,4 @@
+path,weight,annual_growth,derivation
+low,0.3333,0.005,Stylised around the lower IASR NSW demand trajectory
+central,0.3334,0.019,Stylised around the central IASR NSW demand trajectory
+high,0.3333,0.033,Stylised around the upper IASR NSW demand trajectory

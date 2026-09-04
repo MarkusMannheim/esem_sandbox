@@ -1,0 +1,5 @@
+tier,price_per_mwh,capacity_mw,call_hours,derivation
+dsr_1,300,1.0,500,IASR demand side participation table for NSW; transcribed as an increment by differencing the published cumulative bands
+dsr_2,500,20.8,100,IASR demand side participation table for NSW; increment
+dsr_3,7500,90.4,20,IASR demand side participation table for NSW; increment
+reliability_response,10000,364.0,20,Reliability response tranche; increment above the demand side tiers

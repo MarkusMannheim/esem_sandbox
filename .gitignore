@@ -1,0 +1,13 @@
+# Server-side only: design notes, decision log, approval memo, drafts.
+# These carry development history and internal references and are not
+# published. See the project README on the server.
+design/
+
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+*.egg-info/
+build/
+dist/
+outputs/scratch/

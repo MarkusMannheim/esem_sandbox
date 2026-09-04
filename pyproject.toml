@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "esem-sandbox"
+version = "0.1.0.dev0"
+description = "A small, explainable electricity market model for workshop use"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { file = "LICENSE" }
+dependencies = ["numpy>=1.26", "matplotlib>=3.8"]
+
+[project.optional-dependencies]
+tidy = ["pandas>=2.1"]
+dev = ["pytest>=8.0"]
+
+[project.scripts]
+esem-sandbox = "esem_sandbox.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+esem_sandbox = ["data/*.csv", "data/*.toml", "data/*.npz"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

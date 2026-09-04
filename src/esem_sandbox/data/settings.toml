@@ -1,0 +1,42 @@
+# Every key carries the source it comes from. Unknown keys raise at load.
+
+[market]
+# AEMC reliability settings schedule.
+market_price_cap_per_mwh = 20300.0          # value of lost load, the market price cap
+administered_price_cap_per_mwh = 600.0      # applies while the threshold is breached
+cumulative_price_threshold = 745300.0       # 168 hourly intervals; see note below
+cumulative_price_window_hours = 168
+# The published threshold is $1,490,600 over 336 half-hourly intervals. This model
+# settles hourly, so the threshold is scaled by 168/336. Halving the interval count
+# without halving the threshold would fire the cap half as often and leave half the
+# scarcity rent standing.
+minimum_price_per_mwh = -1000.0
+
+[reliability]
+# AEMC Reliability Panel. The standard is period dependent: 0.002 per cent to
+# 30 June 2028, 0.003 per cent from 1 July 2028 to 30 June 2032 (Reliability
+# Standard and Settings Review final report, 23 April 2026), and nothing is
+# published beyond that. This model holds one figure for the whole horizon.
+standard_use_fraction = 0.00002
+interim_measure_use_fraction = 0.000006
+
+[dispatch]
+vre_offer_per_mwh = -10.0                   # lets the solar block clear below zero
+storage_spread_per_mwh = 8.0                # added to charging cost when offering
+max_storage_passes = 2
+storage_price_tolerance = 1.0               # peak block price convergence, $/MWh
+
+[time]
+# Time-of-day blocks, start hour inclusive to end hour exclusive.
+block_overnight = [22, 6]
+block_morning = [6, 10]
+block_solar = [10, 16]
+block_peak = [16, 22]
+
+[weather]
+shape_years = 5
+hours_per_year = 8760
+seed = 20260904
+# Peak bands scale the peak, not annual energy.
+peak_band_multipliers = [1.08, 1.00, 0.95]
+peak_band_weights = [0.1, 0.8, 0.1]
