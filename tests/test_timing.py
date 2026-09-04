@@ -1,9 +1,13 @@
-"""The timing gate.
+"""A regression guard on speed.
 
-The whole design rests on a paired twenty-year run finishing in about a minute
-on a laptop. Dispatch is the unit that gets multiplied by ticks, legs and
-forward cells, so it is the one to hold a budget on. If this fails, the run that
-the workshop depends on has stopped fitting in a coffee break.
+The requirement is that a paired run finishes inside a workshop exercise, which
+a few minutes satisfies; a dispatched year currently costs about 14 ms, so a
+paired twenty-year run with the forward lattice projects to somewhere near a
+minute and a half. There is no tighter target than that.
+
+Dispatch is the unit that gets multiplied by ticks, legs and forward cells, so
+it is the one worth holding a budget on. The budget below is deliberately loose:
+it exists to catch something going quadratic, not to police a stopwatch.
 """
 
 import time
@@ -14,7 +18,7 @@ from esem_sandbox.config import load_settings
 from esem_sandbox.core.dispatch import dispatch_year
 from esem_sandbox.core.weather import generate_bundle
 
-BUDGET_MS = 60.0        # generous against continuous integration hardware
+BUDGET_MS = 60.0        # ~4x headroom over the measured 14 ms, for slow CI hardware
 
 
 @pytest.fixture(scope="module")
