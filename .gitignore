@@ -1,7 +1,9 @@
-# Server-side only: design notes, decision log, approval memo, drafts.
-# These carry development history and internal references and are not
-# published. See the project README on the server.
+# Working notes are kept outside this repository.
 design/
+
+# Run output. Canonical outputs are committed under outputs/canonical/.
+outputs/*
+!outputs/canonical/
 
 __pycache__/
 *.pyc
@@ -10,4 +12,3 @@ __pycache__/
 *.egg-info/
 build/
 dist/
-outputs/scratch/
