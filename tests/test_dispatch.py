@@ -140,9 +140,24 @@ def test_prices_sit_between_the_floor_and_the_cap(settings, bundle):
 
 def test_the_drought_year_is_the_one_that_breaches_the_standard(settings, bundle):
     """The lull-on-heat year is short and the mild years are not. This is the
-    whole point of locating droughts rather than declaring them."""
-    fractions = [_year(settings, bundle, y).unserved_fraction
-                 for y in range(settings.weather["shape_years"])]
+    whole point of locating droughts rather than declaring them, and it is the
+    contrast the workshop is built on, so it is pinned rather than left to chance.
+
+    The system's tightness is set by the import link's coincidence derate in
+    fleet.csv. If the reliability standard changes, that derate is what must be
+    re-calibrated to keep this contrast, not this assertion.
+    """
+    fractions = sorted(_year(settings, bundle, y).unserved_fraction
+                       for y in range(settings.weather["shape_years"]))
     standard = settings.reliability["standard_use_fraction"]
-    assert max(fractions) > standard
-    assert sorted(fractions)[len(fractions) // 2] < standard
+    worst, next_worst = fractions[-1], fractions[-2]
+    assert worst > standard, (
+        f"the drought year should breach: {worst:.5%} against {standard:.5%}"
+    )
+    assert next_worst < standard, (
+        f"only the drought year should breach: {next_worst:.5%} against {standard:.5%}"
+    )
+    assert worst > 2 * next_worst, (
+        "the contrast should be clear, not marginal, so a small data change cannot "
+        "quietly invert which year is the short one"
+    )

@@ -25,10 +25,10 @@ minimum_price_per_mwh = -1000.0
 # AEMC Reliability Panel. The standard in force is 0.002 per cent of unserved
 # energy. The Panel's 2026 Reliability Standard and Settings Review final report
 # (23 April 2026) recommends 0.003 per cent for 1 July 2028 to 30 June 2032, and
-# nothing is published beyond that. This model holds the in-force figure for the
-# whole horizon rather than stepping it, which is a simplification: a run past
-# 2028 is measured against a standard tighter than the one recommended to apply.
-standard_use_fraction = 0.00002
+# nothing is published beyond that. This model uses the recommended figure for the
+# whole horizon rather than stepping it at 2028, so the early years are measured
+# against a standard slightly looser than the one in force today.
+standard_use_fraction = 0.00003
 interim_measure_use_fraction = 0.000006
 
 [dispatch]

@@ -61,8 +61,8 @@ published as a sum of five-minute trading interval prices; this model settles ho
 and divides it by twelve accordingly. The standard is period-dependent: 0.002 per
 cent of unserved energy. The Reliability Panel's 2026 Reliability Standard and
 Settings Review final report of 23 April 2026 recommends 0.003 per cent for the
-period 1 July 2028 to 30 June 2032. This model holds the in-force figure for a
-whole run rather than stepping it.
+period 1 July 2028 to 30 June 2032. This model uses the recommended 0.003 per cent
+for a whole run rather than stepping it at 2028.
 
 ## The files
 
