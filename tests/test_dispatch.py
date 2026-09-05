@@ -195,3 +195,38 @@ def test_the_drought_year_is_the_one_that_breaches_the_standard(settings, bundle
         "the contrast should be clear, not marginal, so a small data change cannot "
         "quietly invert which year is the short one"
     )
+
+
+def test_the_storage_re_stack_actually_converges(settings, bundle):
+    """Storage schedules against a price and then moves it, which is a cobweb.
+
+    Undamped it oscillated in a two-cycle and never settled at any ceiling, while
+    the loop reported nothing: it simply stopped when it ran out of passes. The
+    tolerance was also compared against the annual mean rather than the peak block
+    it is named for, and could only fire on the final iteration, so it changed
+    nothing at any value.
+    """
+    res = _year(settings, bundle, 0)
+    assert res.storage_converged, (
+        f"did not converge in {res.storage_passes} passes; a silent non-convergence "
+        "is how a wrong answer gets reported as a right one"
+    )
+    assert res.storage_passes < settings.dispatch["max_storage_passes"], (
+        "converging only on the last allowed pass means the ceiling is binding"
+    )
+
+
+def test_a_store_never_charges_and_discharges_in_the_same_hour(settings, bundle):
+    """Two independent sorts do not partition a day when prices tie, and a
+    curtailment merit order makes ties common. A twelve-hour store was scheduled to
+    do both in the same hour on 308 days of 365."""
+    res = _year(settings, bundle, 0)
+    day_price = res.price[:365 * 24].reshape(365, 24)
+    for unit in (u for u in settings.fleet if u.technology in ("battery", "phes")):
+        slots = max(1, min(12, int(round(float(unit.duration_h)))))
+        for d in range(0, 365, 7):
+            order = np.argsort(day_price[d], kind="stable")
+            charge, discharge = set(order[:slots].tolist()), set(order[-slots:].tolist())
+            assert not (charge & discharge), (
+                f"{unit.unit} charges and discharges in the same hour on day {d}"
+            )

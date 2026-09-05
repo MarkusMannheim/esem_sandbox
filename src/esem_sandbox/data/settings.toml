@@ -43,7 +43,7 @@ must_run_offer_per_mwh = -60.0              # a coal band bidding to avoid a shu
 # price in a surplus hour is set by whichever plant is on the margin of curtailment,
 # so they have to be able to differ.
 storage_spread_per_mwh = 8.0                # added to charging cost when offering
-max_storage_passes = 2
+max_storage_passes = 6
 storage_price_tolerance = 1.0               # peak block price convergence, $/MWh
 
 [time]

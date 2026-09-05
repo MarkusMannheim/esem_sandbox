@@ -33,12 +33,15 @@ class DispatchResult:
     price: np.ndarray                      # $/MWh, 8760
     residual_mw: np.ndarray                # after VRE and storage, 8760
     demand_mw: np.ndarray                  # native demand before rooftop, 8760
+    operational_demand_mw: np.ndarray = field(  # net of rooftop: what the grid serves
+        default_factory=lambda: np.zeros(0))
     generation_mwh: dict[str, np.ndarray] = field(default_factory=dict)
     unserved_mwh: np.ndarray = field(default_factory=lambda: np.zeros(0))
     ladder_mw: np.ndarray = field(default_factory=lambda: np.zeros(0))
     administered_hours: np.ndarray = field(default_factory=lambda: np.zeros(0, bool))
     water_value_per_mwh: float = 0.0
     storage_passes: int = 0
+    storage_converged: bool = False
 
     @property
     def total_unserved_gwh(self) -> float:
@@ -50,7 +53,14 @@ class DispatchResult:
 
     @property
     def unserved_fraction(self) -> float:
-        total = self.demand_mw.sum()
+        """Unserved energy over OPERATIONAL demand, not native demand.
+
+        Unserved energy is a shortfall in what the grid was asked to serve. Rooftop
+        output never reaches the grid, so including the load it meets behind the
+        meter puts numerator and denominator on different bases and flatters the
+        ratio. Here that understated every reliability figure by about a quarter.
+        """
+        total = self.operational_demand_mw.sum()
         return float(self.unserved_mwh.sum() / total) if total else 0.0
 
 
@@ -187,11 +197,18 @@ def _run_storage(units: list[Unit], provisional_price: np.ndarray,
         power = u.available_mw
         energy_cap = power * float(u.duration_h)
         rte = float(u.round_trip_efficiency or 0.85)
+        # Capped at half a day so charge and discharge windows cannot overlap.
         slots = max(1, min(HOURS_PER_DAY // 2, int(round(float(u.duration_h)))))
+        assert 2 * slots <= HOURS_PER_DAY
 
-        # Rank every day at once.
-        desc = np.argsort(-by_day, axis=1, kind="stable")[:, :slots]
-        asc = np.argsort(by_day, axis=1, kind="stable")[:, :slots]
+        # Rank every day once and take from both ends of the SAME ordering. Two
+        # independent sorts, one of price and one of minus price, do not partition a
+        # day when prices tie, and a curtailment merit order makes ties common: a
+        # day can hold only a handful of distinct prices. The store was then
+        # scheduled to charge and discharge in the same hour on most days.
+        order = np.argsort(by_day, axis=1, kind="stable")
+        asc = order[:, :slots]
+        desc = order[:, -slots:]
         rows = np.arange(n_days)[:, None]
         disch_mean = by_day[rows, desc].mean(axis=1)
         chg_mean = by_day[rows, asc].mean(axis=1)
@@ -330,7 +347,20 @@ def dispatch_year(settings: Settings, year: int, demand_mw: np.ndarray,
     storage_net = np.zeros_like(residual)
     storage_gen: dict[str, np.ndarray] = {}
     passes = 0
+    converged = False
+
+    # Convergence is tested on the peak-block price, which is what the tolerance is
+    # named for and what storage is there to move. It previously tested the annual
+    # mean, a different and far less sensitive quantity, and because the comparison
+    # needs a previous pass it could only ever fire on the final iteration, so the
+    # tolerance changed nothing at any value.
+    peak_start, peak_end = settings.blocks()["peak"]
+    hod = np.arange(len(residual)) % HOURS_PER_DAY
+    peak_mask = ((hod >= peak_start) | (hod < peak_end)) if peak_start > peak_end \
+        else ((hod >= peak_start) & (hod < peak_end))
+
     peak_before = None
+    previous = None
     for passes in range(1, int(settings.dispatch["max_storage_passes"]) + 1):
         storage_net, storage_gen = _run_storage(units, provisional, settings)
         net_residual = residual + storage_net
@@ -338,9 +368,18 @@ def dispatch_year(settings: Settings, year: int, demand_mw: np.ndarray,
             net_residual, prices, caps, floor,
             _curtailment_price(np.clip(-net_residual, 0.0, None),
                                curtail_tiers, market_floor))
-        peak = float(provisional.mean())
+        # Damping. Storage schedules against a price and its schedule then moves
+        # that price, which is a cobweb: undamped it oscillates in a two-cycle
+        # between roughly $97 and $110 on the peak block and never settles, whatever
+        # ceiling it is given. Averaging successive iterates is what makes the
+        # tolerance meaningful rather than decorative.
+        if previous is not None:
+            provisional = 0.5 * (provisional + previous)
+        previous = provisional
+        peak = float(provisional[peak_mask].mean())
         if peak_before is not None and abs(peak - peak_before) < settings.dispatch[
                 "storage_price_tolerance"]:
+            converged = True
             break
         peak_before = peak
 
@@ -364,12 +403,14 @@ def dispatch_year(settings: Settings, year: int, demand_mw: np.ndarray,
         price=price,
         residual_mw=net_residual,
         demand_mw=demand_mw,
+        operational_demand_mw=demand_mw - rooftop,
         generation_mwh=generation,
         unserved_mwh=unserved,
         ladder_mw=ladder_mw,
         administered_hours=administered,
         water_value_per_mwh=water,
         storage_passes=passes,
+        storage_converged=converged,
     )
 
 

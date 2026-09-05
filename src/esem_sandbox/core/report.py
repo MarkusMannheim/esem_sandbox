@@ -93,7 +93,7 @@ class Calibration:
 
 
 def calibration(price: np.ndarray, unserved_mwh: np.ndarray,
-                administered: np.ndarray, demand_mw: np.ndarray,
+                administered: np.ndarray, operational_demand_mw: np.ndarray,
                 settings: Settings) -> Calibration:
     """The calibration statistics, in days rather than hours where it matters.
 
@@ -104,7 +104,7 @@ def calibration(price: np.ndarray, unserved_mwh: np.ndarray,
     n_days = len(price) // HOURS_PER_DAY
     by_day = price[:n_days * HOURS_PER_DAY].reshape(n_days, HOURS_PER_DAY)
     excess = np.clip(price - 300.0, 0.0, None)
-    demand_total = float(demand_mw.sum())
+    demand_total = float(operational_demand_mw.sum())
     return Calibration(
         days_with_300_hour=float((by_day.max(axis=1) >= 300.0).mean()),
         hours_at_or_above_300=int((price >= 300.0).sum()),

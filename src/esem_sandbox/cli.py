@@ -44,7 +44,7 @@ def run(args: argparse.Namespace) -> int:
                             bundle["wind_cf"][y], bundle["solar_cf"][y])
         results[f"shape year {y}"] = res
         cal = calibration(res.price, res.unserved_mwh, res.administered_hours,
-                          res.demand_mw, settings)
+                          res.operational_demand_mw, settings)
         blocks = block_prices(settings, res.price)
         rows.append({
             "shape_year": y,
@@ -78,7 +78,7 @@ def run(args: argparse.Namespace) -> int:
     print(f"firm dispatchable capacity {firm:,.0f} MW")
     for label, res in results.items():
         cal = calibration(res.price, res.unserved_mwh, res.administered_hours,
-                          res.demand_mw, settings)
+                          res.operational_demand_mw, settings)
         flag = "over the standard" if cal.unserved_fraction > standard else "within"
         print(f"  {label}: mean ${cal.mean_price:7.2f}/MWh   "
               f"unserved {cal.unserved_gwh:6.3f} GWh   {flag}")
