@@ -89,14 +89,26 @@ class Lane:
         return float(np.clip(self.anchor_per_mwh, self.band_low, self.band_high))
 
 
+def energy_margin_per_mw_year(price: np.ndarray, srmc_per_mwh: float,
+                              availability: float) -> float:
+    """What a unit earns in the pool above its own running cost, per MW of capacity.
+
+    It runs only when the price covers its cost, so the margin is the positive part,
+    and it is available only some of the time.
+    """
+    return float(np.clip(price - srmc_per_mwh, 0.0, None).sum() * availability)
+
+
 def cap_cost_basis(capex_per_kw: float, fom_per_kw_year: float, wacc: float,
                    life_years: float, firm_factor: float,
-                   energy_margin_per_mw_year: float = 0.0) -> float:
+                   energy_margin_per_mw_year: float) -> float:
     """What a peaker needs per firm MW-hour, net of what it earns selling energy.
 
-    Netting the energy margin matters: a peaker that already covers part of its fixed
-    cost in the pool does not need to recover it twice, and a cap premium that ignores
-    this prices the plant as though the energy market did not exist.
+    The energy margin is required rather than defaulted, because forgetting it is not
+    a small error. On the packaged fleet a peaker's fixed cost is about $136,000 per
+    MW-year and it earns about $69,000 of that in the pool, so ignoring the margin
+    doubles the basis and prices the cap above what it can ever be expected to pay.
+    A caller with genuinely no energy margin should pass zero and mean it.
     """
     crf = wacc / (1.0 - (1.0 + wacc) ** -life_years) if wacc > 0 else 1.0 / life_years
     fixed = capex_per_kw * 1000.0 * crf + fom_per_kw_year * 1000.0

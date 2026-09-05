@@ -78,7 +78,7 @@ def test_the_cap_anchor_floors_on_the_cost_of_standing_ready():
     """A writer will not sell below what the plant needs, however quiet the market."""
     quiet = np.full(5, 100.0)
     weights = np.full(5, 0.2)
-    basis = cap_cost_basis(1400, 16, 0.07, 25, 0.85)
+    basis = cap_cost_basis(1400, 16, 0.07, 25, 0.85, 69_000.0)
     anchor = cap_anchor(basis, 0.0, quiet, weights, 0.6)
     assert anchor >= basis
 
@@ -92,7 +92,7 @@ def test_the_cap_anchor_does_not_lift_on_one_scarce_interval():
     by cents.
     """
     weights = np.full(5, 0.2)
-    basis = cap_cost_basis(1400, 16, 0.07, 25, 0.85)
+    basis = cap_cost_basis(1400, 16, 0.07, 25, 0.85, 69_000.0)
     calm = np.full(5, 5_000.0)
     base = cap_anchor(basis, 0.0, calm, weights, 0.6)
 
@@ -111,7 +111,7 @@ def test_the_cap_anchor_does_not_lift_on_one_scarce_interval():
 def test_more_risk_aversion_costs_the_holder_more():
     payoffs = np.array([3e4, 5e4, 8e4, 9e4, 2.1e5])
     weights = np.full(5, 0.2)
-    basis = cap_cost_basis(1400, 16, 0.07, 25, 0.85)
+    basis = cap_cost_basis(1400, 16, 0.07, 25, 0.85, 69_000.0)
     timid = cap_anchor(basis, 0.0, payoffs, weights, 0.60)
     bold = cap_anchor(basis, 0.0, payoffs, weights, 0.45)
     assert timid > bold
@@ -120,10 +120,14 @@ def test_more_risk_aversion_costs_the_holder_more():
 def test_netting_the_energy_margin_lowers_what_a_cap_must_charge():
     """A peaker already covering part of its fixed cost in the pool does not recover
     it twice."""
-    bare = cap_cost_basis(1400, 16, 0.07, 25, 0.85)
-    earning = cap_cost_basis(1400, 16, 0.07, 25, 0.85,
-                             energy_margin_per_mw_year=40_000.0)
+    bare = cap_cost_basis(1400, 16, 0.07, 25, 0.85, 0.0)
+    earning = cap_cost_basis(1400, 16, 0.07, 25, 0.85, 69_000.0)
     assert earning < bare
+    assert bare / earning > 1.8, (
+        "the packaged peaker earns about $69,000 per MW-year in the pool against a "
+        "fixed cost near $136,000, so forgetting the margin roughly doubles what a "
+        "cap must charge and prices it above what it can ever expect to pay"
+    )
 
 
 def test_the_block_anchor_weights_recent_years_more():
