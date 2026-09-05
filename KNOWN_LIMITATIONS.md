@@ -21,6 +21,14 @@ makes it worse, because that pass moves the price again: it is a cobweb. A genui
 fixed point needs storage co-optimised inside the clearing, which is what a linear
 program does and a schedule-then-reprice heuristic cannot.
 
+**A second symptom of the same cause.** Within the hours it does pick, the store
+spreads its energy evenly rather than concentrating power where the system is
+tightest. In the eight load-shedding hours of the drought shape-year the three
+storage units deliver 456 MW of 570, 416 of 490 and 666 of 784, so roughly 300 MW of
+rated power sits idle in exactly the hours unserved energy is being counted. An
+optimiser would move energy from a merely expensive hour into the shedding one; a
+rank-and-spread rule cannot see the difference.
+
 **The fix, when it is worth the complexity,** is to stop ranking prices and start
 shaving quantities, exactly as hydro already does here: choose a discharge level and
 a charging level such that the energy balances across the round trip, then dispatch

@@ -108,12 +108,32 @@ def test_a_curtailment_offer_is_not_booked_as_a_fuel_bill(settings):
 
 def test_a_store_is_not_credited_for_the_energy_it_consumes(settings):
     """A store's net energy is negative. Costing the net would turn its variable
-    cost into a credit."""
+    cost into a credit.
+
+    Uses a unit with a POSITIVE short run cost, because the battery rows carry zero
+    and the assertion was therefore true of any implementation.
+    """
+    import dataclasses
+    fleet = tuple(dataclasses.replace(u, srmc_per_mwh=9.0)
+                  if u.unit == "battery_2h" else u for u in settings.fleet)
+    s = dataclasses.replace(settings, fleet=fleet)
     price = np.array([100.0, 20.0])
     gen = {"battery_2h": np.array([50.0, -60.0])}      # discharge then charge
-    out = unit_revenue(price, gen, settings)["battery_2h"]
-    assert out["fuel_and_vom"] >= 0.0
+    out = unit_revenue(price, gen, s)["battery_2h"]
+    assert out["fuel_and_vom"] == pytest.approx(50 * 9.0), (
+        "fuel is burnt on the 50 MWh sent out, not on the -10 MWh net"
+    )
     assert out["revenue"] == pytest.approx(50 * 100 - 60 * 20)
+    assert out["net_rent"] == pytest.approx(50 * 100 - 60 * 20 - 50 * 9.0)
+
+
+def test_behind_the_meter_generation_is_not_settled_at_spot(settings):
+    """Rooftop never offers into the pool, so it cannot earn the pool price."""
+    price = np.full(10, 100.0)
+    gen = {"rooftop": np.full(10, 500.0), "coal_a": np.full(10, 500.0)}
+    out = unit_revenue(price, gen, settings)
+    assert "rooftop" not in out
+    assert "coal_a" in out
 
 
 def test_every_reported_unserved_fraction_uses_the_same_denominator():

@@ -58,8 +58,15 @@ def unit_revenue(price: np.ndarray, generation_mwh: dict[str, np.ndarray],
                  settings: Settings) -> dict[str, dict[str, float]]:
     """Energy revenue, cost and net rent per unit, in dollars for the year."""
     srmc = {u.unit: u.srmc_per_mwh for u in settings.fleet}
+    # Rooftop sits behind the meter. It never offers into the pool and is never
+    # settled at the spot price; it reduces the bill of the household it sits on.
+    # Booking it spot revenue credited it with $55m across five shape-years for
+    # energy it never sold.
+    behind_the_meter = {u.unit for u in settings.fleet if u.technology == "rooftop"}
     out: dict[str, dict[str, float]] = {}
     for name, gen in generation_mwh.items():
+        if name in behind_the_meter:
+            continue
         energy = float(np.sum(gen))
         revenue = float(np.sum(gen * price))
         # Fuel is burnt only when generating, and only by plant with a positive

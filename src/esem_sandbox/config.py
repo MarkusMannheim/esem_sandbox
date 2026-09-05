@@ -99,8 +99,14 @@ class Settings:
         The threshold is a sum of trading-interval prices and a trading interval is
         five minutes, so one hourly interval here stands for twelve of the market's.
         """
-        return (self.market["cumulative_price_threshold"]
-                / self.market["cumulative_price_threshold_intervals_per_hour"])
+        per_hour = self.market["cumulative_price_threshold_intervals_per_hour"]
+        if per_hour <= 0:
+            raise ValueError(
+                "cumulative_price_threshold_intervals_per_hour must be positive: it "
+                "is how many market trading intervals one modelled hour stands for, "
+                "not a free parameter"
+            )
+        return self.market["cumulative_price_threshold"] / per_hour
 
     def blocks(self) -> dict[str, tuple[int, int]]:
         return {
