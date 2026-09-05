@@ -60,3 +60,23 @@ seed = 20260904
 # Peak bands scale the peak, not annual energy.
 peak_band_multipliers = [1.08, 1.00, 0.95]
 peak_band_weights = [0.1, 0.8, 0.1]
+
+[forward]
+# Three anchors, at four, eight and twelve years ahead. A plant decided today
+# commissions inside the first anchor and lives well past the last, so the anchors
+# bracket the years its decision actually turns on and the tail beyond them is
+# assumed rather than projected.
+anchor_offsets = [4, 8, 12]
+# Projected entry: one adaptive step a tick, growing while a peaker's projected
+# rent clears its own fixed cost and decaying below it. The step is damping, not
+# physics, and it is deliberately coarse: the fixed point is what carries meaning,
+# not the path taken to it.
+entry_step_min_mw = 250.0
+entry_decay = 0.5
+# There is deliberately no tolerance on rent here. Rent is a step function of
+# assumed entry, so there may be no quantity of entry at which it lands inside any
+# band around break-even, and a rule that stops only when it lands there does not
+# stop. The state converges in megawatts instead, and the resolution it stops at is
+# one generating unit, which is read from unit_size_mw in tech_costs.csv because
+# that is the finest distinction entry can actually be built in.
+

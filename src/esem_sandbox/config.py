@@ -29,6 +29,7 @@ _SECTIONS = {
         "shape_years", "hours_per_year", "seed", "peak_band_multipliers",
         "peak_band_weights",
     },
+    "forward": {"anchor_offsets", "entry_step_min_mw", "entry_decay"},
 }
 
 
@@ -59,6 +60,7 @@ class Unit:
     availability: float
     srmc_per_mwh: float
     retirement_year: int
+    commissioned_year: int
     must_run_mw: float
     energy_budget_gwh: float | None
     duration_h: float | None
@@ -71,7 +73,70 @@ class Unit:
         return self.capacity_mw * self.availability
 
     def in_service(self, year: int) -> bool:
-        return year < self.retirement_year
+        """In service means built and not yet retired.
+
+        Testing retirement alone was enough while the fleet was fixed. It stops
+        being enough the moment anything is built: a unit whose construction
+        starts this year would otherwise generate from the tick it was decided
+        rather than from the tick it was finished, and the lead time that drives
+        the boom-and-bust exercise would have no effect at all.
+        """
+        return self.commissioned_year <= year < self.retirement_year
+
+
+@dataclass(frozen=True)
+class TechCost:
+    """What it costs to build and keep one MW of a technology.
+
+    This is the candidate side of the model: rows here are things that can be
+    built, where ``fleet.csv`` rows are things that exist. The two tables share a
+    technology vocabulary but not a schema, because a candidate has a lead time,
+    a unit size and a build ceiling, and an existing plant has a must-run band and
+    a retirement year.
+    """
+
+    technology: str
+    capex_per_kw: float
+    fom_per_kw_year: float
+    srmc_per_mwh: float
+    wacc: float
+    lead_years: int
+    life_years: int
+    unit_size_mw: float
+    availability: float
+    firm_factor: float
+    duration_h: float | None
+    cap_eligible: bool
+    max_annual_build_mw: float
+
+    @property
+    def crf(self) -> float:
+        """Capital recovery factor: the annuity that repays one dollar over the life."""
+        r, n = self.wacc, self.life_years
+        if r <= 0:
+            return 1.0 / n
+        return r / (1.0 - (1.0 + r) ** -n)
+
+    @property
+    def fixed_cost_per_mw_year(self) -> float:
+        """Annualised capital plus fixed operating cost, per MW of capacity.
+
+        Rent is measured on the same basis, so no capacity-factor assumption
+        enters the comparison. That is the point of stating both per MW-year: a
+        peaker running 2 per cent of the year and a wind farm running 35 per cent
+        are tested against their own costs, not against a common denominator that
+        would flatter one of them.
+        """
+        return self.capex_per_kw * 1000.0 * self.crf + self.fom_per_kw_year * 1000.0
+
+
+@dataclass(frozen=True)
+class GrowthPath:
+    """One demand trajectory and the prior weight on it."""
+
+    path: str
+    weight: float
+    annual_growth: float
 
 
 @dataclass(frozen=True)
@@ -89,8 +154,17 @@ class Settings:
     dispatch: dict[str, Any]
     time: dict[str, Any]
     weather: dict[str, Any]
+    forward: dict[str, Any] = field(default_factory=dict)
     fleet: tuple[Unit, ...] = field(repr=False, default=())
     dsr: tuple[DsrTier, ...] = field(repr=False, default=())
+    tech_costs: tuple[TechCost, ...] = field(repr=False, default=())
+    growth: tuple[GrowthPath, ...] = field(repr=False, default=())
+
+    def tech(self, technology: str) -> TechCost:
+        for t in self.tech_costs:
+            if t.technology == technology:
+                return t
+        raise KeyError(f"no cost row for technology {technology!r}")
 
     @property
     def hourly_price_threshold(self) -> float:
@@ -164,6 +238,7 @@ def load_settings(overrides: dict[str, dict[str, Any]] | None = None) -> Setting
             availability=_num(r, "availability", 1.0),
             srmc_per_mwh=_num(r, "srmc_per_mwh", 0.0),
             retirement_year=int(_num(r, "retirement_year", 9999)),
+            commissioned_year=int(_num(r, "commissioned_year", 0)),
             must_run_mw=_num(r, "must_run_mw", 0.0) or 0.0,
             energy_budget_gwh=_num(r, "energy_budget_gwh"),
             duration_h=_num(r, "duration_h"),
@@ -182,12 +257,49 @@ def load_settings(overrides: dict[str, dict[str, Any]] | None = None) -> Setting
         )
         for r in read_csv("dsr.csv")
     )
+    tech_costs = tuple(
+        TechCost(
+            technology=r["technology"],
+            capex_per_kw=_num(r, "capex_per_kw", 0.0),
+            fom_per_kw_year=_num(r, "fom_per_kw_year", 0.0),
+            srmc_per_mwh=_num(r, "srmc_per_mwh", 0.0),
+            wacc=_num(r, "wacc", 0.07),
+            lead_years=int(_num(r, "lead_years", 2)),
+            life_years=int(_num(r, "life_years", 25)),
+            unit_size_mw=_num(r, "unit_size_mw", 100.0),
+            availability=_num(r, "availability", 1.0),
+            firm_factor=_num(r, "firm_factor", 0.0),
+            duration_h=_num(r, "duration_h"),
+            cap_eligible=bool(int(_num(r, "cap_eligible", 0))),
+            max_annual_build_mw=_num(r, "max_annual_build_mw", 0.0),
+        )
+        for r in read_csv("tech_costs.csv")
+    )
+    growth = tuple(
+        GrowthPath(
+            path=r["path"],
+            weight=float(r["weight"]),
+            annual_growth=float(r["annual_growth"]),
+        )
+        for r in read_csv("growth.csv")
+    )
+    weight_total = sum(g.weight for g in growth)
+    if abs(weight_total - 1.0) > 1e-3:
+        raise ValueError(
+            f"growth path weights sum to {weight_total}, not 1. They are the prior "
+            "over demand trajectories and the lattice multiplies them by the other "
+            "axes' weights, so an axis that does not sum to one silently reweights "
+            "every cell in the forward view."
+        )
     return Settings(
         market=raw["market"],
         reliability=raw["reliability"],
         dispatch=raw["dispatch"],
         time=raw["time"],
         weather=raw["weather"],
+        forward=raw["forward"],
         fleet=fleet,
         dsr=dsr,
+        tech_costs=tech_costs,
+        growth=growth,
     )

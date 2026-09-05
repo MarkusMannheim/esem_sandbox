@@ -305,6 +305,22 @@ def _run_storage(units: list[Unit], provisional_price: np.ndarray,
     return net_load, per_unit
 
 
+def storage_schedule(units: list[Unit], price: np.ndarray,
+                    settings: Settings) -> dict[str, np.ndarray]:
+    """Schedule storage against a given price series, per unit.
+
+    The seam the forward view values a candidate battery through. It is the same
+    scheduler the dispatch uses, deliberately: a candidate valued by a cleaner rule
+    than the one that will govern it once built would be valued at a spread it can
+    never realise, and the heuristic's known cost would be hidden from the
+    investment decision instead of being carried into it.
+
+    Positive is discharge, negative is charge, so ``sum(schedule * price)`` is
+    revenue net of the cost of the energy bought.
+    """
+    return _run_storage(units, price, settings)[1]
+
+
 def _apply_ladder(residual: np.ndarray, stack_price: np.ndarray,
                   firm_capacity: float, settings: Settings
                   ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:

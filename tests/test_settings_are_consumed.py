@@ -38,6 +38,11 @@ CONSUMED = {
     "shape_years": "cli, the number of years dispatched",
     "hours_per_year": "cli, passed to the weather generator which validates it",
     "seed": "cli, the weather bundle",
+    "peak_band_multipliers": "forward.cell_plan, the peak axis of the lattice",
+    "peak_band_weights": "forward.cell_plan, the probability on each peak band",
+    "anchor_offsets": "forward.forward_view, the years the lattice is dispatched at",
+    "entry_step_min_mw": "forward.update_projected_entry, the floor on a step",
+    "entry_decay": "forward.update_projected_entry, the unbracketed retreat",
 }
 
 # Keys committed ahead of the code that will read them. Each needs a reason, and
@@ -46,12 +51,6 @@ STAGED = {
     "interim_measure_use_fraction":
         "the interim reliability measure becomes a lever when the reliability view "
         "is built; nothing reads it today and no result depends on it",
-    "peak_band_multipliers":
-        "peak uncertainty enters the forward lattice in week three; declared here so "
-        "the lattice and the realised draw cannot disagree about the bands later",
-    "peak_band_weights":
-        "the probabilities attached to those bands; the defect this test exists to "
-        "prevent is precisely these being declared and then never applied",
 }
 
 
