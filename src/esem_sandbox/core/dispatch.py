@@ -149,23 +149,60 @@ def _curtailment_price(surplus_mw: np.ndarray, tiers: list[tuple[float, np.ndarr
     return price
 
 
-def _water_value(residual: np.ndarray, hydro_mw: float, budget_mwh: float,
-                 prices: np.ndarray, caps: np.ndarray, floor: float) -> float:
-    """The offer that spends hydro's annual energy in the dearest hours.
+def _hydro_schedule(residual: np.ndarray, hydro_mw: float, budget_mwh: float,
+                    prices: np.ndarray, caps: np.ndarray, floor: float,
+                    surplus_price: np.ndarray | None = None
+                    ) -> tuple[np.ndarray, float]:
+    """Allocate hydro's annual energy by peak shaving, and price it at its margin.
 
-    Prices the year without hydro, then runs hydro down that merit order until
-    the budget is gone. The marginal hour's price is the water value: the cost of
-    the thermal unit hydro displaces at that point.
+    Hydro is energy limited, so the question is which hours to spend water in. The
+    answer is the dearest ones, and the classical way to find them is a residual
+    threshold: run hydro on whatever sits above the threshold, up to its capacity,
+    and lower the threshold until the year's budget is exactly spent. The offer that
+    rationalises that schedule is the thermal price at the threshold, which is the
+    cost of the unit hydro displaces at the margin.
+
+    The previous version chose an offer price and let the merit order decide the
+    rest. That could not work: a price offer only moves hydro's position among nine
+    discrete thermal offers, so between two of them the delivered energy does not
+    change at all. It under-spent the budget by 40 to 50 per cent, and quadrupling
+    the budget changed neither the offer nor the delivery.
+
+    Returns the hourly schedule and the water value.
     """
     if hydro_mw <= 0 or not budget_mwh:
-        return 0.0
-    thermal_price = _price_from_stack(residual, prices, caps, floor)
-    order = np.argsort(-thermal_price, kind="stable")
-    full_hours = int(budget_mwh // hydro_mw)
-    if full_hours <= 0:
-        return float(thermal_price[order[0]])
-    full_hours = min(full_hours, len(order) - 1)
-    return float(thermal_price[order[full_hours]])
+        return np.zeros_like(residual), 0.0
+
+    # Bisect the threshold. Generation is monotone decreasing in the threshold, so
+    # a plain bisection is exact to within a MWh in a few dozen iterations.
+    def delivered(threshold: float) -> float:
+        return float(np.clip(residual - threshold, 0.0, hydro_mw).sum())
+
+    low, high = float(min(residual.min(), 0.0)), float(residual.max())
+    if delivered(low) <= budget_mwh:
+        # Even shaving everything down to the lowest residual cannot spend it: the
+        # budget exceeds what the year can absorb, so hydro runs as hard as it can.
+        schedule = np.clip(residual - low, 0.0, hydro_mw)
+        return schedule, float(_price_from_stack(
+            np.array([low]), prices, caps, floor,
+            None if surplus_price is None else np.array([surplus_price.min()]))[0])
+
+    for _ in range(60):
+        mid = 0.5 * (low + high)
+        if delivered(mid) > budget_mwh:
+            low = mid
+        else:
+            high = mid
+    threshold = 0.5 * (low + high)
+    schedule = np.clip(residual - threshold, 0.0, hydro_mw)
+
+    # Scale off any residual overshoot from the bisection so the budget is exact.
+    total = schedule.sum()
+    if total > 0:
+        schedule *= budget_mwh / total
+
+    water = float(_price_from_stack(np.array([threshold]), prices, caps, floor)[0])
+    return schedule, water
 
 
 def _run_storage(units: list[Unit], provisional_price: np.ndarray,
@@ -330,16 +367,27 @@ def dispatch_year(settings: Settings, year: int, demand_mw: np.ndarray,
     ]
     market_floor = settings.market["minimum_price_per_mwh"]
 
-    hydro = next((u for u in units if u.technology == "hydro"), None)
-    prices0, caps0, _ = _offer_stack(units, settings, {"water_value": 0.0})
+    # Energy-limited hydro is scheduled against its budget, not offered into the
+    # stack and hoped for. Every hydro row is scheduled on its own budget: pricing
+    # them all off the first row's number was one more way the budget went unspent.
+    hydro_units = [u for u in units if u.technology == "hydro"]
+    thermal_only = [u for u in units if u.technology != "hydro"]
+    p_nh, c_nh, _ = _offer_stack(thermal_only, settings)
+    hydro_gen: dict[str, np.ndarray] = {}
+    hydro_total = np.zeros_like(residual)
     water = 0.0
-    if hydro is not None and hydro.energy_budget_gwh:
-        stack_no_hydro = [u for u in units if u.technology != "hydro"]
-        p_nh, c_nh, _ = _offer_stack(stack_no_hydro, settings)
-        water = _water_value(residual, hydro.available_mw,
-                             hydro.energy_budget_gwh * 1000.0, p_nh, c_nh, floor)
+    for u in hydro_units:
+        if not u.energy_budget_gwh:
+            continue
+        schedule, unit_water = _hydro_schedule(
+            residual - hydro_total, u.available_mw,
+            u.energy_budget_gwh * 1000.0, p_nh, c_nh, floor)
+        hydro_gen[u.unit] = schedule
+        hydro_total = hydro_total + schedule
+        water = unit_water if water == 0.0 else water
 
-    prices, caps, labels = _offer_stack(units, settings, {"water_value": water})
+    residual = residual - hydro_total
+    prices, caps, labels = _offer_stack(thermal_only, settings)
 
     surplus_now = _curtailment_price(np.clip(-residual, 0.0, None),
                                      curtail_tiers, market_floor)
@@ -397,6 +445,8 @@ def dispatch_year(settings: Settings, year: int, demand_mw: np.ndarray,
 
     generation = _unit_generation(net_residual, prices, caps, labels)
     for name, series in storage_gen.items():
+        generation[name] = series
+    for name, series in hydro_gen.items():
         generation[name] = series
 
     return DispatchResult(

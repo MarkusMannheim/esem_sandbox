@@ -23,11 +23,21 @@ def block_prices(settings: Settings, price: np.ndarray) -> dict[str, float]:
             for name in settings.blocks()}
 
 
+# Day-of-year on which each quarter starts, for a 365-day (non-leap) year.
+_QUARTER_STARTS = (0, 31 + 28 + 31, 31 + 28 + 31 + 30 + 31 + 30,
+                   31 + 28 + 31 + 30 + 31 + 30 + 31 + 31 + 30)
+
+
 def quarter_of_hour(n_hours: int) -> np.ndarray:
-    """Calendar quarter index 0..3 for each hour of a 365-day year."""
+    """Calendar quarter index 0..3 for each hour of a 365-day year.
+
+    Uses real month lengths. Deriving months from an average 30.44-day month puts
+    days in the wrong quarter: the drift reaches four days by December, so the last
+    days of March, June and September fall on the wrong side of a boundary, and
+    quarterly contracts would settle against the wrong quarter's prices.
+    """
     day = np.arange(n_hours) // HOURS_PER_DAY
-    month = np.minimum((day / 30.44).astype(int), 11)
-    return month // 3
+    return np.searchsorted(np.array(_QUARTER_STARTS), day, side="right") - 1
 
 
 def duration_curve(price: np.ndarray, points: int = 0) -> np.ndarray:
@@ -52,7 +62,12 @@ def unit_revenue(price: np.ndarray, generation_mwh: dict[str, np.ndarray],
     for name, gen in generation_mwh.items():
         energy = float(np.sum(gen))
         revenue = float(np.sum(gen * price))
-        cost = energy * srmc.get(name, 0.0)
+        # Fuel is burnt only when generating, and only by plant with a positive
+        # short run cost. A curtailment offer is negative and is an opportunity
+        # cost, not a fuel bill; a store's net energy is negative and would
+        # otherwise book its variable cost as a credit.
+        run_cost = max(srmc.get(name, 0.0), 0.0)
+        cost = float(np.sum(np.clip(gen, 0.0, None))) * run_cost
         out[name] = {
             "energy_mwh": energy,
             "revenue": revenue,

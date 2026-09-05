@@ -230,3 +230,51 @@ def test_a_store_never_charges_and_discharges_in_the_same_hour(settings, bundle)
             assert not (charge & discharge), (
                 f"{unit.unit} charges and discharges in the same hour on day {d}"
             )
+
+
+def test_hydro_actually_spends_its_energy_budget(settings, bundle):
+    """The budget is a declared quantity, so it has to be delivered.
+
+    It used to be a price offer and nothing more: an offer only moves hydro among
+    nine discrete thermal steps, so between two of them the delivered energy did
+    not change. It under-spent by 40 to 50 per cent, and quadrupling the budget
+    changed neither the offer nor the delivery.
+    """
+    unit = next(u for u in settings.fleet if u.technology == "hydro")
+    for y in range(settings.weather["shape_years"]):
+        res = _year(settings, bundle, y)
+        delivered = res.generation_mwh[unit.unit].sum() / 1000.0
+        assert delivered == pytest.approx(unit.energy_budget_gwh, rel=0.005), (
+            f"year {y} delivered {delivered:.0f} GWh of a {unit.energy_budget_gwh:.0f} "
+            "GWh budget"
+        )
+
+
+def test_the_hydro_budget_changes_what_hydro_delivers(settings, bundle):
+    """A budget that does not move delivery is not a budget."""
+    import dataclasses
+    shape = bundle["demand_shape"][0]
+    demand = shape * (12500.0 / shape.max())
+    delivered = []
+    for budget in (2100.0, 4200.0):
+        fleet = tuple(dataclasses.replace(u, energy_budget_gwh=budget)
+                      if u.technology == "hydro" else u for u in settings.fleet)
+        s = dataclasses.replace(settings, fleet=fleet)
+        res = dispatch_year(s, 2026, demand, bundle["wind_cf"][0], bundle["solar_cf"][0])
+        delivered.append(res.generation_mwh["hydro_a"].sum() / 1000.0)
+    assert delivered[1] == pytest.approx(2 * delivered[0], rel=0.01)
+
+
+def test_hydro_cannot_deliver_more_than_the_year_can_absorb(settings, bundle):
+    """A budget larger than the residual can take is capped by physics, not spent."""
+    import dataclasses
+    unit = next(u for u in settings.fleet if u.technology == "hydro")
+    fleet = tuple(dataclasses.replace(u, energy_budget_gwh=99_000.0)
+                  if u.technology == "hydro" else u for u in settings.fleet)
+    s = dataclasses.replace(settings, fleet=fleet)
+    shape = bundle["demand_shape"][0]
+    res = dispatch_year(s, 2026, shape * (12500.0 / shape.max()),
+                        bundle["wind_cf"][0], bundle["solar_cf"][0])
+    delivered = res.generation_mwh["hydro_a"].sum()
+    assert delivered < 99_000_000.0
+    assert delivered <= unit.available_mw * 8760 * 1.0001

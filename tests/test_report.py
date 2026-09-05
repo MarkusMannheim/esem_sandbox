@@ -80,3 +80,36 @@ def test_calibration_reports_unserved_as_a_fraction_of_demand(settings):
                       np.full(8760, 1000.0), settings)
     assert cal.unserved_gwh == pytest.approx(0.1)
     assert cal.unserved_fraction == pytest.approx(100.0 / 8_760_000)
+
+
+def test_quarters_have_real_month_lengths():
+    """Deriving months from an average 30.44-day month drifts four days by
+    December, so quarterly contracts settle against the wrong quarter's prices."""
+    from esem_sandbox.core.report import quarter_of_hour
+    q = quarter_of_hour(8760)
+    days = [int((q == i).sum()) // 24 for i in range(4)]
+    assert days == [90, 91, 92, 92], f"got {days}"
+    assert q[89 * 24] == 0, "31 March belongs to the first quarter"
+    assert q[90 * 24] == 1, "1 April belongs to the second"
+    assert q[180 * 24] == 1, "30 June belongs to the second"
+    assert q[181 * 24] == 2, "1 July belongs to the third"
+
+
+def test_a_curtailment_offer_is_not_booked_as_a_fuel_bill(settings):
+    """Wind's negative short run cost is an opportunity cost. Multiplying it by
+    output would book a credit and overstate the fleet's net rent."""
+    price = np.array([50.0, 50.0])
+    gen = {"wind_a": np.array([100.0, 100.0])}
+    out = unit_revenue(price, gen, settings)["wind_a"]
+    assert out["fuel_and_vom"] == 0.0
+    assert out["net_rent"] == pytest.approx(10_000.0)
+
+
+def test_a_store_is_not_credited_for_the_energy_it_consumes(settings):
+    """A store's net energy is negative. Costing the net would turn its variable
+    cost into a credit."""
+    price = np.array([100.0, 20.0])
+    gen = {"battery_2h": np.array([50.0, -60.0])}      # discharge then charge
+    out = unit_revenue(price, gen, settings)["battery_2h"]
+    assert out["fuel_and_vom"] >= 0.0
+    assert out["revenue"] == pytest.approx(50 * 100 - 60 * 20)
