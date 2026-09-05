@@ -36,19 +36,25 @@ against those levels. Because the price is monotone in residual demand, a store 
 shaves the peak and fills the trough is consistent with the price it produces by
 construction, and the inversion becomes impossible rather than merely small.
 
-## The two cheapest demand-response tiers never set a price
+## A cap contract here is almost purely a tail instrument
 
-The ladder's first two tiers are 1.0 MW at $300/MWh and 20.8 MW at $500/MWh,
-transcribed as increments from the published demand-side participation table. They
-are so small against a 12 GW system that any hour reaching them is short by far more
-than 21.8 MW, so both are exhausted within the same hour and the price lands on the
-$7,500 tier. Measured across all five shape-years, no hour ever settles between $190
-and $7,500.
+The ladder's two cheapest tiers are 1.0 MW at $300/MWh and 20.8 MW at $500/MWh,
+transcribed as increments from the published demand-side participation table. They are
+so small against a 12 GW system that any hour reaching them is short by far more, so
+both are exhausted inside the same hour and the price lands on the tier above. Neither
+ever sets a price.
 
-This is faithful to the source rather than wrong, but it has a consequence worth
-saying out loud: a $300 cap contract, which is the strike the design uses, is never
-struck at a price the ladder itself produces. The gap in the price duration curve is
-real and a workshop exercise on cap payouts should expect it.
+The fleet originally stopped at gas peakers around $190/MWh, which left **no hour able
+to settle anywhere between $190 and $7,500**: the price duration curve had a hole
+exactly where a $300 cap contract lives. A stylised high-cost peaking tier, 500 MW at
+$480/MWh, now fills it, and hours do settle in the band.
+
+What that did not change is the cap's character. Of the $93,400 per MW-year a $300 cap
+pays across the five shape-years, 99 per cent still comes from the 31 hours above
+$7,500. That is not a defect. A cap is insurance against extremes and its value in the
+real market is likewise concentrated in a handful of intervals. But a workshop exercise
+should expect the payout to be lumpy across weather years rather than smooth: the five
+shape-years pay $29,700, $49,700, $76,300, $93,800 and $208,500.
 
 ## What the simplification costs elsewhere
 
