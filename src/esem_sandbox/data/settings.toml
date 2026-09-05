@@ -42,9 +42,14 @@ must_run_offer_per_mwh = -60.0              # a coal band bidding to avoid a shu
 # Wind and solar offers are per unit in fleet.csv, not a single constant here: the
 # price in a surplus hour is set by whichever plant is on the margin of curtailment,
 # so they have to be able to differ.
-storage_spread_per_mwh = 8.0                # added to charging cost when offering
-max_storage_passes = 6
-storage_price_tolerance = 1.0               # peak block price convergence, $/MWh
+storage_spread_per_mwh = 8.0                # the round trip a day's spread must cover
+# There is no re-stack loop here any more, and so no pass ceiling and no convergence
+# tolerance. Both existed because storage used to pick its hours by ranking a price
+# that its own schedule then moved, which is a cobweb: the dispatch had to iterate
+# toward a fixed point, damp the iterates to stop a two-cycle, and report whether it
+# had got there. Storage now shaves quantities off the residual, and the residual
+# does not depend on the price, so there is nothing left to iterate. Removing the
+# loop took a dispatched year from about 40 milliseconds to about 22.
 
 [time]
 # Time-of-day blocks, start hour inclusive to end hour exclusive.
@@ -111,11 +116,18 @@ discount_rate = 0.07
 # so that a workshop can see them and change them.
 build_fraction_of_peak = 0.05
 candidates_per_producer = 3
-# The annual build ceiling is the reference in tech_costs.csv times this. It is a
-# damper, so that the bust in the boom-and-bust exercise comes from lead times,
-# which are real, rather than from the absence of any limit, which is an oversight
-# rather than a mechanism.
-build_ceiling_overshoot_factor = 1.5
+# The annual build ceiling, as the number of producers' worth of one technology that
+# can be delivered in a year. It is a damper, so that the bust in the boom-and-bust
+# exercise comes from lead times, which are real, rather than from the absence of any
+# limit, which is an oversight rather than a mechanism.
+#
+# It is stated this way, rather than as megawatts per technology, for two reasons.
+# A megawatt figure has no published source and would be seven invented numbers
+# instead of one. And a fixed megawatt figure does not scale: the ceiling that damps
+# a twelve gigawatt system dominates a twenty-three gigawatt one, and on the high
+# growth path it bound in every single year of a twenty-year run, so what the model
+# was showing was the ceiling rather than the market.
+concurrent_builds_per_year = 2
 # Exit. Two consecutive negative positions, because one bad year is weather and
 # this model has a one-in-five drought shape-year in it by construction. The notice
 # mirrors the three-year minimum notice of closure for scheduled plant. The cap
@@ -124,3 +136,20 @@ build_ceiling_overshoot_factor = 1.5
 exit_consecutive_negatives = 2
 exit_notice_years = 3
 max_exit_notices_per_tick = 3
+
+[contracts]
+# The strike a cap is written at. It sits above the running cost of everything in
+# the fleet except the high-cost peaking tier, so a cap pays only when the system
+# is genuinely tight, which is what makes it insurance rather than a swap.
+cap_strike_per_mwh = 300.0
+# Bilateral tenor. Retailers hedge on a ladder: each year they write a strip of
+# this length sized at one third of their target cover, so three overlapping
+# strips carry the target in steady state. That is how a book is actually run, and
+# it is why the bootstrap writes tenors of one, two and three years before the
+# first tick: without it the model would open with a market that had never traded.
+swap_tenor_years = 3
+# The anchor is an exponentially weighted average of realised block prices. Nobody
+# here forecasts; they extrapolate, and the half-life is how long a memory that is.
+# It is what makes the boom-and-bust exercise work, so it is a setting rather than
+# a number buried in a function.
+anchor_half_life_years = 2.0

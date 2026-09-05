@@ -30,7 +30,9 @@ from dataclasses import dataclass
 
 import numpy as np
 
-from ..config import Settings
+from ..config import Settings, Unit
+from .agents import PRODUCER, RETAILER
+from .contracts import CAP, SWAP, Contract
 from .report import block_mask
 
 def cara_coefficient(risk_aversion: float, exposure: float,
@@ -61,12 +63,37 @@ def cara_certainty_equivalent(payoffs: np.ndarray, weights: np.ndarray,
                               a: float) -> float:
     """The certain amount worth as much as the gamble, to a CARA agent.
 
-    Computed in a shifted frame so that exp() cannot overflow on payoffs of the size a
-    scarcity year produces.
+    Two things here are the fix to defects this function shipped with.
+
+    **The frame is shifted to the WORST cell, not the best.** The identity holds for
+    any shift, so the original choice was not wrong arithmetic; it was the
+    overflow-prone one, in a function whose docstring said it had been chosen to
+    prevent overflow. Shifting by the maximum makes every exponent non-negative and
+    the largest of them ``a`` times the spread, so a distribution containing one
+    year of rent at the value of lost load overflows to infinity and the certainty
+    equivalent comes back as minus infinity. Shifting by the minimum makes every
+    exponent non-positive: the worst cell contributes exactly one, better cells
+    underflow harmlessly toward zero, and the result is bounded below by the worst
+    cell, which is the property the whole construction rests on.
+
+    **Weights must be a probability distribution, and this checks.** Weights that
+    sum to something other than one do not raise, they quietly shift the answer by
+    ``ln(sum)/a``: at a fifth of the weight and this model's coefficients that is
+    $134,000 per MW-year, enough to return a certainty equivalent ABOVE the largest
+    payoff in the distribution and to hand a producer a negative hurdle. The model
+    this one simplifies carried a defect of exactly this family, where per-cell
+    weights were computed, passed everywhere, and then never applied.
     """
+    total = float(np.sum(weights))
+    if not np.isclose(total, 1.0, atol=1e-9):
+        raise ValueError(
+            f"weights sum to {total!r}, not 1. A certainty equivalent over weights "
+            "that are not a probability distribution is off by ln(sum)/a, which is "
+            "a plausible-looking number rather than an error."
+        )
     if a <= 0:
         return float(payoffs @ weights)
-    shift = float(payoffs.max())
+    shift = float(payoffs.min())
     ce = shift - (1.0 / a) * np.log(float(np.sum(weights * np.exp(-a * (payoffs - shift)))))
     return float(ce)
 
@@ -84,7 +111,7 @@ def risk_loading(payoffs: np.ndarray, weights: np.ndarray, risk_aversion: float,
 
 
 def ewma_block_anchor(history: list[dict[str, float]], block: str,
-                      half_life_years: float = 2.0) -> float:
+                      half_life_years: float) -> float:
     """The lane anchor: what this block has been worth, recent years counting more."""
     if not history:
         raise ValueError("no price history to anchor on")
@@ -167,3 +194,86 @@ def realised_mean_excess(price: np.ndarray, strike: float) -> float:
 def block_prices_of(settings: Settings, price: np.ndarray) -> dict[str, float]:
     return {b: float(price[block_mask(settings, b, len(price))].mean())
             for b in settings.blocks()}
+
+
+def _pro_rata(weights: dict[str, float]) -> dict[str, float]:
+    total = sum(weights.values())
+    return {k: v / total for k, v in weights.items()} if total > 0 else {}
+
+
+def clear_bilateral(settings: Settings, roster, fleet, history: list[dict[str, float]],
+                    *, year: int, start_year: int, tenor_years: int,
+                    average_load_mw: float,
+                    peak_load_mw: float, cap_payoffs_per_mw, cap_weights,
+                    cap_cost_basis_per_mwh: float) -> list[Contract]:
+    """One tick's bilateral market, cleared at the lane anchors.
+
+    Four swap lanes, one per time-of-day block, and one cap lane. Retailers are
+    short energy and long customers, so they buy; producers are long energy, so they
+    write. Volumes are allocated across writers pro rata to what each has to sell:
+    available capacity for swaps, and cap-eligible firm capacity for caps, because a
+    plant that cannot be relied on in a scarce hour has no business writing
+    insurance against one.
+
+    **Retailers hedge on a ladder.** Each tick a retailer writes a strip of
+    ``tenor_years`` sized at one third of its target cover, so three overlapping
+    strips carry the target in steady state and the book ages rather than lurching.
+    That is what a board mandate produces in practice, and it is also what makes the
+    exposure measure mean anything: a book that was written all at once and expired
+    all at once would swing a producer between fully covered and naked.
+
+    Legs are quarterly on a flat strip from the start, because the duration-curve
+    exercise depends on being able to look at one quarter at a time.
+    """
+    half_life = float(settings.contracts["anchor_half_life_years"])
+    strike = float(settings.contracts["cap_strike_per_mwh"])
+    retailers = [a for a in roster if a.kind == RETAILER]
+    producers = [a for a in roster if a.kind == PRODUCER]
+    if not retailers or not producers or not history:
+        return []
+
+    live = {u.unit: u for u in fleet if u.in_service(year)}
+    owner = {unit: a.name for a in producers for unit in a.units}
+    swap_share = _pro_rata({
+        a.name: sum(live[u].available_mw for u in a.units if u in live)
+        for a in producers})
+    cap_share = _pro_rata({
+        a.name: sum(live[u].available_mw * live[u].firm_factor
+                    for u in a.units if u in live and live[u].cap_eligible)
+        for a in producers})
+    if not swap_share:
+        return []
+
+    energy_margin = 0.0                     # supplied through the cost basis
+    anchor_cap = cap_anchor(cap_cost_basis_per_mwh,
+                            float(np.mean(cap_payoffs_per_mw)) / 8760.0,
+                            cap_payoffs_per_mw, cap_weights,
+                            max(a.risk_aversion for a in producers), settings)
+
+    out: list[Contract] = []
+    for retailer in retailers:
+        for block in settings.blocks():
+            anchor = ewma_block_anchor(history, block, half_life)
+            volume = (retailer.swap_cover * retailer.load_share * average_load_mw
+                      / max(1, tenor_years))
+            for writer, share in swap_share.items():
+                if share <= 0 or volume <= 0:
+                    continue
+                for quarter in range(4):
+                    out.append(Contract(
+                        kind=SWAP, holder=retailer.name, writer=writer,
+                        strike_per_mwh=anchor, volume_mw=volume * share,
+                        start_year=start_year, tenor_years=tenor_years,
+                        block=block, quarter=quarter))
+        volume = (retailer.cap_cover * retailer.load_share * peak_load_mw
+                  / max(1, tenor_years))
+        for writer, share in cap_share.items():
+            if share <= 0 or volume <= 0 or anchor_cap <= 0:
+                continue
+            for quarter in range(4):
+                out.append(Contract(
+                    kind=CAP, holder=retailer.name, writer=writer,
+                    strike_per_mwh=strike, volume_mw=volume * share,
+                    start_year=start_year, tenor_years=tenor_years,
+                    premium_per_mwh=anchor_cap, quarter=quarter))
+    return out

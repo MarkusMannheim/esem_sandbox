@@ -4,37 +4,64 @@ Things this model gets wrong on purpose, or cannot get right in its current form
 They are listed because a teaching model that hides its own limits teaches the wrong
 lesson. Each one is measured, not asserted.
 
-## Storage is scheduled against a price it then moves
+## Storage: a defect this file used to describe, and what replaced it
 
-Storage picks its charging and discharging hours by ranking a price, and the
-resulting schedule changes that price. The dispatch loop damps successive iterates
-until the peak-block price settles, which converges, but the schedule finally
-reported was made against the previous iterate while settlement prices the current
-one.
+**This section used to describe a limitation. It described the small half of one.**
 
-**Measured:** about 32 per cent of discharged energy lands in an hour priced below an
-hour the same store charged in, with a worst inversion near $89/MWh. A test bounds
-this at 40 per cent so it cannot quietly worsen.
+Storage was scheduled by ranking prices: each unit charged in its day's cheapest
+hours and discharged into its dearest. The documented cost was an inversion, about
+32 per cent of discharged energy landing in an hour priced below an hour the same
+store charged in, with roughly 300 MW of rated power sitting idle in load-shedding
+hours. The undocumented cost was much larger. Every unit saw the same price series,
+so every unit picked the same cheap hours and charged at full power in all of them,
+and nothing anywhere asked whether the system could serve that load. Ten gigawatts
+of four-hour batteries added to the packaged fleet lifted peak net load from
+9,605 MW to 20,880 and took unserved energy from 0.005 per cent of demand to 22.8
+per cent. **Storage was manufacturing the scarcity it exists to relieve**, and the
+investment rule downstream then read the resulting prices as a reason to build more
+of it.
 
-This cannot be patched. Running one more scheduling pass against the settled price
-makes it worse, because that pass moves the price again: it is a cobweb. A genuine
-fixed point needs storage co-optimised inside the clearing, which is what a linear
-program does and a schedule-then-reprice heuristic cannot.
+Storage now shaves quantities, which is what this file already said the fix would
+be and what the hydro schedule already did. A store fills the trough up to a level
+and shaves the peak down to a level, with the levels set so the energy balances
+across the round trip. Four properties follow from the shape of the rule rather
+than from any tuning:
 
-**A second symptom of the same cause.** Within the hours it does pick, the store
-spreads its energy evenly rather than concentrating power where the system is
-tightest. In the eight load-shedding hours of the drought shape-year the three
-storage units deliver 456 MW of 570, 416 of 490 and 666 of 784, so roughly 300 MW of
-rated power sits idle in exactly the hours unserved energy is being counted. An
-optimiser would move energy from a merely expensive hour into the shedding one; a
-rank-and-spread rule cannot see the difference.
+- **A store cannot make the peak worse.** Charging fills to a level at or below the
+  discharge level, so the post-storage residual never exceeds the pre-storage peak.
+  Adding storage to this fleet now lowers peak net load monotonically, from 9,300 MW
+  through 8,320, 7,340 and 6,533 to a floor of 6,290 MW where the day is flat and
+  more storage changes nothing.
+- **A store cannot charge and discharge in the same hour.** The two levels are
+  ordered, so the hours they select are disjoint. This was a defect fixed by hand in
+  week one; it is now ruled out by the shape of the rule.
+- **A store cannot deliver energy it never stored.** The state of charge is checked
+  hour by hour inside each day, not on the day's totals: a day whose trough falls
+  after its peak would otherwise let a store deliver in the evening energy it does
+  not store until that night. The worst hourly excess of energy drawn over energy
+  stored is zero.
+- **The schedule does not depend on the price it produces.** Quantities are a
+  function of the residual and the unit. The only thing price decides is whether a
+  day's spread covers the round trip, and each unit judges that against the residual
+  the units before it have left, never against the answer it is about to produce.
 
-**The fix, when it is worth the complexity,** is to stop ranking prices and start
-shaving quantities, exactly as hydro already does here: choose a discharge level and
-a charging level such that the energy balances across the round trip, then dispatch
-against those levels. Because the price is monotone in residual demand, a store that
-shaves the peak and fills the trough is consistent with the price it produces by
-construction, and the inversion becomes impossible rather than merely small.
+That last one removed the dispatch's whole fixed-point apparatus: the re-stack loop,
+its damping, its pass ceiling and its convergence flag all existed to chase a
+cobweb, and there is no longer a cobweb to chase. A dispatched year went from about
+40 milliseconds to about 22.
+
+**What it cost.** The fleet's import capability was re-tuned from 1,450 MW to
+1,000 MW. With its own storage no longer making the system tighter than the fleet
+warranted, every shape-year sat comfortably inside the reliability standard and
+there was no contrast left to teach. The four mild shape-years now sit between a
+fifth and four fifths of the standard and the lull-on-heat year at 2.3 times it.
+
+**What is still approximate.** A store spreads its discharge across the hours above
+its threshold rather than concentrating power in the single tightest hour. In the
+nine load-shedding hours of the drought shape-year the fleet's stores deliver 97 per
+cent of their rated power, against the roughly two thirds the ranking rule managed,
+so what remains of this is small. An optimiser would still do better by moving
+energy out of a merely expensive hour and into a shedding one.
 
 ## A cap contract here is almost purely a tail instrument
 

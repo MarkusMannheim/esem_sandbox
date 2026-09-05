@@ -21,20 +21,21 @@ _SECTIONS = {
     },
     "reliability": {"standard_use_fraction", "interim_measure_use_fraction"},
     "dispatch": {
-        "must_run_offer_per_mwh", "storage_spread_per_mwh", "max_storage_passes",
-        "storage_price_tolerance",
+        "must_run_offer_per_mwh", "storage_spread_per_mwh",
     },
     "time": {"block_overnight", "block_morning", "block_solar", "block_peak"},
     "weather": {
         "shape_years", "hours_per_year", "seed", "peak_band_multipliers",
         "peak_band_weights",
     },
+    "contracts": {"cap_strike_per_mwh", "swap_tenor_years",
+                  "anchor_half_life_years"},
     "forward": {"anchor_offsets", "entry_step_min_mw", "entry_decay"},
     "investment": {
         "risk_premium", "cara_scale", "hedge_fraction_cap",
         "bilateral_contract_years", "merchant_underwrite_years", "discount_rate",
         "build_fraction_of_peak", "candidates_per_producer",
-        "build_ceiling_overshoot_factor", "exit_consecutive_negatives",
+        "concurrent_builds_per_year", "exit_consecutive_negatives",
         "exit_notice_years", "max_exit_notices_per_tick",
     },
 }
@@ -121,7 +122,6 @@ class TechCost:
     firm_factor: float
     duration_h: float | None
     cap_eligible: bool
-    max_annual_build_mw: float
 
     @property
     def crf(self) -> float:
@@ -168,6 +168,7 @@ class Settings:
     dispatch: dict[str, Any]
     time: dict[str, Any]
     weather: dict[str, Any]
+    contracts: dict[str, Any] = field(default_factory=dict)
     forward: dict[str, Any] = field(default_factory=dict)
     investment: dict[str, Any] = field(default_factory=dict)
     fleet: tuple[Unit, ...] = field(repr=False, default=())
@@ -287,7 +288,6 @@ def load_settings(overrides: dict[str, dict[str, Any]] | None = None) -> Setting
             firm_factor=_num(r, "firm_factor", 0.0),
             duration_h=_num(r, "duration_h"),
             cap_eligible=bool(int(_num(r, "cap_eligible", 0))),
-            max_annual_build_mw=_num(r, "max_annual_build_mw", 0.0),
         )
         for r in read_csv("tech_costs.csv")
     )
@@ -313,6 +313,7 @@ def load_settings(overrides: dict[str, dict[str, Any]] | None = None) -> Setting
         dispatch=raw["dispatch"],
         time=raw["time"],
         weather=raw["weather"],
+        contracts=raw["contracts"],
         forward=raw["forward"],
         investment=raw["investment"],
         fleet=fleet,

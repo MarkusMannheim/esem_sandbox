@@ -140,15 +140,46 @@ def test_the_block_anchor_weights_recent_years_more():
 
 def test_the_block_anchor_is_flat_on_a_flat_history():
     history = [{"peak": 80.0} for _ in range(6)]
-    assert ewma_block_anchor(history, "peak") == pytest.approx(80.0)
+    assert ewma_block_anchor(history, "peak", 2.0) == pytest.approx(80.0)
 
 
 def test_no_history_is_an_error_not_a_guess():
     with pytest.raises(ValueError, match="no price history"):
-        ewma_block_anchor([], "peak")
+        ewma_block_anchor([], "peak", 2.0)
 
 
 def test_mean_excess_reads_every_hour_not_a_sampled_curve():
     price = np.full(8760, 50.0)
     price[0] = 20_300.0
     assert realised_mean_excess(price, 300.0) == pytest.approx(20_000.0 / 8760)
+
+
+def test_the_certainty_equivalent_is_bounded_by_the_gamble_it_prices():
+    """It can never exceed the expected value, and never fall below the worst cell.
+    Both bounds were breachable: the first by weights that were not a probability
+    distribution, the second by an exponential frame shifted the wrong way."""
+    payoffs = np.array([40_000.0, 90_000.0, 150_000.0, 900_000.0])
+    weights = np.full(4, 0.25)
+    for a in (1e-6, 1.2e-5, 1e-4):
+        ce = cara_certainty_equivalent(payoffs, weights, a)
+        assert payoffs.min() <= ce <= float(payoffs @ weights)
+
+
+def test_it_survives_a_year_of_rent_at_the_value_of_lost_load():
+    """The case the docstring claimed the shifted frame prevented, and did not.
+    Shifting by the maximum makes the largest exponent a times the spread, which
+    overflows here and returns minus infinity."""
+    payoffs = np.array([0.0, 20_300.0 * 8760])
+    weights = np.full(2, 0.5)
+    ce = cara_certainty_equivalent(payoffs, weights, 1.2e-5)
+    assert np.isfinite(ce) and ce >= 0.0
+
+
+def test_weights_that_are_not_a_distribution_raise_rather_than_shift_the_answer():
+    """Unnormalised weights do not fail, they move the answer by ln(sum)/a. At a
+    fifth of the weight that is $134,000 per MW-year here, enough to return a
+    certainty equivalent above the largest payoff and hand a producer a negative
+    hurdle."""
+    payoffs = np.array([50_000.0, 100_000.0, 900_000.0])
+    with pytest.raises(ValueError, match="not 1"):
+        cara_certainty_equivalent(payoffs, np.full(3, 0.2 / 3), 1.2e-5)

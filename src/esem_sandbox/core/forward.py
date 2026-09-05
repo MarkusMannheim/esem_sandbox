@@ -96,6 +96,21 @@ def cell_plan(settings: Settings) -> tuple[Cell, ...]:
     return tuple(replace(c, weight=c.weight / total) for c in cells)
 
 
+def renormalised(cells: tuple[Cell, ...]) -> tuple[Cell, ...]:
+    """Restore a cell subset to a probability distribution.
+
+    Taking part of the lattice is a legitimate thing to do - a test or a workshop
+    exercise that wants a faster run should be able to - but a subset of a
+    normalised set is not normalised, and every reduction downstream assumes it is.
+    Nine of the forty-five cells sum to a fifth, which is enough to return a
+    certainty equivalent above the largest payoff in the distribution.
+    """
+    total = sum(c.weight for c in cells)
+    if total <= 0.0:
+        raise ValueError("a cell subset with no weight is not a distribution")
+    return tuple(replace(c, weight=c.weight / total) for c in cells)
+
+
 def peak_banded(demand_mw: np.ndarray, multiplier: float) -> np.ndarray:
     """Scale the peak by ``multiplier`` while holding annual energy exactly.
 
@@ -118,7 +133,8 @@ def peak_banded(demand_mw: np.ndarray, multiplier: float) -> np.ndarray:
 
 
 def rent_per_mw_year(price: np.ndarray, tech: TechCost, settings: Settings,
-                     capacity_factor: np.ndarray | None = None) -> float:
+                     capacity_factor: np.ndarray | None = None,
+                     residual_mw: np.ndarray | None = None) -> float:
     """What one MW of this technology earns above its own running cost, in a year.
 
     Three shapes, one for each kind of plant:
@@ -150,7 +166,13 @@ def rent_per_mw_year(price: np.ndarray, tech: TechCost, settings: Settings,
             round_trip_efficiency=0.85, firm_factor=tech.firm_factor,
             cap_eligible=tech.cap_eligible,
         )
-        schedule = storage_schedule([unit], price, settings).get("candidate")
+        if residual_mw is None:
+            raise ValueError(
+                "a storage candidate cannot be valued without the residual it would "
+                "shave: what a battery earns depends on the shape of the load, not "
+                "only on the prices that shape produced"
+            )
+        schedule = storage_schedule([unit], price, residual_mw, settings).get("candidate")
         if schedule is None:
             return 0.0
         # Charging hours carry negative energy, so this is revenue net of the cost
@@ -273,7 +295,7 @@ def dispatch_anchor(settings: Settings, fleet: tuple[Unit, ...], bundle: dict,
         cf = {"wind": wind, "solar": solar}
         rents = {
             t.technology: rent_per_mw_year(res.price, t, at_anchor,
-                                           cf.get(t.technology))
+                                           cf.get(t.technology), res.residual_mw)
             for t in settings.tech_costs
         }
         outcomes.append(CellOutcome(
@@ -539,7 +561,7 @@ def forward_view(settings: Settings, fleet: tuple[Unit, ...], bundle: dict, *,
     decision was made against can be reproduced exactly from the state that
     produced it.
     """
-    plan = cells if cells is not None else cell_plan(settings)
+    plan = renormalised(cells) if cells is not None else cell_plan(settings)
     anchors = tuple(
         dispatch_anchor(settings, fleet, bundle, offset=int(offset),
                         year=year + int(offset), peak_mw=peak_mw, cells=plan,

@@ -70,6 +70,21 @@ def default_roster() -> tuple[Agent, ...]:
     )
 
 
+# Rows that no agent in this model can own, and why. Rooftop sits behind the meter:
+# it is netted off demand, never dispatched, never settled at the spot price, and
+# report.py already refuses to book it revenue. The import link is a capability
+# rather than a station, and in a one-region model the money it earns leaves the
+# region along with the energy it did not generate here. Requiring an owner for
+# either would mean inventing a balance sheet for a party this model does not have.
+UNOWNABLE_TECHNOLOGIES = ("rooftop", "import")
+
+
+def ownable_units(fleet) -> set[str]:
+    """The units that must reach somebody's balance sheet."""
+    return {u.unit for u in fleet
+            if u.technology not in UNOWNABLE_TECHNOLOGIES}
+
+
 def check_roster(roster: tuple[Agent, ...], unit_names: set[str]) -> None:
     """Every unit owned once, all load accounted for.
 

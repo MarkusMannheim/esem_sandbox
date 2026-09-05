@@ -226,10 +226,15 @@ def test_a_build_is_never_smaller_than_one_unit(settings):
     assert build_size_mw(10.0, settings.tech("ccgt"), settings) == 250.0
 
 
-def test_the_ceiling_is_the_reference_times_the_overshoot(settings):
+def test_the_ceiling_is_a_number_of_producers_worth_of_plant(settings):
+    """Stated as concurrency rather than megawatts so it scales with the system. A
+    fixed megawatt ceiling that damps a twelve gigawatt system dominates a
+    twenty-three gigawatt one, and bound in every year of a twenty-year run."""
     tech = settings.tech("ocgt")
-    assert build_ceiling_mw(tech, settings) == pytest.approx(
-        tech.max_annual_build_mw * settings.investment["build_ceiling_overshoot_factor"])
+    small = build_ceiling_mw(12_500.0, tech, settings)
+    large = build_ceiling_mw(23_000.0, tech, settings)
+    assert small == pytest.approx(2 * build_size_mw(12_500.0, tech, settings))
+    assert large > small, "the ceiling must grow with the system it paces"
 
 
 def test_a_producer_takes_at_most_its_allowance_of_decisions(settings, merchant):

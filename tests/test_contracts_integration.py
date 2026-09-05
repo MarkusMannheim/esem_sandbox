@@ -55,7 +55,8 @@ def test_a_book_priced_off_real_anchors_still_nets_to_zero(settings, years):
     history = [block_prices_of(settings, r.price) for r in years[:3]]
     book = []
     for block in settings.blocks():
-        anchor = ewma_block_anchor(history, block)
+        anchor = ewma_block_anchor(history, block,
+                                  settings.contracts["anchor_half_life_years"])
         book.append(Contract(kind=SWAP, holder="retailer_a", writer="gentailer_a",
                              strike_per_mwh=anchor, volume_mw=500.0,
                              start_year=2026, tenor_years=3, block=block))

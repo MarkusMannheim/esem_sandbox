@@ -42,8 +42,6 @@ class DispatchResult:
     administered_hours: np.ndarray = field(default_factory=lambda: np.zeros(0, bool))
     firm_capacity_mw: float = 0.0          # the stack the ladder measured against
     water_value_per_mwh: float = 0.0
-    storage_passes: int = 0
-    storage_converged: bool = False
 
     @property
     def total_unserved_gwh(self) -> float:
@@ -231,82 +229,244 @@ def _hydro_schedule(residual: np.ndarray, hydro_mw: float, budget_mwh: float,
     return schedule, water
 
 
-def _run_storage(units: list[Unit], provisional_price: np.ndarray,
+def _balance_level(day: np.ndarray, power: float, rte: float) -> np.ndarray:
+    """Per day, the single level at which filling below it exactly feeds shaving
+    above it, net of the round trip.
+
+    This is the level a store with unlimited energy would flatten the day to. It
+    matters because it bounds how much a store can usefully do in a day: above this
+    throughput the charge level would have to rise past the discharge level, which
+    is not a schedule, it is a contradiction. Finding it is one bisection, because
+    filling rises and shaving falls as the level rises, so their difference crosses
+    zero exactly once.
+    """
+    lo = np.full(len(day), day.min(axis=1))
+    hi = np.full(len(day), day.max(axis=1))
+    for _ in range(20):
+        mid = 0.5 * (lo + hi)
+        fill = np.clip(mid[:, None] - day, 0.0, power).sum(axis=1)
+        shave = np.clip(day - mid[:, None], 0.0, power).sum(axis=1)
+        low = fill * rte < shave
+        lo = np.where(low, mid, lo)
+        hi = np.where(low, hi, mid)
+    return 0.5 * (lo + hi)
+
+
+def _fill_threshold(day: np.ndarray, power: float, target: np.ndarray) -> np.ndarray:
+    """Per day, the level a store fills the trough up to, to absorb ``target`` MWh.
+
+    ``sum(clip(level - r, 0, power))`` rises with the level, so a bisection finds it.
+    Vectorised across days, because only the state of charge is genuinely sequential.
+    """
+    lo = np.full(len(day), day.min(axis=1))
+    hi = np.full(len(day), day.max(axis=1))
+    for _ in range(20):
+        mid = 0.5 * (lo + hi)
+        got = np.clip(mid[:, None] - day, 0.0, power).sum(axis=1)
+        under = got < target
+        lo = np.where(under, mid, lo)
+        hi = np.where(under, hi, mid)
+    return 0.5 * (lo + hi)
+
+
+def _shave_threshold(day: np.ndarray, power: float, target: np.ndarray) -> np.ndarray:
+    """Per day, the level a store shaves the peak down to, to deliver ``target`` MWh."""
+    lo = np.full(len(day), day.min(axis=1))
+    hi = np.full(len(day), day.max(axis=1))
+    for _ in range(20):
+        mid = 0.5 * (lo + hi)
+        got = np.clip(day - mid[:, None], 0.0, power).sum(axis=1)
+        over = got > target
+        lo = np.where(over, mid, lo)
+        hi = np.where(over, hi, mid)
+    return 0.5 * (lo + hi)
+
+
+def _run_storage(units: list[Unit], price_of, residual_mw: np.ndarray,
                  settings: Settings) -> tuple[np.ndarray, dict[str, np.ndarray]]:
-    """Greedy daily cycling against a provisional price.
+    """Daily cycling by shaving quantities, not by ranking prices.
 
-    Each unit charges in its day's cheapest hours and discharges into its
-    dearest, keeps state of charge across days, and only cycles when the spread
-    covers the round trip. A lull with no cheap hours therefore leaves it empty,
-    which is the behaviour the worst-week chart is there to show.
+    A store fills the trough up to a level and shaves the peak down to a level, with
+    the two levels chosen so the energy balances across the round trip. It is the
+    two-sided version of what the hydro schedule already does here, and the reason
+    to prefer it is not elegance.
 
-    The per-day ranking is vectorised over all days at once and only the state
-    of charge recursion stays sequential, because it genuinely is. Doing the
-    ranking day by day made this routine three quarters of a dispatch.
+    **Ranking prices makes storage able to cause a shortage.** The rule this
+    replaces gave every unit the same price series, so every unit picked the same
+    cheapest hours and charged at full power in all of them, with nothing anywhere
+    asking whether the system could serve that load. Ten gigawatts of four-hour
+    batteries added to the packaged fleet lifted peak net load from 9,605 MW to
+    20,880 and took unserved energy from 0.005 per cent of demand to 22.8. Storage
+    was manufacturing the scarcity it was built to relieve, and the investment rule
+    downstream then read the resulting prices as a reason to build more of it.
+
+    Shaving quantities cannot do that, and the reason is structural rather than
+    tuned. Charging fills the trough to a level at or below the discharge level, and
+    discharging lowers the peak to that level, so the post-storage residual can
+    never exceed the pre-storage peak. **A store cannot make the peak worse.** The
+    same construction makes it impossible for a unit to charge and discharge in the
+    same hour, which was a separate defect fixed by hand in week one and is now
+    ruled out by the shape of the rule.
+
+    Units are scheduled in order of duration, longest first, each against the
+    residual left by the ones before it. Two stores shaving the same peak
+    independently would each believe it had the whole peak to itself.
+
+    **There is no iteration here, and there no longer needs to be.** The quantities
+    depend on the residual and on the unit, never on the price, so the only thing
+    the price decides is whether a day is worth buying into. ``price_of`` turns the
+    residual a unit actually faces into the price it would face, so each store judges
+    against the market the ones before it have already left behind, and nothing in
+    the schedule depends on the answer the schedule produces.
+
+    The rule this replaced could not say that. It ranked a price that its own
+    schedule then moved, so the dispatch had to iterate to a fixed point that
+    sometimes did not exist: adding four gigawatts of batteries to this fleet put the
+    loop into a two-cycle it never left, and the reported year was whichever phase
+    the sixth pass happened to land on.
     """
     spread = settings.dispatch["storage_spread_per_mwh"]
-    n = len(provisional_price)
+    n = len(residual_mw)
     n_days = n // HOURS_PER_DAY
     net_load = np.zeros(n)
     per_unit: dict[str, np.ndarray] = {}
     if n_days == 0:
         return net_load, per_unit
 
-    by_day = provisional_price[:n_days * HOURS_PER_DAY].reshape(n_days, HOURS_PER_DAY)
+    usable = n_days * HOURS_PER_DAY
+    working = residual_mw.astype(float).copy()
 
+    # Stores that are alike are scheduled as one. Two four-hour batteries with the
+    # same round trip behave identically per MW, so netting one against the other
+    # would only decide, by the arbitrary order they were built in, which of them
+    # gets the deeper half of the peak. Scheduling their combined power once and
+    # splitting the answer pro rata removes that arbitrariness, and it keeps the
+    # day scan from growing with a fleet that acquires a new battery every few
+    # years: a twenty-year run ends with more storage rows than it started with,
+    # and the scan is the one part of a dispatched year that is not vectorised.
+    groups: dict[tuple[float, float], list[Unit]] = {}
     for u in units:
-        if u.technology not in _STORAGE or not u.duration_h:
+        if u.technology not in _STORAGE or not u.duration_h or u.available_mw <= 0:
             continue
-        power = u.available_mw
-        energy_cap = power * float(u.duration_h)
-        rte = float(u.round_trip_efficiency or 0.85)
-        # Capped at half a day so charge and discharge windows cannot overlap.
-        slots = max(1, min(HOURS_PER_DAY // 2, int(round(float(u.duration_h)))))
-        assert 2 * slots <= HOURS_PER_DAY
+        key = (float(u.duration_h), float(u.round_trip_efficiency or 0.85))
+        groups.setdefault(key, []).append(u)
 
-        # Rank every day once and take from both ends of the SAME ordering. Two
-        # independent sorts, one of price and one of minus price, do not partition a
-        # day when prices tie, and a curtailment merit order makes ties common: a
-        # day can hold only a handful of distinct prices. The store was then
-        # scheduled to charge and discharge in the same hour on most days.
-        order = np.argsort(by_day, axis=1, kind="stable")
-        asc = order[:, :slots]
-        desc = order[:, -slots:]
-        rows = np.arange(n_days)[:, None]
-        disch_mean = by_day[rows, desc].mean(axis=1)
-        chg_mean = by_day[rows, asc].mean(axis=1)
-        viable = disch_mean > chg_mean / rte + spread
+    for (duration, rte), members in sorted(groups.items(), key=lambda kv: -kv[0][0]):
+        power = sum(m.available_mw for m in members)
+        energy_cap = power * duration
+        if power <= 0 or energy_cap <= 0:
+            continue
+        day = working[:usable].reshape(n_days, HOURS_PER_DAY)
+        price_by_day = price_of(working)[:usable].reshape(n_days, HOURS_PER_DAY)
 
-        gen = np.zeros(n)
-        soc = energy_cap * 0.5
-        base = np.arange(n_days) * HOURS_PER_DAY
-        disch_idx = desc + base[:, None]
-        chg_idx = asc + base[:, None]
+        # How much is worth moving today. A store big enough to flatten the day
+        # entirely stops at the level where filling feeds shaving exactly; a smaller
+        # one runs a full cycle and leaves the day still peaked.
+        #
+        # Targeting a full cycle unconditionally is wrong, and not harmlessly so.
+        # The twelve-hour pumped hydro cannot charge for fifteen hours and discharge
+        # for twelve inside one day, so its charge level was pushed above its
+        # discharge level, the day was rejected as incoherent, and the unit sat idle
+        # for all three hundred and sixty-five days of the year while the model
+        # reported it as part of the fleet.
+        level = _balance_level(day, power, rte)
+        flat_out = np.clip(day - level[:, None], 0.0, power).sum(axis=1)
+        limited = flat_out > energy_cap
+        target = np.where(limited, energy_cap, flat_out)
 
+        if limited.any():
+            lo = np.where(limited, _fill_threshold(day, power, target / rte), level)
+            charge = np.clip(lo[:, None] - day, 0.0, power)
+            hi = np.where(limited, _shave_threshold(day + charge, power, target), level)
+        else:
+            lo = hi = level
+            charge = np.clip(lo[:, None] - day, 0.0, power)
+        discharge = np.clip(day + charge - hi[:, None], 0.0, power)
+
+        # The viability test gates BUYING, not selling. A store only charges when the
+        # day's spread covers the round trip, so a lull with no cheap hours leaves it
+        # empty, which is the behaviour the worst-week chart exists to show. But what
+        # it already holds it may always deliver.
+        #
+        # Gating both was wrong in the one hour that matters. On the hottest day of
+        # the drought year the overnight load is high enough that a store cannot
+        # charge, so the day failed the test and the store was barred from
+        # discharging a reserve it was already carrying. Adding four gigawatts of
+        # batteries to this fleet then moved prices enough to fail that test for the
+        # incumbent stores, and 1,354 MW that had been covering the evening peak
+        # stopped covering it: more storage, a higher peak. What limits discharge is
+        # the state of charge, and that is enforced below.
+        charged = charge.sum(axis=1)
+        delivered = discharge.sum(axis=1)
+        with np.errstate(invalid="ignore", divide="ignore"):
+            buy = np.where(charged > 0, (price_by_day * charge).sum(axis=1) / charged, 0.0)
+            sell = np.where(delivered > 0,
+                            (price_by_day * discharge).sum(axis=1) / delivered, 0.0)
+        worth_buying = (charged > 0) & (delivered > 0) & (sell > buy / rte + spread)
+        charge[~worth_buying] = 0.0
+        discharge = np.clip(day + charge - hi[:, None], 0.0, power)
+
+        # The state of charge is the one genuinely sequential part, so it is the
+        # only thing done day by day. Each day's schedule is scaled rather than
+        # truncated, which keeps it inside the thresholds and so keeps the peak
+        # guarantee.
+        #
+        # The check is HOURLY within the day, not on the day's totals. Charging
+        # lands in the trough and discharging on the peak, but a day's trough can
+        # fall after its peak on the clock - an evening peak at six followed by a
+        # late trough at eleven - and a store balanced across the day as a whole
+        # then delivers in the evening energy it will not store until that night.
+        # Checking totals cannot see that; checking the running total can. Both
+        # scale factors are exact rather than iterated, because scaling one side of
+        # the day by a constant moves the running total linearly.
+        #
+        # Empty at the start of the year, not half full. A store that opens with a
+        # free half charge can deliver energy it never stored, and with charging
+        # scheduled ahead of discharging inside each day it would do so on day one.
+        soc = 0.0
+        filled_all = np.cumsum(charge * rte, axis=1)
+        drawn_all = np.cumsum(discharge, axis=1)
+        excursion = filled_all - drawn_all
+        high = excursion.max(axis=1)         # furthest above the day's opening charge
+        low = (-excursion).max(axis=1)       # furthest below it
+        net = excursion[:, -1]
+        scale_c = np.ones(n_days)
+        scale_d = np.ones(n_days)
         for d in range(n_days):
-            if not viable[d]:
+            # Most days do not bind, and testing that with two scalars rather than
+            # two array reductions is the difference between a dispatched year at
+            # 138 milliseconds and one at 50.
+            if high[d] <= energy_cap - soc and low[d] <= soc:
+                soc += net[d]
                 continue
-            can_discharge = min(soc, power * slots)
-            if can_discharge > 0:
-                each = can_discharge / slots
-                idx = disch_idx[d]
-                gen[idx] += each
-                net_load[idx] -= each
-                soc -= can_discharge
-            room = energy_cap - soc
-            can_charge = min(room / rte, power * slots)
-            if can_charge > 0:
-                each = can_charge / slots
-                idx = chg_idx[d]
-                gen[idx] -= each
-                net_load[idx] += each
-                soc += can_charge * rte
-        per_unit[u.unit] = gen
+            fa = filled_all[d]
+            da = drawn_all[d]
+            if fa[-1] > 0:
+                room = energy_cap - soc + da
+                f = np.min(np.where(fa > 0, room / np.maximum(fa, 1e-12), 1.0))
+                scale_c[d] = float(np.clip(f, 0.0, 1.0))
+                fa = fa * scale_c[d]
+            if da[-1] > 0:
+                have = soc + fa
+                f = np.min(np.where(da > 0, have / np.maximum(da, 1e-12), 1.0))
+                scale_d[d] = float(np.clip(f, 0.0, 1.0))
+            soc += float(fa[-1] - da[-1] * scale_d[d])
+        charge *= scale_c[:, None]
+        discharge *= scale_d[:, None]
+
+        flat_charge = charge.reshape(-1)
+        flat_discharge = discharge.reshape(-1)
+        net_load[:usable] += flat_charge - flat_discharge
+        working[:usable] += flat_charge - flat_discharge
+        combined = np.zeros(n)
+        combined[:usable] = flat_discharge - flat_charge
+        for m in members:
+            per_unit[m.unit] = combined * (m.available_mw / power)
     return net_load, per_unit
 
 
-def storage_schedule(units: list[Unit], price: np.ndarray,
-                    settings: Settings) -> dict[str, np.ndarray]:
+def storage_schedule(units: list[Unit], price: np.ndarray, residual_mw: np.ndarray,
+                     settings: Settings) -> dict[str, np.ndarray]:
     """Schedule storage against a given price series, per unit.
 
     The seam the forward view values a candidate battery through. It is the same
@@ -315,10 +475,20 @@ def storage_schedule(units: list[Unit], price: np.ndarray,
     never realise, and the heuristic's known cost would be hidden from the
     investment decision instead of being carried into it.
 
+    The residual is required, not optional. Storage here is scheduled against
+    quantities rather than against a ranking of prices, so a caller that has a price
+    series and no residual is a caller that cannot value a store: what a battery is
+    worth depends on the shape of the load it is shaving, not only on the prices
+    that shape produced.
+
+    The price is taken as given, which is what valuing a marginal addition to an
+    existing market means: the candidate is a price taker, and the market it would
+    join is the one the dispatch already produced.
+
     Positive is discharge, negative is charge, so ``sum(schedule * price)`` is
     revenue net of the cost of the energy bought.
     """
-    return _run_storage(units, price, settings)[1]
+    return _run_storage(units, lambda _level: price, residual_mw, settings)[1]
 
 
 def _apply_ladder(residual: np.ndarray, stack_price: np.ndarray,
@@ -396,21 +566,28 @@ def dispatch_year(settings: Settings, year: int, demand_mw: np.ndarray,
     units = _in_service(settings, year)
     floor = settings.dispatch["must_run_offer_per_mwh"]
 
-    def cap_of(tech: str) -> float:
-        return sum(u.capacity_mw for u in units if u.technology == tech)
-
-    rooftop = (rooftop_cf if rooftop_cf is not None else solar_cf) * cap_of("rooftop")
-    wind_mw = wind_cf * cap_of("wind")
-    solar_mw = solar_cf * cap_of("solar")
-    residual = demand_mw - rooftop - wind_mw - solar_mw
+    # Profiles are per UNIT, not per technology. While the fleet held one wind row
+    # and one solar row the two were the same thing; the moment a second wind farm
+    # is built they are not, and giving each row the whole technology's output would
+    # let every wind unit claim the fleet's entire generation, curtail the fleet's
+    # entire surplus, and be paid for both.
+    cf_of = {"wind": wind_cf, "solar": solar_cf,
+             "rooftop": rooftop_cf if rooftop_cf is not None else solar_cf}
+    unit_profile = {u.unit: cf_of[u.technology] * u.capacity_mw
+                    for u in units if u.technology in cf_of}
+    rooftop = sum((unit_profile[u.unit] for u in units if u.technology == "rooftop"),
+                  start=np.zeros_like(demand_mw))
+    vre_units = [u for u in units
+                 if u.technology in ("wind", "solar") and u.capacity_mw > 0]
+    vre_mw = sum((unit_profile[u.unit] for u in vre_units),
+                 start=np.zeros_like(demand_mw))
+    residual = demand_mw - rooftop - vre_mw
 
     # Curtailment merit order for surplus hours. Rooftop is not in it: it sits behind
     # the meter, does not bid, and is netted off demand. Utility wind and solar do
     # bid, and their offers differ, so the surplus price varies with how deep the
     # surplus is instead of being one constant.
-    profile = {"wind": wind_mw, "solar": solar_mw}
-    vre_units = [u for u in units if u.technology in profile and cap_of(u.technology) > 0]
-    labelled_tiers = [(u.unit, u.srmc_per_mwh, profile[u.technology]) for u in vre_units]
+    labelled_tiers = [(u.unit, u.srmc_per_mwh, unit_profile[u.unit]) for u in vre_units]
     market_floor = settings.market["minimum_price_per_mwh"]
     # The must-run band is the last thing to withdraw, so it is the final tier of
     # the price ladder but never a source of curtailed VRE energy.
@@ -446,49 +623,19 @@ def dispatch_year(settings: Settings, year: int, demand_mw: np.ndarray,
     residual = residual - hydro_total
     prices, caps, labels = _offer_stack(thermal_only, settings)
 
-    surplus_now = _curtailment_price(np.clip(must_run_total - residual, 0.0, None),
-                                     curtail_tiers, market_floor)
-    provisional = _price_from_stack(residual, prices, caps, floor, surplus_now,
-                                    must_run_total)
-    storage_net = np.zeros_like(residual)
-    storage_gen: dict[str, np.ndarray] = {}
-    passes = 0
-    converged = False
-
-    # Convergence is tested on the peak-block price, which is what the tolerance is
-    # named for and what storage is there to move. It previously tested the annual
-    # mean, a different and far less sensitive quantity, and because the comparison
-    # needs a previous pass it could only ever fire on the final iteration, so the
-    # tolerance changed nothing at any value.
-    peak_start, peak_end = settings.blocks()["peak"]
-    hod = np.arange(len(residual)) % HOURS_PER_DAY
-    peak_mask = ((hod >= peak_start) | (hod < peak_end)) if peak_start > peak_end \
-        else ((hod >= peak_start) & (hod < peak_end))
-
-    peak_before = None
-    previous = None
-    for passes in range(1, int(settings.dispatch["max_storage_passes"]) + 1):
-        storage_net, storage_gen = _run_storage(units, provisional, settings)
-        net_residual = residual + storage_net
-        provisional = _price_from_stack(
-            net_residual, prices, caps, floor,
-            _curtailment_price(np.clip(must_run_total - net_residual, 0.0, None),
+    def price_of(level: np.ndarray) -> np.ndarray:
+        return _price_from_stack(
+            level, prices, caps, floor,
+            _curtailment_price(np.clip(must_run_total - level, 0.0, None),
                                curtail_tiers, market_floor),
             must_run_total)
-        # Damping. Storage schedules against a price and its schedule then moves
-        # that price, which is a cobweb: undamped it oscillates in a two-cycle
-        # between roughly $97 and $110 on the peak block and never settles, whatever
-        # ceiling it is given. Averaging successive iterates is what makes the
-        # tolerance meaningful rather than decorative.
-        if previous is not None:
-            provisional = 0.5 * (provisional + previous)
-        previous = provisional
-        peak = float(provisional[peak_mask].mean())
-        if peak_before is not None and abs(peak - peak_before) < settings.dispatch[
-                "storage_price_tolerance"]:
-            converged = True
-            break
-        peak_before = peak
+
+    # One pass. Storage is scheduled by shaving quantities off the residual, and the
+    # residual does not depend on the price, so there is no fixed point left to
+    # chase. The loop that used to be here existed because the schedule was chosen by
+    # ranking a price the schedule then moved; on a fleet with four gigawatts of
+    # batteries added it entered a two-cycle and reported convergence as false.
+    storage_net, storage_gen = _run_storage(units, price_of, residual, settings)
 
     net_residual = residual + storage_net
     stack_price = _price_from_stack(
@@ -524,11 +671,10 @@ def dispatch_year(settings: Settings, year: int, demand_mw: np.ndarray,
     # so nothing added up to what the system actually served and every revenue
     # figure for wind and solar was silently absent.
     for u in vre_units:
-        generation[u.unit] = profile[u.technology] - cut.get(u.unit, 0.0)
-    roof_cap = cap_of("rooftop")
-    if roof_cap > 0:
-        roof_unit = next(u for u in units if u.technology == "rooftop")
-        generation[roof_unit.unit] = rooftop
+        generation[u.unit] = unit_profile[u.unit] - cut.get(u.unit, 0.0)
+    for u in units:
+        if u.technology == "rooftop":
+            generation[u.unit] = unit_profile[u.unit]
 
     return DispatchResult(
         price=price,
@@ -541,8 +687,6 @@ def dispatch_year(settings: Settings, year: int, demand_mw: np.ndarray,
         administered_hours=administered,
         firm_capacity_mw=firm_capacity,
         water_value_per_mwh=water,
-        storage_passes=passes,
-        storage_converged=converged,
     )
 
 

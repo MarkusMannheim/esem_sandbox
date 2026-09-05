@@ -127,15 +127,19 @@ def build_size_mw(peak_mw: float, tech: TechCost, settings: Settings) -> float:
     return units * tech.unit_size_mw
 
 
-def build_ceiling_mw(tech: TechCost, settings: Settings) -> float:
-    """The most of one technology that can be built in one year.
+def build_ceiling_mw(peak_mw: float, tech: TechCost, settings: Settings) -> float:
+    """The most of one technology that can be delivered in one year.
 
-    This is a damper, and it is here so that the bust in the boom-and-bust exercise
-    comes from lead times, which are real, rather than from the absence of any
-    limit at all, which is not a mechanism but an oversight.
+    A damper, so that the bust in the boom-and-bust exercise comes from lead times,
+    which are real, rather than from the absence of any limit at all, which is not a
+    mechanism but an oversight. It is expressed as a number of producers' worth of
+    plant so that it scales with the system: a megawatt ceiling that damps a twelve
+    gigawatt system dominates a twenty-three gigawatt one, and on the high growth
+    path a fixed one bound in every year of a twenty-year run, so the model was
+    showing its own ceiling rather than its market.
     """
-    return tech.max_annual_build_mw * float(
-        settings.investment["build_ceiling_overshoot_factor"])
+    return float(settings.investment["concurrent_builds_per_year"]) * \
+        build_size_mw(peak_mw, tech, settings)
 
 
 # --------------------------------------------------------------------------

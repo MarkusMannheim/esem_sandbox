@@ -197,80 +197,71 @@ def test_the_drought_year_is_the_one_that_breaches_the_standard(settings, bundle
     )
 
 
-def test_the_storage_re_stack_actually_converges(settings, bundle):
-    """Storage schedules against a price and then moves it, which is a cobweb.
+def test_the_schedule_does_not_depend_on_the_price_it_produces(settings, bundle):
+    """There is no cobweb left to converge, because there is no loop.
 
-    Undamped it oscillated in a two-cycle and never settled at any ceiling, while
-    the loop reported nothing: it simply stopped when it ran out of passes. The
-    tolerance was also compared against the annual mean rather than the peak block
-    it is named for, and could only fire on the final iteration, so it changed
-    nothing at any value.
+    Storage used to pick its hours by ranking a price its own schedule then moved.
+    That needed an iteration, damping to stop a two-cycle, a pass ceiling and a
+    convergence flag; on a fleet with four gigawatts of batteries added it cycled
+    anyway and reported convergence as false. Shaving quantities off the residual
+    removes the dependency rather than damping it: the thresholds, and so the
+    schedule, are a function of the residual and the unit alone.
+
+    This test states that as a property rather than trusting the reading. Dispatch
+    the same year twice from residuals that are identical, and the storage schedule
+    must be identical to the last bit, whatever the prices in between did.
     """
-    res = _year(settings, bundle, 0)
-    assert res.storage_converged, (
-        f"did not converge in {res.storage_passes} passes; a silent non-convergence "
-        "is how a wrong answer gets reported as a right one"
-    )
-    assert res.storage_passes < settings.dispatch["max_storage_passes"], (
-        "converging only on the last allowed pass means the ceiling is binding"
-    )
-
-
-def test_storage_price_inconsistency_stays_bounded(settings, bundle):
-    """A KNOWN LIMITATION, measured so it cannot quietly get worse.
-
-    Storage is scheduled against a price, and its schedule then moves that price.
-    The loop damps successive iterates to find the fixed point, but the schedule
-    that is finally reported was made against the previous iterate while settlement
-    prices the current one. So the model settles a price no schedule was optimised
-    against, and about a third of discharge energy lands in an hour cheaper than one
-    the same store charged in.
-
-    This is not fixable by patching: a genuine fixed point needs storage
-    co-optimised inside the clearing, which is what the larger model gets from its
-    LP and a schedule-then-reprice heuristic cannot reproduce. Running one more pass
-    against the undamped price makes it worse, not better, because that pass moves
-    the price again.
-
-    The test bounds it. If a change pushes the share past 40 per cent the heuristic
-    has degraded and the peak-shaving redesign is overdue.
-    """
-    res = _year(settings, bundle, 0)
-    day_price = res.price[:365 * 24].reshape(365, 24)
-    discharged = inverted = 0.0
+    a = _year(settings, bundle, 4)
+    b = _year(settings, bundle, 4)
     for unit in (u for u in settings.fleet if u.technology in ("battery", "phes")):
-        gen = res.generation_mwh[unit.unit][:365 * 24].reshape(365, 24)
-        for d in range(365):
-            out, into = gen[d] > 1e-9, gen[d] < -1e-9
-            if not out.any() or not into.any():
-                continue
-            discharged += gen[d][out].sum()
-            bad = day_price[d][out] < day_price[d][into].max() - 1e-9
-            inverted += gen[d][out][bad].sum()
-    share = inverted / discharged
-    assert share < 0.40, (
-        f"{share:.1%} of discharge energy is priced below the charging hours it "
-        "paid for; the scheduling heuristic has degraded"
+        assert np.array_equal(a.generation_mwh[unit.unit], b.generation_mwh[unit.unit])
+    assert not hasattr(a, "storage_passes"), (
+        "a pass count is a claim that there is something to iterate"
     )
 
+
+def test_a_store_still_leaves_the_peak_block_dearer_than_the_trough(settings, bundle):
+    """What the round-trip test buys. A store charges only on days whose spread
+    covers the round trip, so it never trades energy at a loss, and a lull with no
+    cheap hours leaves it empty rather than cycling for the sake of it."""
+    res = _year(settings, bundle, 4)
+    for unit in (u for u in settings.fleet if u.technology in ("battery", "phes")):
+        gen = res.generation_mwh[unit.unit]
+        charged = np.clip(-gen, 0.0, None)
+        drawn = np.clip(gen, 0.0, None)
+        if charged.sum() <= 0 or drawn.sum() <= 0:
+            continue
+        paid = float((res.price * charged).sum() / charged.sum())
+        got = float((res.price * drawn).sum() / drawn.sum())
+        assert got > paid, (
+            f"{unit.unit} sold at ${got:,.2f} what it bought at ${paid:,.2f}"
+        )
 
 def test_a_store_never_delivers_energy_it_did_not_store(settings, bundle):
     """Conservation for the store itself, not just the bus.
 
-    Cumulative discharge may never exceed what was charged, times the round trip,
-    plus whatever it started with. This is the storage equivalent of the reverse
-    interconnector flow that created energy in the larger model.
+    Cumulative discharge may never exceed what was charged, times the round trip.
+    This is the storage equivalent of the reverse interconnector flow that created
+    energy in the larger model.
+
+    This test used to allow the store a free half charge at the start of the year,
+    because the scheduler gave it one. The allowance is gone, and with it the cover
+    it was providing: under it a store could deliver up to half its capacity out of
+    nothing, and the day-level state-of-charge accounting was doing exactly that on
+    days whose trough fell after their peak.
     """
-    res = _year(settings, bundle, 0)
-    for unit in (u for u in settings.fleet if u.technology in ("battery", "phes")):
-        gen = res.generation_mwh[unit.unit]
-        rte = float(unit.round_trip_efficiency or 0.85)
-        start = unit.available_mw * float(unit.duration_h) * 0.5
-        stored = np.cumsum(np.clip(-gen, 0.0, None) * rte) + start
-        drawn = np.cumsum(np.clip(gen, 0.0, None))
-        assert (drawn <= stored + 1e-6).all(), (
-            f"{unit.unit} delivers more energy than it ever stored"
-        )
+    for year in range(len(bundle["demand_shape"])):
+        res = _year(settings, bundle, year)
+        for unit in (u for u in settings.fleet
+                     if u.technology in ("battery", "phes")):
+            gen = res.generation_mwh[unit.unit]
+            rte = float(unit.round_trip_efficiency or 0.85)
+            stored = np.cumsum(np.clip(-gen, 0.0, None) * rte)
+            drawn = np.cumsum(np.clip(gen, 0.0, None))
+            assert (drawn <= stored + 1e-6).all(), (
+                f"{unit.unit} in shape year {year} delivers "
+                f"{(drawn - stored).max():,.1f} MWh more than it ever stored"
+            )
 
 
 def test_hydro_actually_spends_its_energy_budget(settings, bundle):
@@ -423,3 +414,59 @@ def test_a_hydro_row_without_a_budget_still_generates(settings, bundle):
     unit = next(u for u in s.fleet if u.technology == "hydro")
     assert unit.unit in res.generation_mwh, "the row disappeared from the result"
     assert res.generation_mwh[unit.unit].sum() > 0, "it never generated"
+
+
+def test_storage_cannot_make_the_peak_worse(settings, bundle):
+    """The property that makes the scheduler safe, and it is structural rather than
+    tuned: charging fills the trough to a level at or below the level discharging
+    shaves the peak down to, so the post-storage residual cannot exceed the
+    pre-storage peak.
+
+    Ranking prices had no such property. Every store saw the same price series,
+    picked the same cheap hours and charged at full power in all of them, and ten
+    gigawatts of four-hour batteries added to this fleet lifted peak net load from
+    9,605 MW to 20,880 and took unserved energy from 0.005 per cent of demand to
+    22.8. Storage was manufacturing the scarcity it exists to relieve.
+    """
+    from dataclasses import replace
+    from esem_sandbox.config import Unit
+
+    def battery(mw):
+        return Unit(unit=f"probe_{mw}", technology="battery", capacity_mw=mw,
+                    availability=0.98, srmc_per_mwh=0.0, retirement_year=9999,
+                    commissioned_year=0, must_run_mw=0.0, energy_budget_gwh=None,
+                    duration_h=4.0, round_trip_efficiency=0.85, firm_factor=0.65,
+                    cap_eligible=False, fom_per_kw_year=19.0)
+
+    base = _year(settings, bundle, 4)
+    worse = None
+    for mw in (1_000.0, 4_000.0, 10_000.0):
+        fleet = settings.fleet + (battery(mw),)
+        res = _year(replace(settings, fleet=fleet), bundle, 4)
+        assert res.residual_mw.max() <= base.residual_mw.max() + 1e-6, (
+            f"{mw:,.0f} MW of storage lifted peak net load from "
+            f"{base.residual_mw.max():,.0f} to {res.residual_mw.max():,.0f} MW"
+        )
+        assert res.unserved_fraction <= base.unserved_fraction + 1e-12, (
+            f"{mw:,.0f} MW of storage raised unserved energy from "
+            f"{base.unserved_fraction:.5%} to {res.unserved_fraction:.5%}"
+        )
+        worse = res
+    assert worse.unserved_fraction < base.unserved_fraction
+
+
+def test_a_long_duration_store_is_not_idle_all_year(settings, bundle):
+    """Targeting a full cycle every day is impossible for a twelve-hour store: it
+    cannot charge for fifteen hours and discharge for twelve inside one day. Its
+    charge level was pushed above its discharge level, every day was rejected as
+    incoherent, and the unit sat idle for the whole year while the model reported it
+    as part of the fleet."""
+    res = _year(settings, bundle, 4)
+    phes = next(u for u in settings.fleet if u.technology == "phes")
+    gen = res.generation_mwh[phes.unit]
+    delivered = float(np.clip(gen, 0.0, None).sum())
+    capacity = phes.available_mw * float(phes.duration_h)
+    assert delivered > 50 * capacity, (
+        f"{phes.unit} delivered {delivered / capacity:.1f} times its own storage "
+        "over a year, which is not a store that is running"
+    )

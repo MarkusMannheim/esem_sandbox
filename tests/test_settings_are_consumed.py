@@ -29,8 +29,6 @@ CONSUMED = {
     "standard_use_fraction": "cli, to say whether a year sits inside the standard",
     "must_run_offer_per_mwh": "dispatch._offer_stack, the price of a coal must-run band",
     "storage_spread_per_mwh": "dispatch._run_storage, the round-trip viability test",
-    "max_storage_passes": "dispatch.dispatch_year, the re-stack loop",
-    "storage_price_tolerance": "dispatch.dispatch_year, the re-stack convergence test",
     "block_overnight": "config.blocks, then report.block_mask",
     "block_morning": "config.blocks, then report.block_mask",
     "block_solar": "config.blocks, then report.block_mask",
@@ -51,10 +49,13 @@ CONSUMED = {
     "discount_rate": "investment.going_forward_npv_per_mw, the incumbent's rate",
     "build_fraction_of_peak": "investment.build_size_mw",
     "candidates_per_producer": "investment.rank_candidates, decisions taken a tick",
-    "build_ceiling_overshoot_factor": "investment.build_ceiling_mw",
+    "concurrent_builds_per_year": "investment.build_ceiling_mw",
     "exit_consecutive_negatives": "investment.exit_notices, the run-length trigger",
     "exit_notice_years": "investment.exit_notices, and the notice it writes",
     "max_exit_notices_per_tick": "investment.exit_notices, the stagger",
+    "cap_strike_per_mwh": "simulate, the strike every cap in the model is written at",
+    "swap_tenor_years": "simulate.run, the length of each rung of the hedge ladder",
+    "anchor_half_life_years": "clearing.clear_bilateral, the lane anchor's memory",
 }
 
 # Keys committed ahead of the code that will read them. Each needs a reason, and

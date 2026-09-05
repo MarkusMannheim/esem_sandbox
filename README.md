@@ -4,9 +4,10 @@ A small electricity market model built to be understood in an hour and run in a
 workshop.
 
 It simulates one region hour by hour: plant is dispatched, and the price is set
-by the last unit needed to meet demand. That much runs today. The rest of the
-design, where investors decide whether to build, contracts move risk between
-them, and a procurement scheme can be switched on and off, is not built yet.
+by the last unit needed to meet demand. Over twenty annual steps, contracts move
+risk between the firms in it and investors decide what to build, against a view
+of the future they extrapolate rather than forecast. A procurement scheme that
+can be switched on and off is not built yet.
 
 It is a teaching model. Every chart it produces is illustrative, and it is not a
 forecast of anything.
@@ -31,8 +32,9 @@ size of any number.
 
 ## Status
 
-Early. The dispatch, pricing and reporting layer is built. Contracts, the
-forward view, investment and the procurement scheme are not yet.
+Dispatch, pricing and reporting are built, and so are contracts and settlement,
+the forward view, and the investment and exit rules. The procurement scheme and
+its auction are not.
 
 ## Known limitations
 

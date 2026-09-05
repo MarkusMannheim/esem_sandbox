@@ -108,10 +108,20 @@ def test_storage_rent_uses_the_scheduler_that_will_govern_it(settings):
     """A candidate valued by a cleaner rule than the one that will dispatch it once
     built is valued at a spread it can never realise."""
     rng = np.random.default_rng(7)
-    price = 80.0 + 60.0 * np.sin(np.arange(8760) * 2 * np.pi / 24) + rng.normal(0, 5, 8760)
-    four = rent_per_mw_year(price, settings.tech("battery_4h"), settings)
-    two = rent_per_mw_year(price, settings.tech("battery_2h"), settings)
-    assert four > two > 0, "more duration earns more spread on a diurnal price"
+    hours = np.arange(8760)
+    residual = 6000.0 + 2500.0 * np.sin(hours * 2 * np.pi / 24 - 1.6) \
+        + rng.normal(0, 80, 8760)
+    price = 40.0 + 0.02 * (residual - residual.mean())
+    four = rent_per_mw_year(price, settings.tech("battery_4h"), settings, None, residual)
+    two = rent_per_mw_year(price, settings.tech("battery_2h"), settings, None, residual)
+    assert four > two > 0, "more duration earns more spread on a diurnal load shape"
+
+
+def test_a_storage_candidate_cannot_be_valued_without_a_load_shape(settings):
+    """Storage is scheduled against quantities, so a price series alone does not say
+    what a battery is worth: it says what the shape it shaves was worth."""
+    with pytest.raises(ValueError, match="residual"):
+        rent_per_mw_year(np.full(8760, 50.0), settings.tech("battery_4h"), settings)
 
 
 # --------------------------------------------------------------------------
@@ -313,3 +323,14 @@ def test_the_forward_reduces_by_weight_and_not_by_count(settings, one_anchor):
         "with a 10/80/10 peak band the two reductions must differ; if they agree "
         "the weights are not reaching the reduction"
     )
+
+
+def test_a_cell_subset_is_restored_to_a_distribution(settings):
+    """A subset of a normalised lattice is not normalised. Nine of the forty-five
+    cells sum to a fifth, and every reduction downstream assumes one."""
+    from esem_sandbox.core.forward import renormalised
+    subset = tuple(c for c in cell_plan(settings) if c.shape_year == 0)
+    assert sum(c.weight for c in subset) == pytest.approx(0.2)
+    assert sum(c.weight for c in renormalised(subset)) == pytest.approx(1.0)
+    ratios = [b.weight / a.weight for a, b in zip(subset, renormalised(subset))]
+    assert max(ratios) == pytest.approx(min(ratios)), "relative weights must be kept"
