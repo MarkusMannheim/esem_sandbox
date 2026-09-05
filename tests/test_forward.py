@@ -156,7 +156,8 @@ def _stub_anchor(offset, rents_by_cell, shortfall=0.0, weights=None):
         CellOutcome(
             cell=Cell(shape_year=i, growth_path="central", peak_band=1, weight=w,
                       annual_growth=0.019, peak_multiplier=1.0),
-            rent_per_mw_year={"ocgt": r}, block_prices={"peak": 100.0},
+            rent_per_mw_year={"ocgt": r}, unit_rent_per_mw_year={"ocgt_a": r},
+            block_prices={"peak": 100.0},
             mean_price=100.0, unserved_mwh=0.0, unserved_fraction=0.0,
             peak_shortfall_mw=shortfall,
         )

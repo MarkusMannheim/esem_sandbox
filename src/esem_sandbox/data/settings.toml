@@ -80,3 +80,47 @@ entry_decay = 0.5
 # one generating unit, which is read from unit_size_mw in tech_costs.csv because
 # that is the finest distinction entry can actually be built in.
 
+
+[investment]
+# lambda = risk aversion x this. Risk aversion is the archetype fraction on a 0 to
+# 1 scale in agents.py; this turns it into the weight on the certainty-equivalent
+# gap.
+risk_premium = 0.25
+# The scale that turns risk aversion into a CARA coefficient over dollars per
+# MW-year. The cap lane and the investment rule both build their coefficient from
+# it, through one function, because a firm that priced the tail one way when
+# writing a cap and another when building the peaker that would cover it could
+# arbitrage the difference between the two. Set so that a representative writer's
+# coefficient is unchanged from the value the cap lane was calibrated at.
+cara_scale = 4.0e-5
+# A producer is never fully hedged: a contract covers a FORECAST of its output.
+hedge_fraction_cap = 0.85
+# The tenor a bilateral swap book is taken to cover, in years.
+bilateral_contract_years = 3
+# A capacity underwrite for firm technologies, in years. Zero is the policy-free
+# market-led counterfactual, which is what the merchant leg is for. An exercise
+# raises it to ask what a ten-year underwrite would have done instead. It is off
+# rather than absent so that the counterfactual is a setting somebody chose, not a
+# mechanism nobody wrote.
+merchant_underwrite_years = 0
+# The rate an incumbent discounts its going-forward position at. A candidate uses
+# its own technology's WACC from tech_costs.csv, because a project has to be
+# financed; a plant that already exists has no project to finance.
+discount_rate = 0.07
+# Pacing. These are choices, not physics, and they are here rather than in the code
+# so that a workshop can see them and change them.
+build_fraction_of_peak = 0.05
+candidates_per_producer = 3
+# The annual build ceiling is the reference in tech_costs.csv times this. It is a
+# damper, so that the bust in the boom-and-bust exercise comes from lead times,
+# which are real, rather than from the absence of any limit, which is an oversight
+# rather than a mechanism.
+build_ceiling_overshoot_factor = 1.5
+# Exit. Two consecutive negative positions, because one bad year is weather and
+# this model has a one-in-five drought shape-year in it by construction. The notice
+# mirrors the three-year minimum notice of closure for scheduled plant. The cap
+# staggers notices so that a whole cohort cannot leave against a forward in which
+# all of them stayed.
+exit_consecutive_negatives = 2
+exit_notice_years = 3
+max_exit_notices_per_tick = 3

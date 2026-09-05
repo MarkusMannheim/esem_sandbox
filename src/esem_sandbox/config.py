@@ -30,6 +30,13 @@ _SECTIONS = {
         "peak_band_weights",
     },
     "forward": {"anchor_offsets", "entry_step_min_mw", "entry_decay"},
+    "investment": {
+        "risk_premium", "cara_scale", "hedge_fraction_cap",
+        "bilateral_contract_years", "merchant_underwrite_years", "discount_rate",
+        "build_fraction_of_peak", "candidates_per_producer",
+        "build_ceiling_overshoot_factor", "exit_consecutive_negatives",
+        "exit_notice_years", "max_exit_notices_per_tick",
+    },
 }
 
 
@@ -67,6 +74,13 @@ class Unit:
     round_trip_efficiency: float | None
     firm_factor: float
     cap_eligible: bool
+    fom_per_kw_year: float = 0.0
+
+    @property
+    def fixed_cost_per_mw_year(self) -> float:
+        """Going-forward fixed cost. Capex is sunk for a plant that exists, so an
+        exit decision is about this number and nothing else."""
+        return self.fom_per_kw_year * 1000.0
 
     @property
     def available_mw(self) -> float:
@@ -155,6 +169,7 @@ class Settings:
     time: dict[str, Any]
     weather: dict[str, Any]
     forward: dict[str, Any] = field(default_factory=dict)
+    investment: dict[str, Any] = field(default_factory=dict)
     fleet: tuple[Unit, ...] = field(repr=False, default=())
     dsr: tuple[DsrTier, ...] = field(repr=False, default=())
     tech_costs: tuple[TechCost, ...] = field(repr=False, default=())
@@ -245,6 +260,7 @@ def load_settings(overrides: dict[str, dict[str, Any]] | None = None) -> Setting
             round_trip_efficiency=_num(r, "round_trip_efficiency"),
             firm_factor=_num(r, "firm_factor", 0.0),
             cap_eligible=bool(int(_num(r, "cap_eligible", 0))),
+            fom_per_kw_year=_num(r, "fom_per_kw_year", 0.0),
         )
         for r in read_csv("fleet.csv")
     )
@@ -298,6 +314,7 @@ def load_settings(overrides: dict[str, dict[str, Any]] | None = None) -> Setting
         time=raw["time"],
         weather=raw["weather"],
         forward=raw["forward"],
+        investment=raw["investment"],
         fleet=fleet,
         dsr=dsr,
         tech_costs=tech_costs,

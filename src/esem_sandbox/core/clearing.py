@@ -33,11 +33,28 @@ import numpy as np
 from ..config import Settings
 from .report import block_mask
 
-# Archetype risk aversion is a fraction on a 0 to 1 scale; this turns it into a CARA
-# coefficient over dollars per MW-year. Chosen so a representative writer's loading on
-# the packaged distribution is a few per cent of the premium, not a rounding error and
-# not the whole price.
-CARA_SCALE = 2.0e-5
+def cara_coefficient(risk_aversion: float, exposure: float,
+                     settings: Settings) -> float:
+    """One agent's absolute risk aversion over dollars per MW-year.
+
+    THE ONLY PLACE a CARA coefficient is built, and both the cap lane and the
+    investment rule go through it. That is not tidiness. A firm deciding whether to
+    write a cap and a firm deciding whether to build the peaker that would cover it
+    are pricing the same tail, and if they priced it at different coefficients the
+    model would generate trades out of its own inconsistency: write the cap, decline
+    the plant, and bank a difference that exists only because two functions
+    disagreed. The two were briefly built separately here and did disagree, by a
+    factor of two.
+
+    Archetype risk aversion is a fraction on a nought-to-one scale. Exposure scales
+    the coefficient because hedging removes risk borne rather than risk existing: a
+    producer with no residual exposure has a coefficient of zero, at which point the
+    certainty equivalent is the expected value and the rule it feeds reduces to
+    expected rent against fixed cost. A cap writer passes an exposure of one,
+    because writing naked insurance is what being unhedged means.
+    """
+    lam = risk_aversion * float(settings.investment["risk_premium"])
+    return 2.0 * lam * max(0.0, exposure) * float(settings.investment["cara_scale"])
 
 
 def cara_certainty_equivalent(payoffs: np.ndarray, weights: np.ndarray,
@@ -55,9 +72,14 @@ def cara_certainty_equivalent(payoffs: np.ndarray, weights: np.ndarray,
 
 
 def risk_loading(payoffs: np.ndarray, weights: np.ndarray, risk_aversion: float,
-                 scale: float = CARA_SCALE) -> float:
-    """What a writer charges for bearing this payout distribution."""
-    a = risk_aversion * scale
+                 settings: Settings, exposure: float = 1.0) -> float:
+    """What a writer charges for bearing this payout distribution.
+
+    A writer is unhedged against what it has written, so the default exposure is
+    one. The argument exists so that the coefficient comes from the same place the
+    investment rule's does, not so that a caller can quietly pick a different one.
+    """
+    a = cara_coefficient(risk_aversion, exposure, settings)
     return float(payoffs @ weights) - cara_certainty_equivalent(payoffs, weights, a)
 
 
@@ -118,7 +140,7 @@ def cap_cost_basis(capex_per_kw: float, fom_per_kw_year: float, wacc: float,
 
 def cap_anchor(cost_basis_per_mwh: float, realised_mean_excess_per_mwh: float,
                payoffs_per_mw: np.ndarray, weights: np.ndarray,
-               writer_risk_aversion: float) -> float:
+               writer_risk_aversion: float, settings: Settings) -> float:
     """The cap lane's anchor.
 
     The floor is the greater of what the plant needs and what the cap has lately been
@@ -129,7 +151,8 @@ def cap_anchor(cost_basis_per_mwh: float, realised_mean_excess_per_mwh: float,
     """
     floor = max(cost_basis_per_mwh, realised_mean_excess_per_mwh)
     hours = 8760.0
-    loading_per_mwh = risk_loading(payoffs_per_mw, weights, writer_risk_aversion) / hours
+    loading_per_mwh = risk_loading(payoffs_per_mw, weights, writer_risk_aversion,
+                                   settings) / hours
     return floor + loading_per_mwh
 
 

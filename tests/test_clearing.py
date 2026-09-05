@@ -59,31 +59,31 @@ def test_a_certainty_equivalent_is_below_the_mean_and_falls_with_risk_aversion()
         previous = ce
 
 
-def test_a_certain_payoff_carries_no_loading():
+def test_a_certain_payoff_carries_no_loading(settings):
     payoffs = np.full(5, 40_000.0)
     weights = np.full(5, 0.2)
-    assert risk_loading(payoffs, weights, 0.6) == pytest.approx(0.0, abs=1e-6)
+    assert risk_loading(payoffs, weights, 0.6, settings) == pytest.approx(0.0, abs=1e-6)
 
 
-def test_the_loading_survives_a_scarcity_year_without_overflowing():
+def test_the_loading_survives_a_scarcity_year_without_overflowing(settings):
     """A cap payout in a bad year is large. exp() of it is not representable, so the
     certainty equivalent is computed in a shifted frame."""
     payoffs = np.array([3e4, 5e4, 8e4, 9e4, 2.1e6])
     weights = np.full(5, 0.2)
-    loading = risk_loading(payoffs, weights, 0.6)
+    loading = risk_loading(payoffs, weights, 0.6, settings)
     assert np.isfinite(loading) and loading > 0
 
 
-def test_the_cap_anchor_floors_on_the_cost_of_standing_ready():
+def test_the_cap_anchor_floors_on_the_cost_of_standing_ready(settings):
     """A writer will not sell below what the plant needs, however quiet the market."""
     quiet = np.full(5, 100.0)
     weights = np.full(5, 0.2)
     basis = cap_cost_basis(1400, 16, 0.07, 25, 0.85, 69_000.0)
-    anchor = cap_anchor(basis, 0.0, quiet, weights, 0.6)
+    anchor = cap_anchor(basis, 0.0, quiet, weights, 0.6, settings)
     assert anchor >= basis
 
 
-def test_the_cap_anchor_does_not_lift_on_one_scarce_interval():
+def test_the_cap_anchor_does_not_lift_on_one_scarce_interval(settings):
     """The defect this construction exists to avoid.
 
     Using the within-year dispersion of hourly excess lifted the larger model's cap
@@ -94,26 +94,26 @@ def test_the_cap_anchor_does_not_lift_on_one_scarce_interval():
     weights = np.full(5, 0.2)
     basis = cap_cost_basis(1400, 16, 0.07, 25, 0.85, 69_000.0)
     calm = np.full(5, 5_000.0)
-    base = cap_anchor(basis, 0.0, calm, weights, 0.6)
+    base = cap_anchor(basis, 0.0, calm, weights, 0.6, settings)
 
     price = np.full(8760, 50.0)
     price[0] = 20_300.0
     excess = realised_mean_excess(price, 300.0)
     spiked = calm.copy()
     spiked[0] += (20_300.0 - 300.0)          # one interval, in one year
-    lifted = cap_anchor(basis, excess, spiked, weights, 0.6)
+    lifted = cap_anchor(basis, excess, spiked, weights, 0.6, settings)
 
     assert lifted - base < 5.0, (
         f"one scarce interval moved the anchor by ${lifted - base:,.2f}/MWh"
     )
 
 
-def test_more_risk_aversion_costs_the_holder_more():
+def test_more_risk_aversion_costs_the_holder_more(settings):
     payoffs = np.array([3e4, 5e4, 8e4, 9e4, 2.1e5])
     weights = np.full(5, 0.2)
     basis = cap_cost_basis(1400, 16, 0.07, 25, 0.85, 69_000.0)
-    timid = cap_anchor(basis, 0.0, payoffs, weights, 0.60)
-    bold = cap_anchor(basis, 0.0, payoffs, weights, 0.45)
+    timid = cap_anchor(basis, 0.0, payoffs, weights, 0.60, settings)
+    bold = cap_anchor(basis, 0.0, payoffs, weights, 0.45, settings)
     assert timid > bold
 
 

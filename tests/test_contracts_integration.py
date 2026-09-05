@@ -62,7 +62,8 @@ def test_a_book_priced_off_real_anchors_still_nets_to_zero(settings, years):
     payoffs = np.array([np.clip(r.price - 300.0, 0.0, None).sum() for r in years])
     basis = _peaker_basis(settings, years)
     premium = cap_anchor(basis, realised_mean_excess(years[0].price, 300.0),
-                         payoffs, np.full(len(years), 1 / len(years)), 0.60)
+                         payoffs, np.full(len(years), 1 / len(years)), 0.60,
+                         settings)
     book.append(Contract(kind=CAP, holder="retailer_a", writer="merchant",
                          strike_per_mwh=300.0, volume_mw=200.0, start_year=2026,
                          tenor_years=3, premium_per_mwh=premium))
@@ -96,7 +97,7 @@ def test_the_cap_premium_is_a_small_part_of_what_the_cap_pays(settings, years):
     weights = np.full(len(years), 1 / len(years))
     basis = _peaker_basis(settings, years)
     premium = cap_anchor(basis, realised_mean_excess(years[0].price, 300.0),
-                         payoffs, weights, 0.60)
+                         payoffs, weights, 0.60, settings)
     annual_premium = premium * 8760.0
     expected_payout = float(payoffs @ weights)
     assert 0.05 * expected_payout < annual_premium < 1.5 * expected_payout, (
@@ -115,7 +116,7 @@ def test_the_cap_writer_loses_in_the_drought_year_and_gains_in_mild_ones(setting
     weights = np.full(len(years), 1 / len(years))
     basis = _peaker_basis(settings, years)
     premium = cap_anchor(basis, realised_mean_excess(years[0].price, 300.0),
-                         payoffs, weights, 0.60)
+                         payoffs, weights, 0.60, settings)
     contract = Contract(kind=CAP, holder="retailer_a", writer="merchant",
                         strike_per_mwh=300.0, volume_mw=100.0, start_year=2026,
                         tenor_years=len(years), premium_per_mwh=premium)

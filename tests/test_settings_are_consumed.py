@@ -43,6 +43,18 @@ CONSUMED = {
     "anchor_offsets": "forward.forward_view, the years the lattice is dispatched at",
     "entry_step_min_mw": "forward.update_projected_entry, the floor on a step",
     "entry_decay": "forward.update_projected_entry, the unbracketed retreat",
+    "risk_premium": "investment.cara_coefficient, lambda = risk aversion x this",
+    "cara_scale": "investment.cara_coefficient, the coefficient over $/MW-year",
+    "hedge_fraction_cap": "investment.residual_exposure, the ceiling on cover",
+    "bilateral_contract_years": "investment.residual_exposure, the swap book channel",
+    "merchant_underwrite_years": "investment.residual_exposure, the underwrite channel",
+    "discount_rate": "investment.going_forward_npv_per_mw, the incumbent's rate",
+    "build_fraction_of_peak": "investment.build_size_mw",
+    "candidates_per_producer": "investment.rank_candidates, decisions taken a tick",
+    "build_ceiling_overshoot_factor": "investment.build_ceiling_mw",
+    "exit_consecutive_negatives": "investment.exit_notices, the run-length trigger",
+    "exit_notice_years": "investment.exit_notices, and the notice it writes",
+    "max_exit_notices_per_tick": "investment.exit_notices, the stagger",
 }
 
 # Keys committed ahead of the code that will read them. Each needs a reason, and
