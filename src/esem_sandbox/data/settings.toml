@@ -22,10 +22,12 @@ cumulative_price_window_hours = 168
 minimum_price_per_mwh = -1000.0
 
 [reliability]
-# AEMC Reliability Panel. The standard is period dependent: 0.002 per cent to
-# 30 June 2028, 0.003 per cent from 1 July 2028 to 30 June 2032 (Reliability
-# Standard and Settings Review final report, 23 April 2026), and nothing is
-# published beyond that. This model holds one figure for the whole horizon.
+# AEMC Reliability Panel. The standard in force is 0.002 per cent of unserved
+# energy. The Panel's 2026 Reliability Standard and Settings Review final report
+# (23 April 2026) recommends 0.003 per cent for 1 July 2028 to 30 June 2032, and
+# nothing is published beyond that. This model holds the in-force figure for the
+# whole horizon rather than stepping it, which is a simplification: a run past
+# 2028 is measured against a standard tighter than the one recommended to apply.
 standard_use_fraction = 0.00002
 interim_measure_use_fraction = 0.000006
 

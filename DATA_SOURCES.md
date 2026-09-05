@@ -59,9 +59,10 @@ and the reliability standard are set by instrument and are cited by figure in
 settings for the 2026-27 financial year, published 27 February 2026. The threshold is
 published as a sum of five-minute trading interval prices; this model settles hourly
 and divides it by twelve accordingly. The standard is period-dependent: 0.002 per
-cent to 30 June 2028, and 0.003 per cent from 1 July 2028 to 30 June 2032 under
-the Reliability Panel's Reliability Standard and Settings Review final report of
-23 April 2026. This model holds one figure for a whole run.
+cent of unserved energy. The Reliability Panel's 2026 Reliability Standard and
+Settings Review final report of 23 April 2026 recommends 0.003 per cent for the
+period 1 July 2028 to 30 June 2032. This model holds the in-force figure for a
+whole run rather than stepping it.
 
 ## The files
 
