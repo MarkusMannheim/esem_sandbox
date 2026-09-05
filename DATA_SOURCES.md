@@ -68,11 +68,11 @@ for a whole run rather than stepping it at 2028.
 
 | File | Contents | Derivation |
 |---|---|---|
-| `fleet.csv` | Fifteen rows: thermal, hydro, storage, wind, solar, rooftop and one import link | Aggregated to technology from public AEMO generation information and IASR retirement years. Generic labels, rounded capacities. Availability factors are IASR figures by technology. The hydro energy budget and the import link's coincidence derate are illustrative and are documented parameters, not published values |
+| `fleet.csv` | Fifteen rows: thermal, hydro, storage, wind, solar, rooftop and one import link | Aggregated to technology from public AEMO generation information and IASR retirement years. Generic labels, rounded capacities. Availability factors for coal, gas, hydro and pumped hydro are IASR figures by technology; the battery, wind, solar and rooftop rows carry nominal values, and wind and solar are dispatched from their traces rather than an availability. The hydro energy budget and the import link's coincidence derate are illustrative and are documented parameters, not published values |
 | `tech_costs.csv` | Entrant capital and operating costs, WACC, lead time, life, unit size, availability, firm factor | Rounded figures lying inside the published GenCost and IASR ranges, never the published point estimates |
 | `dsr.csv` | Four demand-response tiers with prices and call-hour budgets | The IASR demand-side participation table for New South Wales, transcribed as **increments** by differencing the published cumulative bands. A test checks the tiers increase with price and that their sum stays in the range an increment basis implies |
 | `growth.csv` | Three demand growth paths and their weights | Stylised around the IASR trajectories; stated as stylised wherever it is used |
-| `settings.toml` | Market price cap, thresholds, blocks, reliability standard, weather seed | AEMC reliability settings and model parameters, each key carrying its source in a comment |
+| `settings.toml` | Market price cap, thresholds, blocks, reliability standard, weather seed | AEMC reliability settings and model parameters. The market and reliability keys carry their source in a comment; the dispatch, time and weather keys are model parameters with no external source and are documented as such |
 
 ## Rules for changing anything here
 

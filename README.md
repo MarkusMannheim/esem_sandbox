@@ -3,10 +3,10 @@
 A small electricity market model built to be understood in an hour and run in a
 workshop.
 
-It simulates one region over twenty years: plant is dispatched hour by hour,
-prices are set by the last unit needed, investors decide whether to build, and
-contracts move risk between them. You can turn a procurement scheme on and off
-and watch what changes.
+It simulates one region hour by hour: plant is dispatched, and the price is set
+by the last unit needed to meet demand. That much runs today. The rest of the
+design, where investors decide whether to build, contracts move risk between
+them, and a procurement scheme can be switched on and off, is not built yet.
 
 It is a teaching model. Every chart it produces is illustrative, and it is not a
 forecast of anything.

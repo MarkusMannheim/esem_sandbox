@@ -6,9 +6,10 @@ the last physical unit the price climbs the demand-response ladder, then the
 reliability response tranche, then the value of lost load, and the administered
 cap applies once the rolling cumulative price threshold is breached.
 
-Energy-limited plant offers at opportunity cost rather than being placed with
-perfect foresight. Without that the duration curve has two steps and cap
-contracts pay nothing in a normal year.
+Energy-limited plant is scheduled against its budget rather than offered and
+hoped for: hydro shaves the residual down to a threshold chosen so the year's
+budget is spent exactly. An offer alone could only move it among a handful of
+discrete thermal steps, and delivered 40 to 50 per cent of the budget.
 """
 
 from __future__ import annotations
@@ -74,7 +75,7 @@ def _offer_stack(units: list[Unit], settings: Settings,
                  ) -> tuple[np.ndarray, np.ndarray, list[str]]:
     """Offer prices, capacities and labels for everything that sets a price.
 
-    A coal unit is split in two: the band it cannot go below offers at its
+    A coal unit is split in two: the band it bids hardest to keep running offers at its
     must-run price, and the rest offers at its own short run cost. Those are
     different economics from a curtailing wind farm, so they are different numbers:
     a coal unit bids low to avoid a shutdown and restart, a wind farm bids down to
@@ -89,7 +90,7 @@ def _offer_stack(units: list[Unit], settings: Settings,
             continue
         available = u.available_mw
         if u.technology == "hydro":
-            price = (extra or {}).get("water_value", 0.0)
+            price = (extra or {}).get("water_value", u.srmc_per_mwh)
             prices.append(price)
             caps.append(available)
             labels.append(u.unit)
@@ -405,15 +406,20 @@ def dispatch_year(settings: Settings, year: int, demand_mw: np.ndarray,
     # Energy-limited hydro is scheduled against its budget, not offered into the
     # stack and hoped for. Every hydro row is scheduled on its own budget: pricing
     # them all off the first row's number was one more way the budget went unspent.
-    hydro_units = [u for u in units if u.technology == "hydro"]
-    thermal_only = [u for u in units if u.technology != "hydro"]
+    # Only hydro rows that declare an energy budget are scheduled against one. A row
+    # without a budget is not energy limited, so it belongs in the stack like any
+    # other plant. Excluding every hydro row from the stack and then skipping the
+    # unbudgeted ones made such a row disappear: never scheduled, never offered,
+    # never generating.
+    hydro_units = [u for u in units
+                   if u.technology == "hydro" and u.energy_budget_gwh]
+    scheduled = {u.unit for u in hydro_units}
+    thermal_only = [u for u in units if u.unit not in scheduled]
     p_nh, c_nh, _ = _offer_stack(thermal_only, settings)
     hydro_gen: dict[str, np.ndarray] = {}
     hydro_total = np.zeros_like(residual)
     water = 0.0
     for u in hydro_units:
-        if not u.energy_budget_gwh:
-            continue
         schedule, unit_water = _hydro_schedule(
             residual - hydro_total, u.available_mw,
             u.energy_budget_gwh * 1000.0, p_nh, c_nh, floor)

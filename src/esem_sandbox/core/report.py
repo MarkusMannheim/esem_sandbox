@@ -31,10 +31,10 @@ _QUARTER_STARTS = (0, 31 + 28 + 31, 31 + 28 + 31 + 30 + 31 + 30,
 def quarter_of_hour(n_hours: int) -> np.ndarray:
     """Calendar quarter index 0..3 for each hour of a 365-day year.
 
-    Uses real month lengths. Deriving months from an average 30.44-day month puts
-    days in the wrong quarter: the drift reaches four days by December, so the last
-    days of March, June and September fall on the wrong side of a boundary, and
-    quarterly contracts would settle against the wrong quarter's prices.
+    Uses real month lengths. Deriving month starts from an average 30.44-day month
+    misplaces them by up to two days, so days at the end of March, June and
+    September fall on the wrong side of a quarter boundary and quarterly contracts
+    would settle against the wrong quarter's prices.
     """
     day = np.arange(n_hours) // HOURS_PER_DAY
     return np.searchsorted(np.array(_QUARTER_STARTS), day, side="right") - 1
@@ -106,7 +106,8 @@ class Calibration:
             f"mean price                  ${self.mean_price:,.2f}/MWh",
             f"days holding a $300 hour    {self.days_with_300_hour:.1%}",
             f"hours at or above $300      {self.hours_at_or_above_300}",
-            f"mean excess over $300       ${self.mean_excess_over_300:,.2f}/MWh",
+            f"mean excess over $300       ${self.mean_excess_over_300:,.2f}/MWh"
+            f"  (averaged over every hour of the year, not only the dear ones)",
             f"hours at the price cap      {self.hours_at_voll}",
             f"administered hours          {self.administered_hours}",
             f"unserved energy             {self.unserved_gwh:.3f} GWh "

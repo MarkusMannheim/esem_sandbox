@@ -407,3 +407,19 @@ def test_the_withdrawal_ladder_has_all_of_its_rungs(settings, bundle):
         offer = next(u.srmc_per_mwh for u in settings.fleet if u.technology == tech)
         assert offer in levels, f"{tech}'s offer ${offer:.0f} never sets the price"
     assert settings.dispatch["must_run_offer_per_mwh"] in levels
+
+
+def test_a_hydro_row_without_a_budget_still_generates(settings, bundle):
+    """Not every hydro row is energy limited, and one without a budget must not
+    vanish. It was excluded from the stack because it is hydro, then skipped by the
+    scheduler because it has no budget, so it neither offered nor generated."""
+    import dataclasses
+    fleet = tuple(dataclasses.replace(u, energy_budget_gwh=None)
+                  if u.technology == "hydro" else u for u in settings.fleet)
+    s = dataclasses.replace(settings, fleet=fleet)
+    shape = bundle["demand_shape"][4]
+    res = dispatch_year(s, 2026, shape * (12500.0 / shape.max()),
+                        bundle["wind_cf"][4], bundle["solar_cf"][4])
+    unit = next(u for u in s.fleet if u.technology == "hydro")
+    assert unit.unit in res.generation_mwh, "the row disappeared from the result"
+    assert res.generation_mwh[unit.unit].sum() > 0, "it never generated"

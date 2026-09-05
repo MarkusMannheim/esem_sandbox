@@ -36,6 +36,20 @@ against those levels. Because the price is monotone in residual demand, a store 
 shaves the peak and fills the trough is consistent with the price it produces by
 construction, and the inversion becomes impossible rather than merely small.
 
+## The two cheapest demand-response tiers never set a price
+
+The ladder's first two tiers are 1.0 MW at $300/MWh and 20.8 MW at $500/MWh,
+transcribed as increments from the published demand-side participation table. They
+are so small against a 12 GW system that any hour reaching them is short by far more
+than 21.8 MW, so both are exhausted within the same hour and the price lands on the
+$7,500 tier. Measured across all five shape-years, no hour ever settles between $190
+and $7,500.
+
+This is faithful to the source rather than wrong, but it has a consequence worth
+saying out loud: a $300 cap contract, which is the strike the design uses, is never
+struck at a price the ladder itself produces. The gap in the price duration curve is
+real and a workshop exercise on cap payouts should expect it.
+
 ## What the simplification costs elsewhere
 
 One region, so nothing locational: no interconnectors, no transmission build, no
