@@ -16,6 +16,7 @@ _SECTIONS = {
     "market": {
         "market_price_cap_per_mwh", "administered_price_cap_per_mwh",
         "cumulative_price_threshold", "cumulative_price_window_hours",
+        "cumulative_price_threshold_intervals_per_hour",
         "minimum_price_per_mwh",
     },
     "reliability": {"standard_use_fraction", "interim_measure_use_fraction"},
@@ -90,6 +91,16 @@ class Settings:
     weather: dict[str, Any]
     fleet: tuple[Unit, ...] = field(repr=False, default=())
     dsr: tuple[DsrTier, ...] = field(repr=False, default=())
+
+    @property
+    def hourly_price_threshold(self) -> float:
+        """The published threshold restated for a model that settles hourly.
+
+        The threshold is a sum of trading-interval prices and a trading interval is
+        five minutes, so one hourly interval here stands for twelve of the market's.
+        """
+        return (self.market["cumulative_price_threshold"]
+                / self.market["cumulative_price_threshold_intervals_per_hour"])
 
     def blocks(self) -> dict[str, tuple[int, int]]:
         return {

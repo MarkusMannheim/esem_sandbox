@@ -48,31 +48,48 @@ def test_must_run_coal_lets_the_solar_block_collapse(settings):
     assert caps[0] > 0
 
 
-def test_thirty_seven_capped_hours_trigger_the_administered_cap(settings):
-    """The threshold is $745,300 over 168 hourly intervals, so 37 hours at the
-    $20,300 cap breach it: 37 x 20,300 = 751,100."""
+def test_eight_capped_hours_trigger_the_administered_cap(settings):
+    """The published threshold is a sum of five-minute trading interval prices.
+    At $20,300 the market may run 7.5 hours at the cap before it is suspended, so
+    the eighth hour of an hourly model breaches it and the seventh does not."""
     n = 200
     residual = np.zeros(n)
-    residual[:37] = 1e6          # far beyond anything physical or on the ladder
+    residual[:12] = 1e6          # far beyond anything physical or on the ladder
     stack_price = np.full(n, 50.0)
     price, unserved, _, administered = _apply_ladder(
         residual, stack_price, firm_capacity=0.0, settings=settings)
     mpc = settings.market["market_price_cap_per_mwh"]
     apc = settings.market["administered_price_cap_per_mwh"]
-    assert (price[:36] == mpc).all(), "the cap must not fire early"
-    assert not administered[:36].any()
-    assert administered[36], "the 37th capped hour breaches the threshold"
-    assert price[36] == apc
-    assert unserved[:37].sum() > 0
+    trigger = int(np.argmax(administered))
+    assert administered.any(), "the cap must fire"
+    assert trigger == 7, f"expected the 8th capped hour to breach, got hour {trigger + 1}"
+    assert (price[:7] == mpc).all(), "the cap must not fire early"
+    assert price[7] == apc
+    assert unserved[:12].sum() > 0
 
 
-def test_thirty_six_capped_hours_do_not_trigger_it(settings):
+def test_seven_capped_hours_do_not_trigger_it(settings):
     n = 200
     residual = np.zeros(n)
-    residual[:36] = 1e6
+    residual[:7] = 1e6
     _, _, _, administered = _apply_ladder(
         residual, np.full(n, 50.0), 0.0, settings)
-    assert not administered.any(), "36 x 20,300 = 730,800, below the threshold"
+    mpc = settings.market["market_price_cap_per_mwh"]
+    assert 7 * mpc < settings.hourly_price_threshold
+    assert not administered.any()
+
+
+def test_the_threshold_matches_the_regulators_own_gloss(settings):
+    """A guard against the units error this test file used to enshrine.
+
+    The threshold was previously divided by two, on the assumption that it was a
+    sum of half-hourly prices. It is a sum of five-minute prices, so the model ran
+    about 45 hours at the cap instead of 7.5 before suspension.
+    """
+    hours = settings.hourly_price_threshold / settings.market["market_price_cap_per_mwh"]
+    assert 7.0 < hours < 8.0, (
+        f"{hours:.2f} hours at the cap; the AEMC schedule glosses this pair as 7.5"
+    )
 
 
 def test_ladder_tiers_are_called_in_order_and_run_out(settings):

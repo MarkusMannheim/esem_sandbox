@@ -13,6 +13,18 @@ not the New South Wales fleet: plant labels are generic, capacities are rounded,
 and no row corresponds to a real station's full set of parameters. Every chart
 the model produces says so.
 
+## Dollar basis
+
+**All money in this repository is in real 2025-26 Australian dollars**, the year the
+market price settings below apply to. Capital and operating costs are rounded into
+that basis; no figure is indexed within a run, and the model does not inflate.
+
+This matters more than it looks. The market price cap and the cumulative price
+threshold are indexed together each year and published as a pair, and it is their
+*ratio* that decides when the market is suspended. Mixing a cap from one year with a
+threshold from another silently changes the model's rules rather than just its price
+level. The pair here is the one applying from 1 July 2025.
+
 ## Permissions relied on
 
 ### AEMO
@@ -42,7 +54,11 @@ Attribution 4.0 International.
 
 The market price cap, the cumulative price threshold, the administered price cap
 and the reliability standard are set by instrument and are cited by figure in
-`settings.toml`, not redistributed. The standard is period-dependent: 0.002 per
+`settings.toml`, not redistributed. The cap and threshold are the pair applying from
+1 July 2025 ($20,300/MWh and $1,823,600/MWh) from the AEMC's schedule of reliability
+settings for the 2026-27 financial year, published 27 February 2026. The threshold is
+published as a sum of five-minute trading interval prices; this model settles hourly
+and divides it by twelve accordingly. The standard is period-dependent: 0.002 per
 cent to 30 June 2028, and 0.003 per cent from 1 July 2028 to 30 June 2032 under
 the Reliability Panel's Reliability Standard and Settings Review final report of
 23 April 2026. This model holds one figure for a whole run.

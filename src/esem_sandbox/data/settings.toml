@@ -1,15 +1,24 @@
 # Every key carries the source it comes from. Unknown keys raise at load.
 
 [market]
-# AEMC reliability settings schedule.
+# AEMC schedule of reliability settings, 2026-27 financial year (27 February 2026).
+# These are the values applying from 1 July 2025 to 30 June 2026, taken as one
+# internally consistent pair. Do not mix years: the cap and the threshold are
+# indexed together and their ratio is what decides when the market is suspended.
 market_price_cap_per_mwh = 20300.0          # value of lost load, the market price cap
-administered_price_cap_per_mwh = 600.0      # applies while the threshold is breached
-cumulative_price_threshold = 745300.0       # 168 hourly intervals; see note below
+administered_price_cap_per_mwh = 600.0      # permanent since the December 2023 rule
+cumulative_price_threshold = 1823600.0      # AS PUBLISHED: see the interval note
+cumulative_price_threshold_intervals_per_hour = 12
 cumulative_price_window_hours = 168
-# The published threshold is $1,490,600 over 336 half-hourly intervals. This model
-# settles hourly, so the threshold is scaled by 168/336. Halving the interval count
-# without halving the threshold would fire the cap half as often and leave half the
-# scarcity rent standing.
+# The threshold is published as a sum of TRADING INTERVAL prices, and a trading
+# interval has been five minutes since five-minute settlement. That is what makes
+# the AEMC's own gloss exact: $1,823,600 / $20,300 = 89.8 intervals = 7.5 hours at
+# the cap, and the 2027 base $2,325,600 / $22,800 = 102 intervals = 8.5 hours.
+# This model settles hourly, so one of its intervals stands for twelve of the
+# market's. The threshold is therefore divided by twelve, not by two. Dividing by
+# two would assume half-hourly settlement and let the market run about 45 hours at
+# the cap before suspension instead of 7.5, leaving six times the scarcity rent
+# standing.
 minimum_price_per_mwh = -1000.0
 
 [reliability]

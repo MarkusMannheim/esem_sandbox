@@ -205,7 +205,7 @@ def _apply_ladder(residual: np.ndarray, stack_price: np.ndarray,
     """
     mpc = settings.market["market_price_cap_per_mwh"]
     apc = settings.market["administered_price_cap_per_mwh"]
-    threshold = settings.market["cumulative_price_threshold"]
+    threshold = settings.hourly_price_threshold
     window = int(settings.market["cumulative_price_window_hours"])
 
     price = stack_price.copy()
