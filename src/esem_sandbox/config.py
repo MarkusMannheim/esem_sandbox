@@ -21,7 +21,7 @@ _SECTIONS = {
     },
     "reliability": {"standard_use_fraction", "interim_measure_use_fraction"},
     "dispatch": {
-        "vre_offer_per_mwh", "storage_spread_per_mwh", "max_storage_passes",
+        "must_run_offer_per_mwh", "storage_spread_per_mwh", "max_storage_passes",
         "storage_price_tolerance",
     },
     "time": {"block_overnight", "block_morning", "block_solar", "block_peak"},

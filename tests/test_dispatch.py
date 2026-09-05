@@ -5,8 +5,8 @@ import pytest
 
 from esem_sandbox.config import load_settings
 from esem_sandbox.core.dispatch import (
-    _apply_ladder, _offer_stack, _price_from_stack, _unit_generation,
-    dispatch_year,
+    _apply_ladder, _curtailment_price, _offer_stack, _price_from_stack,
+    _unit_generation, dispatch_year,
 )
 from esem_sandbox.core.weather import HOURS_PER_YEAR, generate_bundle
 
@@ -40,12 +40,46 @@ def test_surplus_clears_at_the_floor(settings):
     np.testing.assert_array_equal(got, [-10.0, -10.0])
 
 
-def test_must_run_coal_lets_the_solar_block_collapse(settings):
+def test_must_run_coal_offers_at_its_own_price_not_a_wind_farms(settings):
+    """A coal band avoiding a shutdown and a wind farm forgoing certificates are
+    different economics, so they are different numbers. They were the same constant."""
     prices, caps, _ = _offer_stack(list(settings.fleet), settings,
                                    {"water_value": 40.0})
-    floor = settings.dispatch["vre_offer_per_mwh"]
-    assert prices[0] == floor, "a must-run band should offer at the floor"
+    must_run = settings.dispatch["must_run_offer_per_mwh"]
+    assert prices[0] == must_run
     assert caps[0] > 0
+    wind_offer = next(u.srmc_per_mwh for u in settings.fleet if u.technology == "wind")
+    assert must_run != wind_offer, "these must not collapse back to one constant"
+
+
+def test_surplus_is_priced_by_the_plant_on_the_margin_of_curtailment(settings, bundle):
+    """The surplus price used to be one constant, so a fifth of the year sat at a
+    single identical negative value. It should now vary with how deep the surplus is."""
+    res = _year(settings, bundle, 0)
+    negative = res.price[res.price < 0]
+    assert len(negative) > 100, "this system should have plenty of surplus hours"
+    levels = np.unique(negative)
+    assert len(levels) >= 2, (
+        f"only {len(levels)} distinct negative price(s): the curtailment merit order "
+        "has collapsed back to a single constant"
+    )
+    wind = next(u.srmc_per_mwh for u in settings.fleet if u.technology == "wind")
+    solar = next(u.srmc_per_mwh for u in settings.fleet if u.technology == "solar")
+    assert solar in levels and wind in levels, (
+        "both curtailable technologies should set the price in some hour"
+    )
+    assert levels.min() >= settings.market["minimum_price_per_mwh"]
+
+
+def test_deeper_surplus_gives_a_lower_price(settings):
+    """The ordering is the whole point: the plant willing to accept least is
+    curtailed first, so the price falls as the surplus deepens."""
+    solar = np.array([100.0, 100.0, 100.0])
+    wind = np.array([100.0, 100.0, 100.0])
+    price = _curtailment_price(np.array([50.0, 150.0, 500.0]),
+                               [(-25.0, solar), (-45.0, wind)],
+                               market_floor=-1000.0)
+    np.testing.assert_array_equal(price, [-25.0, -45.0, -1000.0])
 
 
 def test_eight_capped_hours_trigger_the_administered_cap(settings):

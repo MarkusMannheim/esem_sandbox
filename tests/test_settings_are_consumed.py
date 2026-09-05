@@ -27,7 +27,7 @@ CONSUMED = {
     "cumulative_price_window_hours": "dispatch._apply_ladder, the rolling window",
     "minimum_price_per_mwh": "dispatch.dispatch_year, enforced on the settled series",
     "standard_use_fraction": "cli, to say whether a year sits inside the standard",
-    "vre_offer_per_mwh": "dispatch._offer_stack and _price_from_stack, the surplus price",
+    "must_run_offer_per_mwh": "dispatch._offer_stack, the price of a coal must-run band",
     "storage_spread_per_mwh": "dispatch._run_storage, the round-trip viability test",
     "max_storage_passes": "dispatch.dispatch_year, the re-stack loop",
     "storage_price_tolerance": "dispatch.dispatch_year, the re-stack convergence test",
@@ -85,7 +85,7 @@ def test_the_market_price_floor_is_actually_enforced():
     from esem_sandbox.core.dispatch import dispatch_year
     from esem_sandbox.core.weather import generate_bundle
 
-    s = load_settings({"dispatch": {"vre_offer_per_mwh": -5000.0}})
+    s = load_settings({"dispatch": {"must_run_offer_per_mwh": -5000.0}})
     b = generate_bundle(s.weather["seed"], 1)
     shape = b["demand_shape"][0]
     res = dispatch_year(s, 2026, shape * (12500.0 / shape.max()),

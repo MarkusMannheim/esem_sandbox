@@ -63,11 +63,13 @@ def _offer_stack(units: list[Unit], settings: Settings,
                  ) -> tuple[np.ndarray, np.ndarray, list[str]]:
     """Offer prices, capacities and labels for everything that sets a price.
 
-    A coal unit is split in two: its must-run floor offers at the floor price so
-    the solar block can collapse below zero, and the rest offers at its own short
-    run cost.
+    A coal unit is split in two: the band it cannot go below offers at its
+    must-run price, and the rest offers at its own short run cost. Those are
+    different economics from a curtailing wind farm, so they are different numbers:
+    a coal unit bids low to avoid a shutdown and restart, a wind farm bids down to
+    roughly minus the certificate revenue it would forgo.
     """
-    floor = settings.dispatch["vre_offer_per_mwh"]
+    floor = settings.dispatch["must_run_offer_per_mwh"]
     prices: list[float] = []
     caps: list[float] = []
     labels: list[str] = []
@@ -98,15 +100,43 @@ def _offer_stack(units: list[Unit], settings: Settings,
 
 
 def _price_from_stack(residual: np.ndarray, prices: np.ndarray,
-                      caps: np.ndarray, floor: float) -> np.ndarray:
-    """Marginal offer meeting the residual, or the floor when nothing is needed."""
+                      caps: np.ndarray, floor: float,
+                      surplus_price: np.ndarray | None = None) -> np.ndarray:
+    """Marginal offer meeting the residual; the surplus price when nothing is needed.
+
+    ``surplus_price`` is the curtailment merit order's answer for hours with more
+    generation than load. Without it every surplus hour would clear at one constant,
+    which puts a flat step of identical negative prices across a fifth of the year.
+    """
     cum = np.cumsum(caps)
     idx = np.searchsorted(cum, np.clip(residual, 0.0, None), side="left")
     out = np.full(residual.shape, prices[-1] if len(prices) else floor)
     inside = idx < len(prices)
     out[inside] = prices[idx[inside]]
-    out[residual <= 0.0] = floor
+    spare = residual <= 0.0
+    out[spare] = floor if surplus_price is None else surplus_price[spare]
     return out
+
+
+def _curtailment_price(surplus_mw: np.ndarray, tiers: list[tuple[float, np.ndarray]],
+                       market_floor: float) -> np.ndarray:
+    """The offer of the plant on the margin of curtailment.
+
+    When generation exceeds load the price falls until enough of it withdraws. The
+    plant that withdraws last is the one willing to accept the lowest price, so the
+    tiers are walked from the least negative offer to the most negative and the
+    marginal tier sets the price. Past the last tier nothing else will withdraw and
+    the price is the market floor.
+    """
+    price = np.full(surplus_mw.shape, market_floor)
+    cum = np.zeros_like(surplus_mw)
+    assigned = np.zeros(surplus_mw.shape, dtype=bool)
+    for offer, available in sorted(tiers, key=lambda t: -t[0]):
+        cum = cum + available
+        hit = (~assigned) & (surplus_mw <= cum)
+        price[hit] = offer
+        assigned |= hit
+    return price
 
 
 def _water_value(residual: np.ndarray, hydro_mw: float, budget_mwh: float,
@@ -262,14 +292,26 @@ def dispatch_year(settings: Settings, year: int, demand_mw: np.ndarray,
                   rooftop_cf: np.ndarray | None = None) -> DispatchResult:
     """Dispatch and price one year."""
     units = _in_service(settings, year)
-    floor = settings.dispatch["vre_offer_per_mwh"]
+    floor = settings.dispatch["must_run_offer_per_mwh"]
 
     def cap_of(tech: str) -> float:
         return sum(u.capacity_mw for u in units if u.technology == tech)
 
     rooftop = (rooftop_cf if rooftop_cf is not None else solar_cf) * cap_of("rooftop")
-    vre = wind_cf * cap_of("wind") + solar_cf * cap_of("solar")
-    residual = demand_mw - rooftop - vre
+    wind_mw = wind_cf * cap_of("wind")
+    solar_mw = solar_cf * cap_of("solar")
+    residual = demand_mw - rooftop - wind_mw - solar_mw
+
+    # Curtailment merit order for surplus hours. Rooftop is not in it: it sits behind
+    # the meter, does not bid, and is netted off demand. Utility wind and solar do
+    # bid, and their offers differ, so the surplus price varies with how deep the
+    # surplus is instead of being one constant.
+    profile = {"wind": wind_mw, "solar": solar_mw}
+    curtail_tiers = [
+        (u.srmc_per_mwh, profile[u.technology])
+        for u in units if u.technology in profile and cap_of(u.technology) > 0
+    ]
+    market_floor = settings.market["minimum_price_per_mwh"]
 
     hydro = next((u for u in units if u.technology == "hydro"), None)
     prices0, caps0, _ = _offer_stack(units, settings, {"water_value": 0.0})
@@ -282,7 +324,9 @@ def dispatch_year(settings: Settings, year: int, demand_mw: np.ndarray,
 
     prices, caps, labels = _offer_stack(units, settings, {"water_value": water})
 
-    provisional = _price_from_stack(residual, prices, caps, floor)
+    surplus_now = _curtailment_price(np.clip(-residual, 0.0, None),
+                                     curtail_tiers, market_floor)
+    provisional = _price_from_stack(residual, prices, caps, floor, surplus_now)
     storage_net = np.zeros_like(residual)
     storage_gen: dict[str, np.ndarray] = {}
     passes = 0
@@ -290,7 +334,10 @@ def dispatch_year(settings: Settings, year: int, demand_mw: np.ndarray,
     for passes in range(1, int(settings.dispatch["max_storage_passes"]) + 1):
         storage_net, storage_gen = _run_storage(units, provisional, settings)
         net_residual = residual + storage_net
-        provisional = _price_from_stack(net_residual, prices, caps, floor)
+        provisional = _price_from_stack(
+            net_residual, prices, caps, floor,
+            _curtailment_price(np.clip(-net_residual, 0.0, None),
+                               curtail_tiers, market_floor))
         peak = float(provisional.mean())
         if peak_before is not None and abs(peak - peak_before) < settings.dispatch[
                 "storage_price_tolerance"]:
@@ -298,7 +345,10 @@ def dispatch_year(settings: Settings, year: int, demand_mw: np.ndarray,
         peak_before = peak
 
     net_residual = residual + storage_net
-    stack_price = _price_from_stack(net_residual, prices, caps, floor)
+    stack_price = _price_from_stack(
+        net_residual, prices, caps, floor,
+        _curtailment_price(np.clip(-net_residual, 0.0, None),
+                           curtail_tiers, market_floor))
     firm_capacity = float(caps.sum())
     price, unserved, ladder_mw, administered = _apply_ladder(
         net_residual, stack_price, firm_capacity, settings)

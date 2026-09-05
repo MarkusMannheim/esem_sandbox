@@ -32,7 +32,16 @@ standard_use_fraction = 0.00003
 interim_measure_use_fraction = 0.000006
 
 [dispatch]
-vre_offer_per_mwh = -10.0                   # lets the solar block clear below zero
+must_run_offer_per_mwh = -60.0              # a coal band bidding to avoid a shutdown
+# Set from the economics, not to hit a price: a coal unit will accept a negative
+# price down to about the cost of shutting down and restarting, spread over the
+# hours it would be off. That is tens of dollars a MWh, not hundreds. It matters
+# because this band is marginal in roughly a sixth of the year in a system with
+# this much rooftop solar, so it moves the annual average price more than any
+# other single number here.
+# Wind and solar offers are per unit in fleet.csv, not a single constant here: the
+# price in a surplus hour is set by whichever plant is on the margin of curtailment,
+# so they have to be able to differ.
 storage_spread_per_mwh = 8.0                # added to charging cost when offering
 max_storage_passes = 2
 storage_price_tolerance = 1.0               # peak block price convergence, $/MWh
