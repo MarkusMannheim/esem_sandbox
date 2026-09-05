@@ -1,0 +1,286 @@
+"""The settings loader is strict on purpose."""
+
+import pytest
+
+from esem_sandbox.config import load_settings
+
+
+def test_loads_the_packaged_bundle():
+    s = load_settings()
+    assert len(s.fleet) > 10
+    assert len(s.dsr) == 4
+    assert s.market["market_price_cap_per_mwh"] == 20300.0
+
+
+def test_unknown_key_raises_rather_than_being_ignored():
+    # A typo that silently left a default in place would be invisible in the
+    # results and blamed on the model.
+    with pytest.raises(ValueError, match="unknown key"):
+        load_settings({"market": {"market_price_kap_per_mwh": 1.0}})
+
+
+def test_unknown_section_raises():
+    with pytest.raises(ValueError, match="unknown settings section"):
+        load_settings({"markets": {}})
+
+
+def test_overrides_apply():
+    s = load_settings({"dispatch": {"storage_spread_per_mwh": 25.0}})
+    assert s.dispatch["storage_spread_per_mwh"] == 25.0
+
+
+def test_market_settings_come_from_one_year_not_several():
+    """The cap and the threshold are indexed together and their ratio decides when
+    the market is suspended, so mixing years silently changes the model's rules.
+    $20,300 and $1,823,600 are both the values applying from 1 July 2025."""
+    s = load_settings()
+    assert s.market["market_price_cap_per_mwh"] == 20_300.0
+    assert s.market["cumulative_price_threshold"] == 1_823_600.0
+
+
+def test_the_threshold_is_converted_on_five_minute_intervals():
+    """The published threshold sums TRADING INTERVAL prices, and a trading interval
+    is five minutes. An hourly interval therefore stands for 12 of them."""
+    s = load_settings()
+    assert s.market["cumulative_price_threshold_intervals_per_hour"] == 12
+    assert s.hourly_price_threshold == pytest.approx(1_823_600.0 / 12)
+    hours = s.hourly_price_threshold / s.market["market_price_cap_per_mwh"]
+    assert hours == pytest.approx(7.5, abs=0.05), (
+        "the AEMC glosses this pair as 7.5 hours at the cap"
+    )
+
+
+def test_demand_response_tiers_are_increments_not_cumulative_bands():
+    s = load_settings()
+    caps = [t.capacity_mw for t in s.dsr]
+    assert caps == sorted(caps), "tiers should increase with price"
+    assert sum(caps) < 600.0, (
+        "tiers are increments differenced from the published cumulative bands; "
+        "summing the cumulative bands instead would multiply the ladder"
+    )
+
+
+def test_every_packaged_scenario_loads_and_is_strict():
+    """A typo in a scenario file must fail loudly rather than leaving a default
+    quietly in place, which is the same rule the settings loader follows."""
+    import glob
+    import pytest as _pytest
+    from esem_sandbox.cli import _scenario
+
+    files = sorted(glob.glob("src/esem_sandbox/scenarios/*.toml"))
+    assert len(files) >= 6, f"expected the packaged scenarios, found {files}"
+    for path in files:
+        overrides, options = _scenario(path)
+        load_settings(overrides)
+        assert options.get("leg") in ("merchant", "esem"), path
+
+
+def test_a_scenario_with_a_bad_setting_is_rejected(tmp_path):
+    from esem_sandbox.cli import _scenario
+
+    bad = tmp_path / "bad.toml"
+    bad.write_text('[esem]\ncontract_tenor_yars = 6\n')
+    overrides, _ = _scenario(str(bad))
+    with pytest.raises(ValueError, match="unknown key"):
+        load_settings(overrides)
+
+
+def test_a_scenario_with_a_bad_run_option_is_rejected(tmp_path):
+    from esem_sandbox.cli import _scenario
+
+    bad = tmp_path / "bad.toml"
+    bad.write_text('[run]\nlegg = "esem"\n')
+    with pytest.raises(ValueError, match="unknown key"):
+        _scenario(str(bad))
+
+
+def test_a_packaged_scenario_can_be_named_rather_than_found():
+    """The scenarios ship inside the wheel. Without that, the only ones a reader
+    could run would be the ones they had cloned the repository for, and the command
+    naming them would be in a README they could not follow."""
+    from esem_sandbox.cli import _scenario, scenario_names
+
+    names = scenario_names()
+    assert {"merchant", "scheme"} <= set(names)
+    for name in names:
+        overrides, options = _scenario(name)
+        load_settings(overrides)
+        assert options.get("leg") in ("merchant", "esem"), name
+
+
+def test_a_path_still_works_and_wins_over_a_name(tmp_path):
+    from esem_sandbox.cli import _scenario
+
+    local = tmp_path / "scheme.toml"
+    local.write_text('[run]\nleg = "merchant"\nticks = 3\n')
+    _, options = _scenario(str(local))
+    assert options == {"leg": "merchant", "ticks": 3}
+
+
+def test_every_packaged_data_row_carries_its_derivation():
+    """The repository's own rule, enforced rather than trusted.
+
+    DATA_SOURCES.md says a new data file needs a row in its table and a derivation
+    column. A rule that lives only in a document is a rule that lasts until the next
+    person in a hurry, and the whole provenance claim of this repository rests on
+    every row being able to say where it came from.
+    """
+    from importlib import resources
+
+    from esem_sandbox.config import read_csv
+
+    folder = resources.files("esem_sandbox") / "data"
+    names = sorted(p.name for p in folder.iterdir() if p.name.endswith(".csv"))
+    assert len(names) >= 5, names
+    for name in names:
+        rows = read_csv(name)
+        assert rows, f"{name} is empty"
+        assert "derivation" in rows[0], f"{name} has no derivation column"
+        for i, row in enumerate(rows):
+            assert (row.get("derivation") or "").strip(), (
+                f"{name} row {i} does not say where it came from"
+            )
+
+
+def test_every_packaged_data_file_is_named_in_data_sources():
+    """A file that ships without a row in the table is a file whose terms nobody
+    stated."""
+    import pathlib
+    from importlib import resources
+
+    doc = (pathlib.Path(__file__).resolve().parents[1] / "DATA_SOURCES.md").read_text()
+    folder = resources.files("esem_sandbox") / "data"
+    for path in sorted(folder.iterdir()):
+        if path.name.endswith((".csv", ".toml")):
+            assert f"`{path.name}`" in doc, f"{path.name} is not in DATA_SOURCES.md"
+
+
+def test_the_architecture_note_names_every_module():
+    """A map with a missing road is worse than no map. The model is meant to be
+    understood in an hour, and a reader who finds a module nobody mentioned has to
+    work out on their own whether it matters."""
+    import pathlib
+
+    root = pathlib.Path(__file__).resolve().parents[1]
+    doc = (root / "ARCHITECTURE.md").read_text()
+    modules = sorted(p.name for p in (root / "src/esem_sandbox/core").glob("*.py")
+                     if p.name != "__init__.py")
+    missing = [m for m in modules if m not in doc]
+    assert not missing, f"ARCHITECTURE.md does not mention {missing}"
+
+
+def test_the_readme_does_not_call_a_built_thing_unbuilt():
+    """A status section is the first thing a reader believes and the last thing
+    anybody updates. This one has been wrong twice: it said the notebook was not
+    built while linking to it two sections above, and it named a storage defect as
+    the largest limitation long after it was fixed.
+
+    The check is deliberately blunt. Take the sentence that says what is missing,
+    and require that nothing it names actually exists.
+    """
+    import pathlib
+    import re
+
+    root = pathlib.Path(__file__).resolve().parents[1]
+    readme = (root / "README.md").read_text()
+    # Whitespace-insensitive, because a check on what a document says should not be
+    # a check on where its lines end.
+    match = re.search(r"What is not built is\s+([^.]+)\.", readme)
+    assert match, "the status section no longer says what is missing"
+    missing = match.group(1).lower()
+
+    built = {
+        "notebook": "notebooks/walkthrough.ipynb",
+        "state scheme": "src/esem_sandbox/core/scheme.py",
+        "bid-curve": "src/esem_sandbox/core/crossing.py",
+        "auction": "src/esem_sandbox/core/esem.py",
+    }
+    for phrase, path in built.items():
+        assert (root / path).exists(), f"{path} is gone but the README expects it"
+        assert phrase not in missing, (
+            f"the README says {phrase!r} is not built, and {path} exists"
+        )
+
+
+def test_compare_forwards_everything_a_scenario_asked_for():
+    """A scenario says what a run is. Both commands have to honour all of it.
+
+    `simulate` forwarded retire, clearing and scheme; `compare` forwarded none of
+    them, so `compare --scenario early_coal_exit` produced output byte-identical to a
+    plain `compare` and three of the shipped scenarios did nothing at all under it.
+    The README promises the opposite: that anything a scenario names wrongly fails
+    loudly rather than falling back to a default.
+
+    This reads the source rather than running two 20-year comparisons, because
+    the property is that the call passes the options on, and that is visible.
+    """
+    import inspect
+    from esem_sandbox import cli
+
+    source = inspect.getsource(cli.compare)
+    for option in ("retire", "clearing", "scheme", "investment"):
+        assert f'"{option}"' in source or f"{option}=" in source, (
+            f"cli.compare does not forward {option!r}, so a scenario naming it is "
+            "silently ignored"
+        )
+
+
+def test_every_run_option_a_scenario_may_name_reaches_the_model():
+    """The allowlist and the model's own signature must not drift apart.
+
+    `investment` was documented as nameable from a scenario for two days while
+    `_check_run` rejected it and neither command forwarded it.
+    """
+    import inspect
+    from esem_sandbox.cli import _check_run
+    from esem_sandbox.core.simulate import run as run_simulation
+
+    accepted = set()
+    for candidate in ("leg", "ticks", "peak", "seed", "year", "retire",
+                      "clearing", "scheme", "investment"):
+        try:
+            _check_run({candidate: None})
+        except ValueError:
+            continue
+        accepted.add(candidate)
+
+    takes = set(inspect.signature(run_simulation).parameters)
+    # These four are named differently on the model's side, or are the CLI's own.
+    plumbing = {"peak", "year", "ticks", "seed"}
+    for option in accepted - plumbing:
+        assert option in takes, (
+            f"[run] accepts {option!r} but simulate.run has no such argument"
+        )
+
+
+def test_the_outputs_readme_quotes_the_run_beside_it():
+    """A committed number in prose must match the committed run it describes.
+
+    The two live in the same directory and drift apart silently: comparison.txt is
+    regenerated by a command and the README beside it is edited by hand, so a rerun
+    that moves a figure leaves the prose asserting the old one. That happened today
+    in the other direction, where a corrected result reached one document and not the
+    two that repeated it.
+    """
+    import pathlib
+    import re
+
+    root = pathlib.Path(__file__).resolve().parents[1] / "outputs" / "canonical"
+    run = (root / "comparison.txt").read_text()
+    prose = (root / "README.md").read_text()
+
+    match = re.search(
+        r"moves the bill by \$([\d.]+)bn \((\w+)\) and the resource cost by "
+        r"\$([\d.]+)bn \((\w+)\)", run)
+    assert match, "comparison.txt no longer states the two cost moves"
+    bill, bill_way, resource, resource_way = match.groups()
+
+    for value, way, name in ((bill, bill_way, "bill"),
+                             (resource, resource_way, "resource cost")):
+        assert f"${value}bn" in prose, (
+            f"the {name} moved ${value}bn in comparison.txt and the README beside it "
+            f"does not say so. Regenerate both, or correct the prose."
+        )
+        assert way.upper() in prose or way in prose, (
+            f"the {name} moved {way} and the README does not say which way"
+        )
