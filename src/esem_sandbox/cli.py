@@ -31,7 +31,8 @@ def _firm_capacity(settings, year: int) -> float:
 def run(args: argparse.Namespace) -> int:
     settings = load_settings()
     bundle = generate_bundle(settings.weather["seed"],
-                             settings.weather["shape_years"])
+                             settings.weather["shape_years"],
+                             settings.weather["hours_per_year"])
     os.makedirs(args.out, exist_ok=True)
 
     results = {}

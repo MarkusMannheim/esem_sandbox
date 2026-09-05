@@ -108,13 +108,19 @@ def generate_year(
     }
 
 
-def generate_bundle(seed: int, shape_years: int = 5) -> dict[str, np.ndarray]:
+def generate_bundle(seed: int, shape_years: int = 5,
+                    hours_per_year: int = HOURS_PER_YEAR) -> dict[str, np.ndarray]:
     """The packaged bundle: ``shape_years`` years stacked, deterministic in ``seed``.
 
     Year 0 is mild. Years 2 and 4 carry a wind lull, and in year 4 the lull sits
     on the heat window: that is the year in which storage can be emptied and
     unserved energy can appear.
     """
+    if hours_per_year != HOURS_PER_YEAR:
+        raise ValueError(
+            f"this generator emits {HOURS_PER_YEAR}-hour years; got {hours_per_year}. "
+            "A year of any other length would silently misalign every downstream array."
+        )
     rng = np.random.default_rng(seed)
     plan = [
         dict(heat_windows=1, wind_lull=False, lull_on_heat=False),

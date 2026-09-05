@@ -302,6 +302,9 @@ def dispatch_year(settings: Settings, year: int, demand_mw: np.ndarray,
     firm_capacity = float(caps.sum())
     price, unserved, ladder_mw, administered = _apply_ladder(
         net_residual, stack_price, firm_capacity, settings)
+    # The market price floor is a rule, not a decoration: enforce it on the settled
+    # series rather than declaring it in settings and never applying it.
+    price = np.maximum(price, settings.market["minimum_price_per_mwh"])
 
     generation = _unit_generation(net_residual, prices, caps, labels)
     for name, series in storage_gen.items():
