@@ -39,6 +39,7 @@ class DispatchResult:
     unserved_mwh: np.ndarray = field(default_factory=lambda: np.zeros(0))
     ladder_mw: np.ndarray = field(default_factory=lambda: np.zeros(0))
     administered_hours: np.ndarray = field(default_factory=lambda: np.zeros(0, bool))
+    firm_capacity_mw: float = 0.0          # the stack the ladder measured against
     water_value_per_mwh: float = 0.0
     storage_passes: int = 0
     storage_converged: bool = False
@@ -494,6 +495,7 @@ def dispatch_year(settings: Settings, year: int, demand_mw: np.ndarray,
         unserved_mwh=unserved,
         ladder_mw=ladder_mw,
         administered_hours=administered,
+        firm_capacity_mw=firm_capacity,
         water_value_per_mwh=water,
         storage_passes=passes,
         storage_converged=converged,

@@ -22,12 +22,6 @@ from . import plots
 DEFAULT_PEAK_MW = 12500.0
 
 
-def _firm_capacity(settings, year: int) -> float:
-    return sum(u.available_mw for u in settings.fleet
-               if u.in_service(year)
-               and u.technology in ("coal", "ccgt", "ocgt", "hydro", "import"))
-
-
 def run(args: argparse.Namespace) -> int:
     settings = load_settings()
     bundle = generate_bundle(settings.weather["seed"],
@@ -65,9 +59,14 @@ def run(args: argparse.Namespace) -> int:
         writer.writeheader()
         writer.writerows(rows)
 
-    firm = _firm_capacity(settings, args.year)
     worst_label = max(results, key=lambda k: results[k].total_unserved_gwh)
     worst = results[worst_label]
+    # The firm capacity comes from the dispatch that produced this result, not
+    # from a second sum over the fleet. Hydro is scheduled against its budget and
+    # netted out of the residual, so a threshold that adds it back double counts
+    # it: the worst-window search and the chart were measuring against 1,235 MW
+    # the residual no longer contained.
+    firm = worst.firm_capacity_mw
     window = locate_worst_window(worst.residual_mw, firm)
     plots.worst_week(worst, window, firm, os.path.join(args.out, "worst_week.png"))
     plots.price_duration(results, os.path.join(args.out, "price_duration.png"))

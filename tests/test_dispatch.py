@@ -312,3 +312,22 @@ def test_the_threshold_fast_path_agrees_with_the_sequential_loop(settings):
     assert administered.any(), (
         "a threshold breach in the first 167 hours must not be skipped"
     )
+
+
+def test_reported_firm_capacity_matches_what_the_residual_excludes(settings, bundle):
+    """One source of truth for the stack the residual is measured against.
+
+    Hydro is scheduled against its budget and netted out of the residual, so any
+    consumer that re-sums the fleet and includes hydro double counts it. That is
+    exactly what the worst-window search and the worst-week chart were doing: a
+    threshold 1,235 MW above the stack the ladder itself used.
+    """
+    res = _year(settings, bundle, 4)
+    thermal = [u for u in settings.fleet
+               if u.in_service(2026) and u.technology != "hydro"]
+    _, caps, _ = _offer_stack(thermal, settings)
+    assert res.firm_capacity_mw == pytest.approx(float(caps.sum()))
+    hydro = sum(u.available_mw for u in settings.fleet
+                if u.technology == "hydro" and u.in_service(2026))
+    assert hydro > 0
+    assert res.firm_capacity_mw < float(caps.sum()) + hydro
