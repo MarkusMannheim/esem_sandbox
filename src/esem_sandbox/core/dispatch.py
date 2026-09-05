@@ -369,10 +369,29 @@ def _run_storage(units: list[Unit], price_of, residual_mw: np.ndarray,
         # discharge level, the day was rejected as incoherent, and the unit sat idle
         # for all three hundred and sixty-five days of the year while the model
         # reported it as part of the fleet.
-        level = _balance_level(day, power, rte)
-        flat_out = np.clip(day - level[:, None], 0.0, power).sum(axis=1)
-        limited = flat_out > energy_cap
-        target = np.where(limited, energy_cap, flat_out)
+        # A store too small to flatten a day is energy limited on every day of the
+        # year, and then the balance level is computed and thrown away. Testing that
+        # first costs two reductions instead of a twenty-step search, and it is
+        # exact rather than a heuristic: if shaving to the day's mean already needs
+        # more energy than the store holds, and filling to the mean feeds more than
+        # that shaving, then the balance level lies at or below the mean and the
+        # energy to flatten the day is at least what shaving to the mean takes.
+        # Every candidate the forward view prices is one megawatt, so this is the
+        # path that runs whenever the model is valuing a battery rather than
+        # dispatching one.
+        mean = day.mean(axis=1)
+        shave_mean = np.clip(day - mean[:, None], 0.0, power).sum(axis=1)
+        fill_mean = np.clip(mean[:, None] - day, 0.0, power).sum(axis=1)
+        if bool(np.all(shave_mean >= energy_cap)) and \
+                bool(np.all(fill_mean * rte >= shave_mean)):
+            level = mean
+            limited = np.ones(n_days, dtype=bool)
+            target = np.full(n_days, energy_cap)
+        else:
+            level = _balance_level(day, power, rte)
+            flat_out = np.clip(day - level[:, None], 0.0, power).sum(axis=1)
+            limited = flat_out > energy_cap
+            target = np.where(limited, energy_cap, flat_out)
 
         if limited.any():
             lo = np.where(limited, _fill_threshold(day, power, target / rte), level)

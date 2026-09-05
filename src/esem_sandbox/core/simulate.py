@@ -303,7 +303,7 @@ def run(settings: Settings, *, ticks: int = 20, start_year: int = 2026,
 
         cover = _cover(settings, state, res, year=year)
         builds = _invest(settings, state, view, res, year=year, peak_mw=level,
-                         cover=cover)
+                         cover=cover, tick=t)
         for b, unit in builds:
             state.fleet = state.fleet + (unit,)
             state.roster = tuple(
@@ -381,19 +381,28 @@ def _cover(settings: Settings, state: RunState, res: DispatchResult, *,
 
 def _invest(settings: Settings, state: RunState, view: ForwardView,
             res: DispatchResult, *, year: int, peak_mw: float,
-            cover: dict[str, float]) -> list[tuple[Build, Unit]]:
+            cover: dict[str, float], tick: int) -> list[tuple[Build, Unit]]:
     """Every producer's decisions for one tick, against the annual build ceiling.
 
     The ceiling is shared across producers rather than held per producer. Two firms
     building the same technology draw on one supply chain, and a per-producer
     ceiling would let a market with more firms in it build faster for no reason
     anybody could point at.
+
+    Producers are taken in an order that rotates with the tick. Sharing the ceiling
+    means whoever is asked first gets it, and a fixed order hands it to the same two
+    firms every year: over twenty years the merchant and the regional merchant, who
+    are the archetypes the whole risk story is about, built almost nothing while the
+    two gentailers built almost everything, for no reason other than where they sat
+    in a tuple. Rotating does not decide who should win, which is not a question this
+    model has an answer to; it stops the tuple deciding.
     """
     built: dict[str, float] = {}
     out: list[tuple[Build, Unit]] = []
-    for agent in state.roster:
-        if agent.kind != PRODUCER:
-            continue
+    producers = [a for a in state.roster if a.kind == PRODUCER]
+    order = producers[tick % len(producers):] + producers[:tick % len(producers)] \
+        if producers else []
+    for agent in order:
         for verdict in rank_candidates(view, agent, settings, peak_mw=peak_mw,
                                        swap_cover=cover.get(agent.name, 0.0)):
             if not verdict.builds:

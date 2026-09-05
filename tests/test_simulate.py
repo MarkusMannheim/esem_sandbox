@@ -199,3 +199,17 @@ def test_a_market_given_longer_cover_never_builds_less_firm_capacity(settings, s
         f"{firm(with_cover):,.0f} MW firm with cover against "
         f"{firm(baseline):,.0f} MW without"
     )
+
+
+def test_the_build_ceiling_is_not_captured_by_whoever_is_asked_first(settings, small):
+    """The ceiling is shared, so whoever is asked first gets it. With a fixed order
+    that is the same firm every year: over twenty years the merchant and the
+    regional merchant, who are the archetypes the risk story is about, built almost
+    nothing while the two gentailers built almost everything, for no reason but
+    where they sat in a tuple."""
+    result = run(settings, ticks=8, seed=SEED, cells=small)
+    builders = {b.owner for t in result.ticks for b in t.builds}
+    producers = {a.name for a in result.roster if a.kind == PRODUCER}
+    assert len(builders) > settings.investment["concurrent_builds_per_year"], (
+        f"only {sorted(builders)} ever built, of {sorted(producers)}"
+    )
