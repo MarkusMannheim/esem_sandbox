@@ -278,3 +278,37 @@ def test_hydro_cannot_deliver_more_than_the_year_can_absorb(settings, bundle):
     delivered = res.generation_mwh["hydro_a"].sum()
     assert delivered < 99_000_000.0
     assert delivered <= unit.available_mw * 8760 * 1.0001
+
+
+def test_energy_conserves_every_hour(settings, bundle):
+    """The check the whole model should be judged against.
+
+    Generation net of curtailment, plus what the demand-response ladder supplied,
+    plus what went unserved, must equal the demand the grid was asked to serve, in
+    every hour. Rooftop is excluded because it never reaches the grid. The wind and
+    solar fleet used to be missing from reported generation entirely, so this could
+    not even be evaluated.
+    """
+    for y in range(settings.weather["shape_years"]):
+        res = _year(settings, bundle, y)
+        served = sum(v for k, v in res.generation_mwh.items() if k != "rooftop")
+        balance = served + res.ladder_mw + res.unserved_mwh - res.operational_demand_mw
+        assert np.abs(balance).max() < 1e-6, (
+            f"year {y}: worst hourly imbalance {np.abs(balance).max():.6f} MW"
+        )
+
+
+def test_the_threshold_fast_path_agrees_with_the_sequential_loop(settings):
+    """A fast path that changes the answer is not a fast path.
+
+    The early return tested only whole 168-hour windows, so a breach inside the
+    year's first 167 hours would have been skipped.
+    """
+    n = 400
+    price = np.full(n, 50.0)
+    price[:20] = 12_000.0            # a breach entirely inside the first window
+    _, _, _, administered = _apply_ladder(
+        np.zeros(n), price, firm_capacity=1e9, settings=settings)
+    assert administered.any(), (
+        "a threshold breach in the first 167 hours must not be skipped"
+    )

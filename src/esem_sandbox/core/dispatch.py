@@ -128,6 +128,23 @@ def _price_from_stack(residual: np.ndarray, prices: np.ndarray,
     return out
 
 
+def _curtailment(surplus_mw: np.ndarray, tiers: list[tuple[str, float, np.ndarray]]
+                 ) -> dict[str, np.ndarray]:
+    """How much each technology is curtailed in a surplus hour.
+
+    Withdrawal follows the same order as the price: the plant willing to accept
+    least is curtailed last. Without this the reported fleet output is the
+    unconstrained profile, which does not add up to what the system served.
+    """
+    out: dict[str, np.ndarray] = {}
+    left = surplus_mw.copy()
+    for name, _offer, available in sorted(tiers, key=lambda t: -t[1]):
+        cut = np.minimum(left, available)
+        out[name] = cut
+        left = left - cut
+    return out
+
+
 def _curtailment_price(surplus_mw: np.ndarray, tiers: list[tuple[float, np.ndarray]],
                        market_floor: float) -> np.ndarray:
     """The offer of the plant on the margin of curtailment.
@@ -304,7 +321,14 @@ def _apply_ladder(residual: np.ndarray, stack_price: np.ndarray,
     # Fast path: if no hour is short and the rolling sum can never reach the
     # threshold, the sequential pass has nothing to do.
     if short.max() <= 0:
-        roll = np.convolve(price, np.ones(window), mode="valid")
+        # Trailing sums over min(h + 1, window) hours, matching the sequential loop
+        # exactly. A full-window convolution tests only whole 168-hour windows, so a
+        # breach inside the year's first 167 hours would be skipped here and caught
+        # by the loop, which is a fast path that changes the answer.
+        csum = np.concatenate(([0.0], np.cumsum(price)))
+        idx = np.arange(len(price))
+        starts = np.maximum(0, idx + 1 - window)
+        roll = csum[idx + 1] - csum[starts]
         if roll.size == 0 or roll.max() < threshold:
             return price, unserved, ladder_mw, administered
 
@@ -361,10 +385,9 @@ def dispatch_year(settings: Settings, year: int, demand_mw: np.ndarray,
     # bid, and their offers differ, so the surplus price varies with how deep the
     # surplus is instead of being one constant.
     profile = {"wind": wind_mw, "solar": solar_mw}
-    curtail_tiers = [
-        (u.srmc_per_mwh, profile[u.technology])
-        for u in units if u.technology in profile and cap_of(u.technology) > 0
-    ]
+    vre_units = [u for u in units if u.technology in profile and cap_of(u.technology) > 0]
+    labelled_tiers = [(u.unit, u.srmc_per_mwh, profile[u.technology]) for u in vre_units]
+    curtail_tiers = [(offer, mw) for _n, offer, mw in labelled_tiers]
     market_floor = settings.market["minimum_price_per_mwh"]
 
     # Energy-limited hydro is scheduled against its budget, not offered into the
@@ -437,17 +460,30 @@ def dispatch_year(settings: Settings, year: int, demand_mw: np.ndarray,
         _curtailment_price(np.clip(-net_residual, 0.0, None),
                            curtail_tiers, market_floor))
     firm_capacity = float(caps.sum())
+    # The market price floor is a rule, not a decoration. It is applied BEFORE the
+    # ladder so the cumulative threshold sums the series the market would actually
+    # settle; applying it afterwards would test the threshold against prices that
+    # never existed.
+    stack_price = np.maximum(stack_price, settings.market["minimum_price_per_mwh"])
     price, unserved, ladder_mw, administered = _apply_ladder(
         net_residual, stack_price, firm_capacity, settings)
-    # The market price floor is a rule, not a decoration: enforce it on the settled
-    # series rather than declaring it in settings and never applying it.
-    price = np.maximum(price, settings.market["minimum_price_per_mwh"])
 
     generation = _unit_generation(net_residual, prices, caps, labels)
     for name, series in storage_gen.items():
         generation[name] = series
     for name, series in hydro_gen.items():
         generation[name] = series
+
+    # The renewable fleet is reported net of curtailment. It was omitted entirely,
+    # so nothing added up to what the system actually served and every revenue
+    # figure for wind and solar was silently absent.
+    cut = _curtailment(np.clip(-net_residual, 0.0, None), labelled_tiers)
+    for u in vre_units:
+        generation[u.unit] = profile[u.technology] - cut.get(u.unit, 0.0)
+    roof_cap = cap_of("rooftop")
+    if roof_cap > 0:
+        roof_unit = next(u for u in units if u.technology == "rooftop")
+        generation[roof_unit.unit] = rooftop
 
     return DispatchResult(
         price=price,
