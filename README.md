@@ -34,6 +34,12 @@ size of any number.
 Early. The dispatch, pricing and reporting layer is built. Contracts, the
 forward view, investment and the procurement scheme are not yet.
 
+## Known limitations
+
+[KNOWN_LIMITATIONS.md](KNOWN_LIMITATIONS.md) lists what this model gets wrong, with
+measurements. The largest is that storage is scheduled against a price its own
+schedule then moves.
+
 ## Licence
 
 Code is [MIT](LICENSE). The small data files in `src/esem_sandbox/data/` are

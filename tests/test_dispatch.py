@@ -216,20 +216,61 @@ def test_the_storage_re_stack_actually_converges(settings, bundle):
     )
 
 
-def test_a_store_never_charges_and_discharges_in_the_same_hour(settings, bundle):
-    """Two independent sorts do not partition a day when prices tie, and a
-    curtailment merit order makes ties common. A twelve-hour store was scheduled to
-    do both in the same hour on 308 days of 365."""
+def test_storage_price_inconsistency_stays_bounded(settings, bundle):
+    """A KNOWN LIMITATION, measured so it cannot quietly get worse.
+
+    Storage is scheduled against a price, and its schedule then moves that price.
+    The loop damps successive iterates to find the fixed point, but the schedule
+    that is finally reported was made against the previous iterate while settlement
+    prices the current one. So the model settles a price no schedule was optimised
+    against, and about a third of discharge energy lands in an hour cheaper than one
+    the same store charged in.
+
+    This is not fixable by patching: a genuine fixed point needs storage
+    co-optimised inside the clearing, which is what the larger model gets from its
+    LP and a schedule-then-reprice heuristic cannot reproduce. Running one more pass
+    against the undamped price makes it worse, not better, because that pass moves
+    the price again.
+
+    The test bounds it. If a change pushes the share past 40 per cent the heuristic
+    has degraded and the peak-shaving redesign is overdue.
+    """
     res = _year(settings, bundle, 0)
     day_price = res.price[:365 * 24].reshape(365, 24)
+    discharged = inverted = 0.0
     for unit in (u for u in settings.fleet if u.technology in ("battery", "phes")):
-        slots = max(1, min(12, int(round(float(unit.duration_h)))))
-        for d in range(0, 365, 7):
-            order = np.argsort(day_price[d], kind="stable")
-            charge, discharge = set(order[:slots].tolist()), set(order[-slots:].tolist())
-            assert not (charge & discharge), (
-                f"{unit.unit} charges and discharges in the same hour on day {d}"
-            )
+        gen = res.generation_mwh[unit.unit][:365 * 24].reshape(365, 24)
+        for d in range(365):
+            out, into = gen[d] > 1e-9, gen[d] < -1e-9
+            if not out.any() or not into.any():
+                continue
+            discharged += gen[d][out].sum()
+            bad = day_price[d][out] < day_price[d][into].max() - 1e-9
+            inverted += gen[d][out][bad].sum()
+    share = inverted / discharged
+    assert share < 0.40, (
+        f"{share:.1%} of discharge energy is priced below the charging hours it "
+        "paid for; the scheduling heuristic has degraded"
+    )
+
+
+def test_a_store_never_delivers_energy_it_did_not_store(settings, bundle):
+    """Conservation for the store itself, not just the bus.
+
+    Cumulative discharge may never exceed what was charged, times the round trip,
+    plus whatever it started with. This is the storage equivalent of the reverse
+    interconnector flow that created energy in the larger model.
+    """
+    res = _year(settings, bundle, 0)
+    for unit in (u for u in settings.fleet if u.technology in ("battery", "phes")):
+        gen = res.generation_mwh[unit.unit]
+        rte = float(unit.round_trip_efficiency or 0.85)
+        start = unit.available_mw * float(unit.duration_h) * 0.5
+        stored = np.cumsum(np.clip(-gen, 0.0, None) * rte) + start
+        drawn = np.cumsum(np.clip(gen, 0.0, None))
+        assert (drawn <= stored + 1e-6).all(), (
+            f"{unit.unit} delivers more energy than it ever stored"
+        )
 
 
 def test_hydro_actually_spends_its_energy_budget(settings, bundle):
