@@ -85,7 +85,7 @@ def run(args: argparse.Namespace) -> int:
           f"of {worst_label}, peak residual {window.peak_residual_mw:,.0f} MW")
     print("\ncalibration, reported not tuned:")
     cal = calibration(worst.price, worst.unserved_mwh, worst.administered_hours,
-                      worst.demand_mw, settings)
+                      worst.operational_demand_mw, settings)
     for line in cal.lines():
         print("  " + line)
     print(f"\nwrote {path} and two charts to {args.out}/")

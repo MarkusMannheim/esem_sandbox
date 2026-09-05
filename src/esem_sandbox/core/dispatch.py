@@ -112,7 +112,8 @@ def _offer_stack(units: list[Unit], settings: Settings,
 
 def _price_from_stack(residual: np.ndarray, prices: np.ndarray,
                       caps: np.ndarray, floor: float,
-                      surplus_price: np.ndarray | None = None) -> np.ndarray:
+                      surplus_price: np.ndarray | None = None,
+                      must_run_floor_mw: float = 0.0) -> np.ndarray:
     """Marginal offer meeting the residual; the surplus price when nothing is needed.
 
     ``surplus_price`` is the curtailment merit order's answer for hours with more
@@ -124,7 +125,13 @@ def _price_from_stack(residual: np.ndarray, prices: np.ndarray,
     out = np.full(residual.shape, prices[-1] if len(prices) else floor)
     inside = idx < len(prices)
     out[inside] = prices[idx[inside]]
-    spare = residual <= 0.0
+    # Withdrawal begins at the must-run floor, not at zero residual. Below that
+    # floor the cheapest thing left in the stack is a coal band bidding to avoid a
+    # shutdown, and it bids BELOW wind and solar. Pricing that region off the stack
+    # cleared 1,131 hours a year at the coal band's offer while wind and solar,
+    # which had offered more, were still generating: plant running below its own
+    # offer. The withdrawal order runs from the least negative offer to the most.
+    spare = residual <= float(must_run_floor_mw)
     out[spare] = floor if surplus_price is None else surplus_price[spare]
     return out
 
@@ -360,7 +367,6 @@ def _apply_ladder(residual: np.ndarray, stack_price: np.ndarray,
             running -= price[h - window]
         if running >= threshold:
             capped = min(price[h], apc)
-            running -= price[h] - capped
             price[h] = capped
             administered[h] = True
     return price, unserved, ladder_mw, administered
@@ -388,8 +394,13 @@ def dispatch_year(settings: Settings, year: int, demand_mw: np.ndarray,
     profile = {"wind": wind_mw, "solar": solar_mw}
     vre_units = [u for u in units if u.technology in profile and cap_of(u.technology) > 0]
     labelled_tiers = [(u.unit, u.srmc_per_mwh, profile[u.technology]) for u in vre_units]
-    curtail_tiers = [(offer, mw) for _n, offer, mw in labelled_tiers]
     market_floor = settings.market["minimum_price_per_mwh"]
+    # The must-run band is the last thing to withdraw, so it is the final tier of
+    # the price ladder but never a source of curtailed VRE energy.
+    must_run_total = float(sum(min(u.must_run_mw, u.available_mw)
+                               for u in units if u.must_run_mw > 0))
+    curtail_tiers = [(offer, mw) for _n, offer, mw in labelled_tiers]
+    curtail_tiers = curtail_tiers + [(floor, np.full_like(residual, must_run_total))]
 
     # Energy-limited hydro is scheduled against its budget, not offered into the
     # stack and hoped for. Every hydro row is scheduled on its own budget: pricing
@@ -413,9 +424,10 @@ def dispatch_year(settings: Settings, year: int, demand_mw: np.ndarray,
     residual = residual - hydro_total
     prices, caps, labels = _offer_stack(thermal_only, settings)
 
-    surplus_now = _curtailment_price(np.clip(-residual, 0.0, None),
+    surplus_now = _curtailment_price(np.clip(must_run_total - residual, 0.0, None),
                                      curtail_tiers, market_floor)
-    provisional = _price_from_stack(residual, prices, caps, floor, surplus_now)
+    provisional = _price_from_stack(residual, prices, caps, floor, surplus_now,
+                                    must_run_total)
     storage_net = np.zeros_like(residual)
     storage_gen: dict[str, np.ndarray] = {}
     passes = 0
@@ -438,8 +450,9 @@ def dispatch_year(settings: Settings, year: int, demand_mw: np.ndarray,
         net_residual = residual + storage_net
         provisional = _price_from_stack(
             net_residual, prices, caps, floor,
-            _curtailment_price(np.clip(-net_residual, 0.0, None),
-                               curtail_tiers, market_floor))
+            _curtailment_price(np.clip(must_run_total - net_residual, 0.0, None),
+                               curtail_tiers, market_floor),
+            must_run_total)
         # Damping. Storage schedules against a price and its schedule then moves
         # that price, which is a cobweb: undamped it oscillates in a two-cycle
         # between roughly $97 and $110 on the peak block and never settles, whatever
@@ -458,8 +471,9 @@ def dispatch_year(settings: Settings, year: int, demand_mw: np.ndarray,
     net_residual = residual + storage_net
     stack_price = _price_from_stack(
         net_residual, prices, caps, floor,
-        _curtailment_price(np.clip(-net_residual, 0.0, None),
-                           curtail_tiers, market_floor))
+        _curtailment_price(np.clip(must_run_total - net_residual, 0.0, None),
+                           curtail_tiers, market_floor),
+        must_run_total)
     firm_capacity = float(caps.sum())
     # The market price floor is a rule, not a decoration. It is applied BEFORE the
     # ladder so the cumulative threshold sums the series the market would actually
@@ -469,7 +483,16 @@ def dispatch_year(settings: Settings, year: int, demand_mw: np.ndarray,
     price, unserved, ladder_mw, administered = _apply_ladder(
         net_residual, stack_price, firm_capacity, settings)
 
-    generation = _unit_generation(net_residual, prices, caps, labels)
+    # Curtailment lifts the residual back to the must-run floor, so the plant in the
+    # stack is dispatched against the POST-curtailment residual. Attributing it
+    # against the pre-curtailment residual leaves the must-run band showing zero
+    # output in exactly the hours it is the thing keeping the system balanced, and
+    # the year then fails to balance by the size of that band.
+    cut = _curtailment(np.clip(must_run_total - net_residual, 0.0, None),
+                       labelled_tiers)
+    cut_total = sum(cut.values()) if cut else np.zeros_like(net_residual)
+    dispatch_residual = net_residual + cut_total
+    generation = _unit_generation(dispatch_residual, prices, caps, labels)
     for name, series in storage_gen.items():
         generation[name] = series
     for name, series in hydro_gen.items():
@@ -478,7 +501,6 @@ def dispatch_year(settings: Settings, year: int, demand_mw: np.ndarray,
     # The renewable fleet is reported net of curtailment. It was omitted entirely,
     # so nothing added up to what the system actually served and every revenue
     # figure for wind and solar was silently absent.
-    cut = _curtailment(np.clip(-net_residual, 0.0, None), labelled_tiers)
     for u in vre_units:
         generation[u.unit] = profile[u.technology] - cut.get(u.unit, 0.0)
     roof_cap = cap_of("rooftop")

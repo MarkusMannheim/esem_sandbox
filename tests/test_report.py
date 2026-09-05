@@ -1,6 +1,7 @@
 """Blocks, duration curves and the calibration report."""
 
 import numpy as np
+from pathlib import Path
 import pytest
 
 from esem_sandbox.config import load_settings
@@ -113,3 +114,25 @@ def test_a_store_is_not_credited_for_the_energy_it_consumes(settings):
     out = unit_revenue(price, gen, settings)["battery_2h"]
     assert out["fuel_and_vom"] >= 0.0
     assert out["revenue"] == pytest.approx(50 * 100 - 60 * 20)
+
+
+def test_every_reported_unserved_fraction_uses_the_same_denominator():
+    """The printed headline and the CSV must not disagree about the same quantity.
+
+    They did: a search-and-replace matched two call sites reading `res.demand_mw`
+    and missed a third reading `worst.demand_mw`, so the headline reported unserved
+    energy against native demand while the CSV used operational demand. The two
+    differ by about a quarter, which is the size of the rooftop fleet.
+    """
+    import re
+    from esem_sandbox import cli
+    src = Path(cli.__file__).read_text(encoding="utf-8")
+    calls = re.findall(r"calibration\((.*?)settings\)", src, flags=re.S)
+    assert calls, "no calibration call sites found"
+    for call in calls:
+        assert "operational_demand_mw" in call, (
+            "a calibration call site is passing native demand: " + " ".join(call.split())
+        )
+        assert not re.search(r"\.demand_mw\b", call.replace("operational_demand_mw", "")), (
+            "a calibration call site still passes native demand"
+        )

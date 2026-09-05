@@ -331,3 +331,38 @@ def test_reported_firm_capacity_matches_what_the_residual_excludes(settings, bun
                 if u.technology == "hydro" and u.in_service(2026))
     assert hydro > 0
     assert res.firm_capacity_mw < float(caps.sum()) + hydro
+
+
+def test_no_unit_generates_below_its_own_offer(settings, bundle):
+    """The invariant a merit order exists to enforce.
+
+    Withdrawal runs from the least negative offer to the most: solar at -$25, then
+    wind at -$45, then a coal band bidding -$60 to avoid a shutdown. Because that
+    coal band bids BELOW wind and solar and sits inside the stack, pricing the
+    negative region off the stack alone cleared 1,131 hours a year at -$60 with wind
+    and solar still at full output, which is plant running below the price it said
+    it would accept. Curtailment therefore begins at the must-run floor, not at zero
+    residual.
+    """
+    for y in range(settings.weather["shape_years"]):
+        res = _year(settings, bundle, y)
+        for tech in ("wind", "solar"):
+            unit = next((u for u in settings.fleet if u.technology == tech), None)
+            if unit is None:
+                continue
+            running = res.generation_mwh[unit.unit] > 1e-9
+            below = running & (res.price < unit.srmc_per_mwh - 1e-9)
+            assert not below.any(), (
+                f"year {y}: {unit.unit} generates in {int(below.sum())} hours priced "
+                f"below its own ${unit.srmc_per_mwh:.0f}/MWh offer"
+            )
+
+
+def test_the_withdrawal_ladder_has_all_of_its_rungs(settings, bundle):
+    """Each negative offer should be able to set the price."""
+    res = _year(settings, bundle, 0)
+    levels = set(np.round(np.unique(res.price[res.price < 0]), 1))
+    for tech in ("solar", "wind"):
+        offer = next(u.srmc_per_mwh for u in settings.fleet if u.technology == tech)
+        assert offer in levels, f"{tech}'s offer ${offer:.0f} never sets the price"
+    assert settings.dispatch["must_run_offer_per_mwh"] in levels
