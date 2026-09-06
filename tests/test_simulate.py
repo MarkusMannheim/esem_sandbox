@@ -272,3 +272,101 @@ def test_an_award_commits_a_plant_the_merchant_rule_had_not_committed(settings, 
             )
             lead = settings.tech(award.technology).lead_years
             assert award.commissioning_year == tick.year + lead
+
+
+def test_the_legs_coincide_exactly_when_the_lane_never_opens(settings, small):
+    """The coincidence the decomposition exercise rests on.
+
+    The scheme's effect reaches the market through three channels: the exposure a
+    long contract removes, the cost of capital it lowers, and the capacity it
+    procures. Attributing the whole effect to any one of them is the tempting and
+    false version of this story, and the way to separate them is to be able to switch
+    each off and see the legs meet.
+
+    This pins the third. With a reliability standard nothing can breach, the lane is
+    empty in every year, and the scheme leg must then be the merchant leg to the last
+    bit. Anything that differs is something about the scheme leaking into a leg where
+    nothing was procured.
+    """
+    from esem_sandbox.core.simulate import ESEM
+    loose = load_settings({"reliability": {"standard_use_fraction": 1.0}})
+    merchant = run(loose, ticks=TICKS, seed=SEED, cells=small)
+    scheme = run(loose, ticks=TICKS, seed=SEED, cells=small, leg=ESEM)
+    assert all(t.lane_volume_mw == 0.0 for t in scheme.ticks), "the lane must be shut"
+    assert _fingerprint(scheme) == _fingerprint(merchant)
+
+
+def test_risk_aversion_alone_does_not_close_the_gap(settings, small):
+    """The claim the decomposition exercise exists to refute, pinned as a fact about
+    this model rather than as a hope.
+
+    Setting the risk premium to zero makes every certainty equivalent an expected
+    value and every hurdle a plain fixed cost. It changes what a cap costs, because a
+    cap is priced on the same coefficient. It does NOT change which plant gets built:
+    on this fleet the risk channel moves a peaker's hurdle by a few per cent of its
+    fixed cost, which is real and is not enough to flip a decision. So the effect of
+    a long contract cannot be attributed to the exposure it removes, and anybody who
+    says it can is describing a different model.
+    """
+    risk_free = load_settings({"investment": {"risk_premium": 0.0}})
+    base = run(settings, ticks=TICKS, seed=SEED, cells=small)
+    flat = run(risk_free, ticks=TICKS, seed=SEED, cells=small)
+    assert _fingerprint(flat) == _fingerprint(base), (
+        "if this ever differs, the risk channel has become strong enough to move "
+        "the fleet on its own, and the decomposition story needs rewriting"
+    )
+    base_caps = [c.premium_per_mwh for c in base.book if c.kind == "cap"]
+    flat_caps = [c.premium_per_mwh for c in flat.book if c.kind == "cap"]
+    assert base_caps and flat_caps
+    assert max(base_caps) != pytest.approx(max(flat_caps)), (
+        "and it must still be doing something: a cap is priced on the same "
+        "coefficient, so removing risk aversion has to move its premium"
+    )
+
+
+def test_the_bill_and_the_resource_cost_are_not_the_same_number(settings, small):
+    """The line that stops a bill view being an argument.
+
+    Most of a bill is a payment from consumers to producers. A scheme that builds
+    capacity pushes the pool price down and cuts the bill by far more than it costs,
+    but that reduction is a transfer, not a saving.
+    """
+    result = run(settings, ticks=TICKS, seed=SEED, cells=small)
+    assert result.resource_cost(settings) < result.consumer_cost(settings), (
+        "a bill that was not mostly transfer would be a remarkable market"
+    )
+    assert sum(t.fuel_and_vom for t in result.ticks) > 0
+    assert sum(t.fixed_cost_of_fleet for t in result.ticks) > 0
+
+
+def test_sunk_capital_is_not_charged_to_the_run(settings, small):
+    """Charging a run for money spent before it started would compare two legs on
+    cashflows neither of them moved."""
+    result = run(settings, ticks=2, seed=SEED, cells=small)
+    first = result.ticks[0]
+    assert first.annualised_capex_of_new_build == 0.0, (
+        "nothing decided in the first year can have been commissioned in it"
+    )
+
+
+def test_switching_off_the_financing_channel_changes_the_scheme_and_not_the_market(
+        settings, small):
+    """The second channel. Setting the contracted cost of capital to the rate a
+    merchant pays removes the financing advantage a contract confers, which changes
+    what the lane costs without touching a market that has no lane."""
+    from esem_sandbox.core.simulate import ESEM
+    same_wacc = load_settings({"esem": {"contracted_wacc": 0.07}})
+    assert same_wacc.tech("ocgt").wacc == 0.07, "the levelling value must match"
+    base_merchant = run(settings, ticks=TICKS, seed=SEED, cells=small)
+    levelled_merchant = run(same_wacc, ticks=TICKS, seed=SEED, cells=small)
+    assert _fingerprint(levelled_merchant) == _fingerprint(base_merchant), (
+        "a leg with no lane cannot notice what a contract would have been financed at"
+    )
+    base = run(settings, ticks=3, seed=SEED, cells=small, leg=ESEM)
+    levelled = run(same_wacc, ticks=3, seed=SEED, cells=small, leg=ESEM)
+    base_cost = sum(t.scheme_cost for t in base.ticks)
+    levelled_cost = sum(t.scheme_cost for t in levelled.ticks)
+    assert levelled_cost >= base_cost, (
+        f"a plant financed at the merchant rate cannot ask for less: "
+        f"{levelled_cost:,.0f} against {base_cost:,.0f}"
+    )

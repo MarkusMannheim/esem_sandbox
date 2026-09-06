@@ -219,12 +219,28 @@ def compare(args: argparse.Namespace) -> int:
          e.unserved_valued_at_the_cap(settings))
     line("wholesale energy cost", m.total_wholesale_cost, e.total_wholesale_cost)
     line("scheme levy", m.total_levy, e.total_levy)
-    line("consumer cost, all in", m.consumer_cost(settings),
+    line("  the bill, all in", m.consumer_cost(settings),
          e.consumer_cost(settings))
-    saving = m.consumer_cost(settings) - e.consumer_cost(settings)
-    print(f"\nthe scheme leaves consumers ${abs(saving)/1e9:,.2f}bn "
-          f"{'better' if saving > 0 else 'worse'} off over {args.ticks} years, on "
-          f"this seed.")
+    print()
+    line("fuel and variable cost", sum(t.fuel_and_vom for t in m.ticks),
+         sum(t.fuel_and_vom for t in e.ticks))
+    line("fixed cost of the fleet", sum(t.fixed_cost_of_fleet for t in m.ticks),
+         sum(t.fixed_cost_of_fleet for t in e.ticks))
+    line("capital of new build", sum(t.annualised_capex_of_new_build for t in m.ticks),
+         sum(t.annualised_capex_of_new_build for t in e.ticks))
+    line("  the resource cost, all in", m.resource_cost(settings),
+         e.resource_cost(settings))
+
+    bill = m.consumer_cost(settings) - e.consumer_cost(settings)
+    real = m.resource_cost(settings) - e.resource_cost(settings)
+    transfer = bill - real
+    print(f"\nthe scheme moves the BILL by ${abs(bill)/1e9:,.2f}bn "
+          f"({'down' if bill > 0 else 'up'}) and the RESOURCE COST by "
+          f"${abs(real)/1e9:,.2f}bn ({'down' if real > 0 else 'up'}).")
+    print(f"the difference, ${abs(transfer)/1e9:,.2f}bn, is a TRANSFER: more capacity "
+          f"lowers the pool\nprice, which moves money from generators to consumers "
+          "without saving any of it.\nA comparison that showed only the bill would "
+          "report the transfer as a benefit.")
     print(f"unserved energy is valued at the market price cap of ${voll:,.0f}/MWh. "
           "That is\na regulatory figure standing in for what an outage costs, not a "
           "measurement of one.")

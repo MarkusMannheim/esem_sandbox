@@ -161,6 +161,9 @@ class TickResult:
     peaker_missing_money_per_mw_year: float
     consumed_mwh: float = 0.0
     wholesale_cost: float = 0.0
+    fuel_and_vom: float = 0.0
+    fixed_cost_of_fleet: float = 0.0
+    annualised_capex_of_new_build: float = 0.0
     lane_volume_mw: float = 0.0
     reserve_margin_gap_mw: float = 0.0
     awards: tuple[Award, ...] = ()
@@ -182,6 +185,11 @@ class RunState:
     exit_ledger: ExitLedger = field(default_factory=ExitLedger)
     admin: Administrator = field(default_factory=Administrator)
     awarded_share: dict[str, float] = field(default_factory=dict)
+    # (commissioning year, retirement year, annualised capital cost) for every plant
+    # this run decided to build. Existing plant is not here: its capital is sunk, and
+    # charging a run for capital spent before it started would compare two legs on
+    # money neither of them moved.
+    new_capital: list[tuple[int, int, float]] = field(default_factory=list)
 
 
 @dataclass(frozen=True)
@@ -222,8 +230,35 @@ class RunResult:
             float(settings.market["market_price_cap_per_mwh"])
 
     def consumer_cost(self, settings: Settings) -> float:
-        """What the whole thing costs the people who use the electricity."""
+        """What the whole thing costs the people who use the electricity.
+
+        A BILL, not a cost. Most of it is a payment from consumers to producers, and
+        a scheme that lowers the pool price lowers this figure by moving money rather
+        than by saving any. Read it beside the resource cost below or it will flatter
+        whichever leg happens to transfer more.
+        """
         return (self.total_wholesale_cost + self.total_levy
+                + self.unserved_valued_at_the_cap(settings))
+
+    def resource_cost(self, settings: Settings) -> float:
+        """What the whole thing costs the economy: fuel, fixed costs, new capital,
+        and the energy nobody got.
+
+        The line that stops a bill view being an argument. A scheme that builds
+        capacity pushes the pool price down, which cuts the wholesale bill by far
+        more than the scheme costs - but that reduction is a transfer from
+        generators to consumers, not a saving. On the packaged fleet it is twenty
+        billion dollars of transfer against half a billion of genuinely avoided
+        outage, and a comparison that reported only the bill would attribute the
+        whole of it to the policy.
+
+        Existing plant's capital is not counted: it is sunk, and charging a run for
+        money spent before it started would compare two legs on cashflows neither of
+        them moved.
+        """
+        return (sum(t.fuel_and_vom for t in self.ticks)
+                + sum(t.fixed_cost_of_fleet for t in self.ticks)
+                + sum(t.annualised_capex_of_new_build for t in self.ticks)
                 + self.unserved_valued_at_the_cap(settings))
 
     @property
@@ -418,6 +453,10 @@ def run(settings: Settings, *, ticks: int = 20, start_year: int = 2026,
         builds = _invest(settings, state, view, res, year=year, peak_mw=level,
                          cover=cover, tick=t, leg=leg, built=built_this_year)
         for b, unit in builds:
+            tech = settings.tech(b.technology)
+            state.new_capital.append((
+                unit.commissioned_year, unit.retirement_year,
+                unit.capacity_mw * tech.capex_per_kw * 1000.0 * tech.crf))
             state.fleet = state.fleet + (unit,)
             state.roster = tuple(
                 replace(a, units=a.units + (unit.unit,)) if a.name == b.owner else a
@@ -438,6 +477,14 @@ def run(settings: Settings, *, ticks: int = 20, start_year: int = 2026,
             capacity[u.technology] = capacity.get(u.technology, 0.0) + u.capacity_mw
         peaker_rent = energy_margin_per_mw_year(res.price, ocgt.srmc_per_mwh,
                                                 ocgt.availability)
+        fuel = sum(
+            float(np.clip(gen, 0.0, None).sum()) * max(u.srmc_per_mwh, 0.0)
+            for u in in_service
+            for gen in [res.generation_mwh.get(u.unit, 0.0)]
+            if not isinstance(gen, float))
+        fixed = sum(u.fixed_cost_per_mw_year * u.capacity_mw for u in in_service)
+        capital = sum(cost for start, end, cost in state.new_capital
+                      if start <= year < end)
         results.append(TickResult(
             year=year, peak_mw=level, mean_price=float(res.price.mean()),
             block_prices=block_prices(settings, res.price),
@@ -455,6 +502,9 @@ def run(settings: Settings, *, ticks: int = 20, start_year: int = 2026,
             peaker_missing_money_per_mw_year=peaker_rent - ocgt.fixed_cost_per_mw_year,
             consumed_mwh=float(res.operational_demand_mw.sum()),
             wholesale_cost=float((res.price * res.operational_demand_mw).sum()),
+            fuel_and_vom=fuel,
+            fixed_cost_of_fleet=fixed,
+            annualised_capex_of_new_build=capital,
             lane_volume_mw=lane_mw,
             reserve_margin_gap_mw=margin_gap,
             awards=tuple(awards),
@@ -592,6 +642,9 @@ def _auction(settings: Settings, state: RunState, view: ForwardView,
         built[tech.technology] = built.get(tech.technology, 0.0) + capacity
         name = f"{tech.technology}_{year}_{line.bid.bidder}_awarded"
         unit = _new_unit(tech, capacity, name, year)
+        state.new_capital.append((
+            unit.commissioned_year, unit.retirement_year,
+            capacity * tech.capex_per_kw * 1000.0 * tech.crf))
         state.fleet = state.fleet + (unit,)
         state.roster = tuple(
             replace(a, units=a.units + (name,)) if a.name == line.bid.bidder else a
