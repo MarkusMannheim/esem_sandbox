@@ -193,9 +193,11 @@ the lane buys firm capacity and the ceiling it consumes would have gone to somet
 else.
 
 Read as a limitation, that means the annual build rate is a pacing choice rather than
-an economic force, and it is doing real work in the comparison. Read as a result, it
-is the more interesting half: on this seed a smaller fleet of the right shape beat a
-larger one of the wrong shape, and that is a statement about what capacity is FOR.
+an economic force, and it is doing real work in the comparison - measurably so, and
+in both directions: see the ceiling table in the section on which future the market
+turned out to be in. Read as a result, it is the more interesting half: on this seed
+a smaller fleet of the right shape beat a larger one of the wrong shape, and that is
+a statement about what capacity is FOR.
 
 ## A scheme cannot fix a year that arrives before its plant does
 
@@ -297,11 +299,33 @@ the scheme awards 13,000 to 13,550 MW on the high draws and 7,700 to 8,100 MW on
 low ones, so it is responding to the future it is in; it is just responding to a
 future it only half knows.
 
-**The reliability going backwards on the slow draws is measured, and its cause is
-not.** The candidate is the shared annual build ceiling, which the state scheme
-lane is already known to bind against - awards displacing merchant plant rather
-than adding to it, which the next section is about. That has NOT been tested here,
-and it should not be repeated as though it had been.
+**The reliability going backwards was tested, and the annual build ceiling decides
+it.** The auction runs before the investment step, so an award consumes build room
+the merchant rule would otherwise have used. Run the same comparison at twice the
+ceiling and watch the difference between the legs, which is what
+`tools/ceiling_sensitivity.py` does:
+
+| seed | esem - merchant at ceiling 2 | at ceiling 4 |
+|---|---|---|
+| 20260101 | +3.4 GWh | +1.2 GWh |
+| 424242 | +7.4 GWh | -15.8 GWh |
+| 111 | +2.6 GWh | -2.4 GWh |
+| 98765 | +1.1 GWh | 0.0 GWh |
+| 19990101 (control, scheme helped) | -39.1 GWh | -12.3 GWh |
+
+On all four draws where the scheme made reliability worse, doubling the ceiling
+removes the penalty. And the control shows the same lever working the other way:
+where the scheme helped most, doubling the ceiling cuts its advantage from 39.1 GWh
+to 12.3, because the merchant leg has more to gain from the extra room than the
+scheme leg does. **The ceiling is doing heavy work in both directions, so the
+reliability comparison is substantially a statement about a pacing parameter.**
+
+Two things this does NOT establish. Four is no more correct than two - the point is
+the sensitivity, not a better value. And the route is not simply that the scheme leg
+is starved: on 20260101 at the tight ceiling the scheme leg already put up MORE total
+capacity than the merchant leg, 39,100 MW against 34,150, and was still less
+reliable. So the displacement is about what the room went to rather than how much of
+it there was, and that finer question is open.
 
 **The obvious mechanism has been tested twice and has never held up.** The tempting
 explanation is that the lane is sized from a forward view that keeps its growth
