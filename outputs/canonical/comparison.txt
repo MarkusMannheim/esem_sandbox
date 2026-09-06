@@ -1,0 +1,46 @@
+esem-sandbox: 20 years from 2026, one weather sequence shared by both legs (high growth, 3.3% a year)
+
+  year           merchant               ESEM   lane MW  levy $/MWh
+  2026        0.00 GWh   0.0x      0.00 GWh   0.0x      3713        0.53
+  2027       28.27 GWh  18.9x     28.27 GWh  18.9x         0        0.50
+  2028        2.82 GWh   1.8x      2.82 GWh   1.8x         0        6.24
+  2029        1.76 GWh   1.1x      2.38 GWh   1.5x       108       15.66
+  2030        0.05 GWh   0.0x      0.00 GWh   0.0x       707       15.23
+  2031        0.00 GWh   0.0x      0.00 GWh   0.0x      1534       14.68
+  2032        0.00 GWh   0.0x      0.00 GWh   0.0x       915       12.08
+  2033        0.71 GWh   0.4x      0.10 GWh   0.1x       325       11.89
+  2034        0.00 GWh   0.0x      0.00 GWh   0.0x         0       15.31
+  2035        1.69 GWh   0.8x      0.00 GWh   0.0x       193       15.20
+  2036        4.28 GWh   2.1x      0.00 GWh   0.0x       492       12.78
+  2037        0.48 GWh   0.2x      0.00 GWh   0.0x         0       11.56
+  2038        7.21 GWh   3.3x      0.00 GWh   0.0x         0       10.04
+  2039        1.51 GWh   0.6x      0.00 GWh   0.0x         0        8.37
+  2040        0.29 GWh   0.1x      0.00 GWh   0.0x       901        5.79
+  2041        0.00 GWh   0.0x      0.00 GWh   0.0x         0        2.18
+  2042        6.33 GWh   2.4x      0.00 GWh   0.0x         0        2.44
+  2043        0.00 GWh   0.0x      0.00 GWh   0.0x       857        2.34
+  2044        0.00 GWh   0.0x      0.00 GWh   0.0x         0        2.46
+  2045        0.00 GWh   0.0x      0.00 GWh   0.0x         0        2.00
+
+                                          merchant            ESEM
+unserved energy                             55.4G           33.6G
+  valued at the price cap                   1.12bn          0.68bn
+wholesale energy cost                     129.75bn        109.04bn
+scheme levy                                 0.00bn         10.79bn
+  the bill, all in                        130.88bn        120.51bn
+
+fuel and variable cost                     40.42bn         40.61bn
+fixed cost of the fleet                    20.41bn         20.35bn
+capital of new build                       82.21bn         82.01bn
+  the resource cost, all in               144.16bn        143.65bn
+
+the scheme moves the BILL by $10.37bn (down) and the RESOURCE COST by $0.51bn (down).
+the difference, $9.86bn, is a TRANSFER: more capacity lowers the pool
+price, which moves money from generators to consumers without saving any of it.
+A comparison that showed only the bill would report the transfer as a benefit.
+unserved energy is valued at the market price cap of $20,300/MWh. That is
+a regulatory figure standing in for what an outage costs, not a measurement of one.
+
+One seed, one growth path, a stylised fleet. Illustrative, and not a forecast
+of anything.
+wrote outputs/comparison.csv
