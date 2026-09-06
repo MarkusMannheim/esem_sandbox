@@ -9,6 +9,8 @@ from __future__ import annotations
 import argparse
 import csv
 import os
+import sys
+import tomllib
 
 import numpy as np
 
@@ -21,6 +23,38 @@ from .core.windows import locate_worst_window
 from . import plots
 
 DEFAULT_PEAK_MW = 12500.0
+
+
+def _scenario(path: str | None) -> tuple[dict, dict]:
+    """Read a scenario file into settings overrides and run options.
+
+    A scenario is a TOML file with an optional ``[run]`` table naming the leg, the
+    horizon, the peak and the seed, and any settings sections it wants to change.
+    The overrides go through the same strict loader everything else does, so a typo
+    in a scenario fails loudly rather than leaving a default quietly in place.
+    """
+    if not path:
+        return {}, {}
+    with open(path, "rb") as fh:
+        raw = tomllib.load(fh)
+    options = raw.pop("run", {})
+    unknown = set(options) - {"leg", "ticks", "peak", "seed", "year"}
+    if unknown:
+        raise ValueError(
+            f"unknown key(s) in [run]: {', '.join(sorted(unknown))}"
+        )
+    return raw, options
+
+
+def _apply(args: argparse.Namespace, options: dict) -> argparse.Namespace:
+    """Command-line arguments win over the scenario file, so an exercise can change
+    one thing without editing it."""
+    given = set(sys.argv[1:])
+    for key, value in options.items():
+        flag = f"--{key}"
+        if flag not in given and not any(a.startswith(flag + "=") for a in given):
+            setattr(args, key, value)
+    return args
 
 
 def run(args: argparse.Namespace) -> int:
@@ -104,7 +138,9 @@ def _by_technology(builds) -> str:
 
 def simulate(args: argparse.Namespace) -> int:
     """Twenty annual steps of dispatch, contracting, investment and exit."""
-    settings = load_settings()
+    overrides, options = _scenario(getattr(args, "scenario", None))
+    args = _apply(args, options)
+    settings = load_settings(overrides)
     os.makedirs(args.out, exist_ok=True)
     result = run_simulation(settings, ticks=args.ticks, start_year=args.year,
                             peak_mw=args.peak, seed=args.seed,
@@ -161,7 +197,9 @@ def compare(args: argparse.Namespace) -> int:
     them is the mechanism and nothing else. A leg that drew its own weather would
     report the difference between two climates as the effect of a policy.
     """
-    settings = load_settings()
+    overrides, options = _scenario(getattr(args, "scenario", None))
+    args = _apply(args, options)
+    settings = load_settings(overrides)
     os.makedirs(args.out, exist_ok=True)
     legs = {
         leg: run_simulation(settings, ticks=args.ticks, start_year=args.year,
@@ -267,6 +305,7 @@ def main(argv: list[str] | None = None) -> int:
     m.add_argument("--out", default="outputs")
     m.add_argument("--leg", choices=(MERCHANT, ESEM), default=MERCHANT,
                    help="the market on its own, or with the scheme switched on")
+    m.add_argument("--scenario", help="a scenario file; see scenarios/")
     m.set_defaults(func=simulate)
     c = sub.add_parser("compare", help="run both legs on the same weather")
     c.add_argument("--year", type=int, default=2026)
@@ -274,6 +313,7 @@ def main(argv: list[str] | None = None) -> int:
     c.add_argument("--peak", type=float, default=DEFAULT_PEAK_MW)
     c.add_argument("--seed", type=int, default=None)
     c.add_argument("--out", default="outputs")
+    c.add_argument("--scenario", help="a scenario file; see scenarios/")
     c.set_defaults(func=compare)
     args = parser.parse_args(argv)
     return args.func(args)

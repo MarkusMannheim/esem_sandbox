@@ -1,0 +1,8 @@
+# The policy-free counterfactual: the market on its own.
+#
+# No scheme, no underwrite, nothing procured. This is what every other scenario is
+# compared against, and it is deliberately the plainest file here: a counterfactual
+# that needed settings of its own would not be one.
+[run]
+leg = "merchant"
+ticks = 20

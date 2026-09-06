@@ -1,0 +1,8 @@
+# The procurement scheme, at the settings the design specifies.
+#
+# A lane sized on expected unserved energy, bids at long-run cost at a blended cost
+# of capital, pay-as-bid clearing, awards at final investment decision on a
+# twelve-year tenor, and a levy in the year the money moves.
+[run]
+leg = "esem"
+ticks = 20

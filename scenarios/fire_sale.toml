@@ -1,0 +1,12 @@
+# The scheme, with an administrator that dumps what it cannot sell.
+#
+# Recycling conduct is a policy question with a real price attached. Warehousing
+# holds unsold volume; a fire sale clears it at half the lane anchor and the loss
+# lands on the levy. Neither is obviously right, which is the point of making it a
+# lever rather than a constant.
+[run]
+leg = "esem"
+ticks = 20
+
+[esem]
+recycling_conduct = "fire_sale"

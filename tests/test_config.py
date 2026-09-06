@@ -58,3 +58,37 @@ def test_demand_response_tiers_are_increments_not_cumulative_bands():
         "tiers are increments differenced from the published cumulative bands; "
         "summing the cumulative bands instead would multiply the ladder"
     )
+
+
+def test_every_packaged_scenario_loads_and_is_strict():
+    """A typo in a scenario file must fail loudly rather than leaving a default
+    quietly in place, which is the same rule the settings loader follows."""
+    import glob
+    import pytest as _pytest
+    from esem_sandbox.cli import _scenario
+
+    files = sorted(glob.glob("scenarios/*.toml"))
+    assert len(files) >= 4, f"expected the packaged scenarios, found {files}"
+    for path in files:
+        overrides, options = _scenario(path)
+        load_settings(overrides)
+        assert options.get("leg") in ("merchant", "esem"), path
+
+
+def test_a_scenario_with_a_bad_setting_is_rejected(tmp_path):
+    from esem_sandbox.cli import _scenario
+
+    bad = tmp_path / "bad.toml"
+    bad.write_text('[esem]\ncontract_tenor_yars = 6\n')
+    overrides, _ = _scenario(str(bad))
+    with pytest.raises(ValueError, match="unknown key"):
+        load_settings(overrides)
+
+
+def test_a_scenario_with_a_bad_run_option_is_rejected(tmp_path):
+    from esem_sandbox.cli import _scenario
+
+    bad = tmp_path / "bad.toml"
+    bad.write_text('[run]\nlegg = "esem"\n')
+    with pytest.raises(ValueError, match="unknown key"):
+        _scenario(str(bad))

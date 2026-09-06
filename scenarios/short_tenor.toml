@@ -1,0 +1,12 @@
+# The same scheme on a six-year tenor instead of twelve.
+#
+# The exercise this is for: tenor is the channel a long contract works through, not
+# the fraction of output it covers. Halving it should roughly halve the exposure it
+# buys down, raise what bidders ask, and show up in the levy. Try zero as well - at
+# zero there is no contract and the scheme is only an auction.
+[run]
+leg = "esem"
+ticks = 20
+
+[esem]
+contract_tenor_years = 6
