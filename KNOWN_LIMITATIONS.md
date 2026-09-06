@@ -111,6 +111,53 @@ nobody in this model forecasts - but it means a run on the high growth path is o
 where investors are persistently building for a slower world than the one they are
 in, and the reliability outcome carries that.
 
+## The scheme can buy plant that would have been built anyway
+
+A bid is what a plant still needs after the certainty equivalent of what it expects
+to earn in the pool. Where that comes out at zero the plant needed nothing, and the
+lane awards it anyway, at a strike equal to the expected price and a cost of nothing.
+The lane closes, the reliability standard is met on paper, and the scheme has bought
+something the market was going to deliver on its own.
+
+That is not a defect to fix; it is the additionality problem, and it is real. What
+this model does is make it visible: a zero-priced award is exactly the signature of
+it, and it shows up on the first tick of a run where the near anchor is short enough
+to make everything look profitable. It should be read as a finding rather than as
+capacity the scheme delivered.
+
+## Part of the scheme's effect is reallocation, not addition
+
+The auction runs before the investment step, which is the design's own tick order and
+matters physically: one supply chain builds both. So an award consumes annual build
+room that the merchant rule would otherwise have used, and the scheme leg builds
+noticeably less unsubsidised plant than the merchant leg does. Over twenty years on
+the packaged fleet the scheme leg awarded 11,100 MW and built 55,900 MW where the
+merchant leg built 77,900 MW.
+
+The mix moves toward firm capacity, which is what the lane is buying, and the
+reliability outcome improves. But the size of the improvement is partly a
+reallocation of a fixed annual build rate rather than an increase in it, and the
+annual build rate is a pacing choice rather than an economic force. That makes the
+DIRECTION of the comparison meaningful and its MAGNITUDE softer than it looks.
+
+## A scheme cannot fix a year that arrives before its plant does
+
+Worth stating because it is the most easily misread result in a paired run. The
+scheme leg is not better than the merchant leg in the first two or three years of a
+run, because the plant it awarded in year one has not been built yet. On the packaged
+fleet the worst year of the whole horizon, at nineteen times the reliability
+standard, is identical on both legs. That is the lead time, and it is the reason a
+procurement scheme is an instrument about the future rather than a response to the
+present.
+
+## The administrator never has a view
+
+It recycles at the lane anchor and warehouses whatever nobody buys. It does not
+withhold volume to hold a price up, does not read the market, and does not trade on
+its own account. The conduct lever offers a fire sale as the alternative, which is
+the other end of the same absence of judgement. A real administrator would sit
+somewhere between, and where it sat would be worth money.
+
 ## What the simplification costs elsewhere
 
 One region, so nothing locational: no interconnectors, no transmission build, no
