@@ -107,6 +107,11 @@ class Unit:
         return self.commissioned_year <= year < self.retirement_year
 
 
+# The round trip a store gets back out of what it puts in. One number, named once,
+# because a store's efficiency has to be the same wherever the model makes one.
+STORAGE_ROUND_TRIP = 0.85
+
+
 @dataclass(frozen=True)
 class TechCost:
     """What it costs to build and keep one MW of a technology.
@@ -141,6 +146,22 @@ class TechCost:
         the investment step and the auction cannot each invent their own.
         """
         return "battery" if self.duration_h else self.technology
+
+    @property
+    def round_trip_efficiency(self) -> float | None:
+        """What a store built from this cost row gets back out of what it puts in.
+
+        Here rather than in three constructors. The forward's assumed entrant, the
+        forward's storage candidate and a newly built unit each have to make a store
+        out of a cost row, and each of them had this number typed into it. Three
+        copies of a constant are three chances for a projection to price a battery
+        the market would not build.
+
+        It is not a column in tech_costs.csv because it does not vary by duration
+        there: every battery in the packaged fleet is the same round trip. Give it a
+        column on the day one of them is not.
+        """
+        return STORAGE_ROUND_TRIP if self.duration_h else None
 
     @property
     def crf(self) -> float:

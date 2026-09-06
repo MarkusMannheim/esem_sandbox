@@ -342,7 +342,7 @@ def _new_unit(tech: TechCost, mw: float, name: str, decided_year: int) -> Unit:
         retirement_year=commissioned + tech.life_years,
         commissioned_year=commissioned, must_run_mw=0.0, energy_budget_gwh=None,
         duration_h=tech.duration_h,
-        round_trip_efficiency=0.85 if tech.duration_h else None,
+        round_trip_efficiency=tech.round_trip_efficiency,
         firm_factor=tech.firm_factor, cap_eligible=tech.cap_eligible,
         fom_per_kw_year=tech.fom_per_kw_year,
     )

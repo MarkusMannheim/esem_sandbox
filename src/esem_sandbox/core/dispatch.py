@@ -18,7 +18,7 @@ from dataclasses import dataclass, field
 
 import numpy as np
 
-from ..config import Settings, Unit
+from ..config import STORAGE_ROUND_TRIP, Settings, Unit
 
 HOURS_PER_DAY = 24
 DAYS_PER_YEAR = 365
@@ -348,7 +348,7 @@ def _run_storage(units: list[Unit], price_of, residual_mw: np.ndarray,
     for u in units:
         if u.technology not in _STORAGE or not u.duration_h or u.available_mw <= 0:
             continue
-        key = (float(u.duration_h), float(u.round_trip_efficiency or 0.85))
+        key = (float(u.duration_h), float(u.round_trip_efficiency or STORAGE_ROUND_TRIP))
         groups.setdefault(key, []).append(u)
 
     for (duration, rte), members in sorted(groups.items(), key=lambda kv: -kv[0][0]):

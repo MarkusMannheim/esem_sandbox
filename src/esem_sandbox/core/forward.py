@@ -179,7 +179,8 @@ def rent_per_mw_year(price: np.ndarray, tech: TechCost, settings: Settings,
             availability=tech.availability, srmc_per_mwh=0.0,
             retirement_year=9999, commissioned_year=0, must_run_mw=0.0,
             energy_budget_gwh=None, duration_h=tech.duration_h,
-            round_trip_efficiency=0.85, firm_factor=tech.firm_factor,
+            round_trip_efficiency=tech.round_trip_efficiency,
+            firm_factor=tech.firm_factor,
             cap_eligible=tech.cap_eligible,
         )
         if residual_mw is None:
@@ -286,7 +287,7 @@ def _projected_entry_unit(mw: float, tech: TechCost, year: int) -> Unit:
         availability=tech.availability, srmc_per_mwh=tech.srmc_per_mwh,
         retirement_year=9999, commissioned_year=year, must_run_mw=0.0,
         energy_budget_gwh=None, duration_h=tech.duration_h,
-        round_trip_efficiency=0.85 if tech.duration_h else None,
+        round_trip_efficiency=tech.round_trip_efficiency,
         firm_factor=tech.firm_factor, cap_eligible=tech.cap_eligible,
         fom_per_kw_year=tech.fom_per_kw_year,
     )
