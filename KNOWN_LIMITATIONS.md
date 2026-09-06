@@ -111,6 +111,11 @@ nobody in this model forecasts - but it means a run on the high growth path is o
 where investors are persistently building for a slower world than the one they are
 in, and the reliability outcome carries that.
 
+It is tempting to reach for this to explain why the scheme costs more on some draws
+than others. It does not: that was tested and the answer is below, under what the
+scheme's worth depends on. Fixing the priors makes the scheme cheaper on a slow path
+and dearer on a fast one, so it moves the problem rather than removing it.
+
 ## The scheme can buy plant that would have been built anyway
 
 A bid is what a plant still needs after the certainty equivalent of what it expects
@@ -236,12 +241,35 @@ So on a slow-growing system the scheme procures capacity that has nothing to do,
 on a fast-growing one it earns its keep. That is a result about the instrument rather
 than about the weather, and it is the one worth taking away.
 
-A plausible mechanism, stated as plausible because ten seeds cannot confirm it: the
-lane is sized from a forward view that weights all three growth paths at the priors
-it started with, whatever the realised path has been doing (see below). A scheme that
-cannot learn which future it is in will keep buying for the average of them. Testing
-that properly means letting the forward update its priors, which is a design change
-rather than a calibration, and it is not made here.
+**The obvious mechanism was tested and is wrong.** The tempting explanation is that
+the lane is sized from a forward view that keeps its growth priors whatever the
+realised path has been doing, so a scheme that cannot learn which future it is in
+keeps buying for the average of them. That can be tested without a design change:
+collapse the priors onto the path each run actually drew and see what happens. On a
+reduced lattice, so these figures are not comparable with the ten-seed table above:
+
+| seed | path | | awarded | resource cost | outage avoided |
+|---|---|---|---|---|---|
+| 20260101 | low | priors as they are | 4,950 MW | -$2.83bn | -$0.02bn |
+| | | knowing the path | 4,400 MW | -$0.08bn | +$0.00bn |
+| 111 | low | priors as they are | 5,950 MW | -$2.64bn | +$0.01bn |
+| | | knowing the path | 3,250 MW | +$0.47bn | +$0.09bn |
+| 20260904 | high | priors as they are | 9,350 MW | -$3.26bn | +$0.67bn |
+| | | knowing the path | 11,200 MW | -$7.50bn | +$0.14bn |
+
+On the low path the explanation holds: knowing where demand is going nearly halves
+what the scheme buys and turns a two-and-a-half billion dollar penalty into a gain.
+
+**On the high path it reverses.** Knowing the path makes the scheme procure MORE,
+cost MORE, and avoid LESS outage, because the market is better informed too and
+builds more of the answer itself, leaving the scheme less to fix.
+
+So the mechanism is not that the scheme cannot learn. It is that the scheme's penalty
+tracks how much it procures that the market would have covered anyway, and better
+information does not fix that: on a fast path it sharpens the market's own response
+and makes the redundancy worse. A procurement scheme is expensive exactly where it is
+least needed, and knowing more about the future moves where that is rather than
+removing it.
 
 ## What the simplification costs elsewhere
 
