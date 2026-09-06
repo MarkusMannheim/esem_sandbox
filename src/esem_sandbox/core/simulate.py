@@ -477,11 +477,17 @@ def run(settings: Settings, *, ticks: int = 20, start_year: int = 2026,
             capacity[u.technology] = capacity.get(u.technology, 0.0) + u.capacity_mw
         peaker_rent = energy_margin_per_mw_year(res.price, ocgt.srmc_per_mwh,
                                                 ocgt.availability)
-        fuel = sum(
-            float(np.clip(gen, 0.0, None).sum()) * max(u.srmc_per_mwh, 0.0)
-            for u in in_service
-            for gen in [res.generation_mwh.get(u.unit, 0.0)]
-            if not isinstance(gen, float))
+        # Fuel is burnt only by plant with a positive running cost, and only when it
+        # is generating. A curtailment offer is negative and is an opportunity cost
+        # rather than a fuel bill; a store's charging hours are negative energy and
+        # would otherwise book its variable cost as a credit.
+        fuel = 0.0
+        for unit in in_service:
+            cost = max(unit.srmc_per_mwh, 0.0)
+            generated = res.generation_mwh.get(unit.unit)
+            if cost <= 0.0 or generated is None:
+                continue
+            fuel += float(np.clip(generated, 0.0, None).sum()) * cost
         fixed = sum(u.fixed_cost_per_mw_year * u.capacity_mw for u in in_service)
         capital = sum(cost for start, end, cost in state.new_capital
                       if start <= year < end)
