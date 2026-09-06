@@ -6,8 +6,8 @@ workshop.
 It simulates one region hour by hour: plant is dispatched, and the price is set
 by the last unit needed to meet demand. Over twenty annual steps, contracts move
 risk between the firms in it and investors decide what to build, against a view
-of the future they extrapolate rather than forecast. A procurement scheme that
-can be switched on and off is not built yet.
+of the future they extrapolate rather than forecast. A procurement scheme can be
+switched on, and the same twenty years run again beside it on the same weather.
 
 It is a teaching model. Every chart it produces is illustrative, and it is not a
 forecast of anything.
@@ -16,7 +16,9 @@ forecast of anything.
 
 ```bash
 pip install esem-sandbox
-esem-sandbox run
+esem-sandbox run        # dispatch and price five weather years
+esem-sandbox simulate   # run the market forward, twenty years
+esem-sandbox compare    # the same twenty years with and without the scheme
 ```
 
 There is no solver, no licence key and no data to download. The two runtime
@@ -32,9 +34,10 @@ size of any number.
 
 ## Status
 
-Dispatch, pricing and reporting are built, and so are contracts and settlement,
-the forward view, and the investment and exit rules. The procurement scheme and
-its auction are not.
+Everything the design describes is built: dispatch and pricing, contracts and
+settlement, the forward view, the investment and exit rules, and the procurement
+scheme with its auction, its recycling and its levy. What is not built is the
+state scheme lane, seasonal contract volumes, and the notebook of exercises.
 
 ## Known limitations
 

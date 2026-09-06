@@ -13,7 +13,7 @@ import os
 import numpy as np
 
 from .config import load_settings
-from .core.simulate import run as run_simulation
+from .core.simulate import ESEM, MERCHANT, run as run_simulation
 from .core.dispatch import dispatch_year
 from .core.report import block_prices, calibration, unit_revenue
 from .core.weather import generate_bundle
@@ -107,7 +107,8 @@ def simulate(args: argparse.Namespace) -> int:
     settings = load_settings()
     os.makedirs(args.out, exist_ok=True)
     result = run_simulation(settings, ticks=args.ticks, start_year=args.year,
-                            peak_mw=args.peak, seed=args.seed)
+                            peak_mw=args.peak, seed=args.seed,
+                            leg=getattr(args, "leg", MERCHANT))
     standard = settings.reliability["standard_use_fraction"]
 
     rows = []
@@ -153,6 +154,86 @@ def simulate(args: argparse.Namespace) -> int:
     return 0
 
 
+def compare(args: argparse.Namespace) -> int:
+    """Both legs on the same weather, and what the difference costs.
+
+    The two legs draw one weather sequence from one seed, so the difference between
+    them is the mechanism and nothing else. A leg that drew its own weather would
+    report the difference between two climates as the effect of a policy.
+    """
+    settings = load_settings()
+    os.makedirs(args.out, exist_ok=True)
+    legs = {
+        leg: run_simulation(settings, ticks=args.ticks, start_year=args.year,
+                            peak_mw=args.peak, seed=args.seed, leg=leg)
+        for leg in (MERCHANT, ESEM)
+    }
+    if legs[MERCHANT].draw != legs[ESEM].draw:
+        raise AssertionError(
+            "the two legs saw different weather; a comparison between them would be "
+            "a comparison of climates rather than of mechanisms"
+        )
+    standard = settings.reliability["standard_use_fraction"]
+    voll = settings.market["market_price_cap_per_mwh"]
+
+    rows = []
+    for a, b in zip(legs[MERCHANT].ticks, legs[ESEM].ticks):
+        rows.append({
+            "year": a.year,
+            "merchant_unserved_gwh": round(a.unserved_gwh, 4),
+            "merchant_times_standard": round(a.unserved_fraction / standard, 2),
+            "esem_unserved_gwh": round(b.unserved_gwh, 4),
+            "esem_times_standard": round(b.unserved_fraction / standard, 2),
+            "lane_volume_mw": round(b.lane_volume_mw),
+            "reserve_margin_gap_mw": round(b.reserve_margin_gap_mw),
+            "awarded_mw": round(sum(x.capacity_mw for x in b.awards)),
+            "scheme_cost": round(b.scheme_cost),
+            "levy_per_mwh": round(b.levy_per_mwh, 4),
+            "merchant_mean_price": round(a.mean_price, 2),
+            "esem_mean_price": round(b.mean_price, 2),
+        })
+    path = os.path.join(args.out, "comparison.csv")
+    with open(path, "w", newline="", encoding="utf-8") as fh:
+        writer = csv.DictWriter(fh, fieldnames=list(rows[0]))
+        writer.writeheader()
+        writer.writerows(rows)
+
+    draw = legs[MERCHANT].draw
+    print(f"esem-sandbox: {args.ticks} years from {args.year}, one weather sequence "
+          f"shared by both legs ({draw.growth_path} growth, "
+          f"{draw.annual_growth:.1%} a year)\n")
+    print(f"{'year':>6}{'merchant':>19}{'ESEM':>19}{'lane MW':>10}{'levy $/MWh':>12}")
+    for a, b, row in zip(legs[MERCHANT].ticks, legs[ESEM].ticks, rows):
+        print(f"{a.year:>6}"
+              f"{a.unserved_gwh:>12.2f} GWh{row['merchant_times_standard']:>6.1f}x"
+              f"{b.unserved_gwh:>10.2f} GWh{row['esem_times_standard']:>6.1f}x"
+              f"{b.lane_volume_mw:>10.0f}{b.levy_per_mwh:>12.2f}")
+
+    print(f"\n{'':<34}{'merchant':>16}{'ESEM':>16}")
+    def line(label, m, e, scale=1e9, unit="bn"):
+        print(f"{label:<34}{m/scale:>14,.2f}{unit}{e/scale:>14,.2f}{unit}")
+    m, e = legs[MERCHANT], legs[ESEM]
+    print(f"{'unserved energy':<34}{m.total_unserved_gwh:>14,.1f}G"
+          f"{e.total_unserved_gwh:>15,.1f}G")
+    line("  valued at the price cap", m.unserved_valued_at_the_cap(settings),
+         e.unserved_valued_at_the_cap(settings))
+    line("wholesale energy cost", m.total_wholesale_cost, e.total_wholesale_cost)
+    line("scheme levy", m.total_levy, e.total_levy)
+    line("consumer cost, all in", m.consumer_cost(settings),
+         e.consumer_cost(settings))
+    saving = m.consumer_cost(settings) - e.consumer_cost(settings)
+    print(f"\nthe scheme leaves consumers ${abs(saving)/1e9:,.2f}bn "
+          f"{'better' if saving > 0 else 'worse'} off over {args.ticks} years, on "
+          f"this seed.")
+    print(f"unserved energy is valued at the market price cap of ${voll:,.0f}/MWh. "
+          "That is\na regulatory figure standing in for what an outage costs, not a "
+          "measurement of one.")
+    print("\nOne seed, one growth path, a stylised fleet. Illustrative, and not a "
+          "forecast\nof anything.")
+    print(f"wrote {path}")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="esem-sandbox")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -168,6 +249,15 @@ def main(argv: list[str] | None = None) -> int:
     m.add_argument("--peak", type=float, default=DEFAULT_PEAK_MW)
     m.add_argument("--seed", type=int, default=None)
     m.add_argument("--out", default="outputs")
+    m.add_argument("--leg", choices=(MERCHANT, ESEM), default=MERCHANT,
+                   help="the market on its own, or with the scheme switched on")
     m.set_defaults(func=simulate)
+    c = sub.add_parser("compare", help="run both legs on the same weather")
+    c.add_argument("--year", type=int, default=2026)
+    c.add_argument("--ticks", type=int, default=20)
+    c.add_argument("--peak", type=float, default=DEFAULT_PEAK_MW)
+    c.add_argument("--seed", type=int, default=None)
+    c.add_argument("--out", default="outputs")
+    c.set_defaults(func=compare)
     args = parser.parse_args(argv)
     return args.func(args)

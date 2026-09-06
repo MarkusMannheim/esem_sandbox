@@ -213,3 +213,62 @@ def test_the_build_ceiling_is_not_captured_by_whoever_is_asked_first(settings, s
     assert len(builders) > settings.investment["concurrent_builds_per_year"], (
         f"only {sorted(builders)} ever built, of {sorted(producers)}"
     )
+
+
+def test_the_two_legs_see_one_weather_sequence(settings, small):
+    """A comparison between the legs has to be a comparison of the mechanism. A leg
+    that drew its own weather would report the difference between two climates as
+    the effect of a policy."""
+    from esem_sandbox.core.simulate import ESEM
+    merchant = run(settings, ticks=3, seed=SEED, cells=small)
+    scheme = run(settings, ticks=3, seed=SEED, cells=small, leg=ESEM)
+    assert merchant.draw == scheme.draw
+
+
+def test_the_scheme_leg_is_the_merchant_leg_with_something_added(settings, small):
+    """Nothing about the scheme may run on the leg that is meant to be without it."""
+    merchant = run(settings, ticks=3, seed=SEED, cells=small)
+    for tick in merchant.ticks:
+        assert tick.awards == ()
+        assert tick.lane_volume_mw == 0.0
+        assert tick.levy_per_mwh == 0.0
+        assert tick.administrator_net == 0.0
+
+
+def test_an_unreliable_leg_is_not_reported_as_the_cheap_one(settings, small):
+    """The line that stops a bill view being an argument for unreliability. Unserved
+    energy is a cost even though nobody invoices for it."""
+    result = run(settings, ticks=3, seed=SEED, cells=small)
+    priced = result.unserved_valued_at_the_cap(settings)
+    assert priced == pytest.approx(
+        result.total_unserved_gwh * 1000.0
+        * settings.market["market_price_cap_per_mwh"])
+    assert result.consumer_cost(settings) > result.total_wholesale_cost or \
+        result.total_unserved_gwh == 0.0
+
+
+def test_the_levy_reaches_the_consumer_view_in_dollars(settings, small):
+    from esem_sandbox.core.simulate import ESEM
+    scheme = run(settings, ticks=4, seed=SEED, cells=small, leg=ESEM)
+    assert scheme.total_levy == pytest.approx(
+        sum(t.levy_per_mwh * t.consumed_mwh for t in scheme.ticks))
+    assert scheme.total_levy > 0, "the administrator costs money to run from year one"
+
+
+def test_an_award_commits_a_plant_the_merchant_rule_had_not_committed(settings, small):
+    """What award-at-final-investment-decision means: the plant is committed in the
+    year of the award and arrives after its lead time, and it exists on the scheme
+    leg and not on the merchant one."""
+    from esem_sandbox.core.simulate import ESEM
+    scheme = run(settings, ticks=4, seed=SEED, cells=small, leg=ESEM)
+    awarded = [u for u in scheme.fleet if u.unit.endswith("_awarded")]
+    assert awarded, "the lane opened and awarded nothing"
+    merchant = run(settings, ticks=4, seed=SEED, cells=small)
+    assert not [u for u in merchant.fleet if u.unit.endswith("_awarded")]
+    for tick in scheme.ticks:
+        for award in tick.awards:
+            assert award.commissioning_year > tick.year, (
+                "a plant cannot arrive in the year it is decided"
+            )
+            lead = settings.tech(award.technology).lead_years
+            assert award.commissioning_year == tick.year + lead

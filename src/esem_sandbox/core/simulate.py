@@ -159,6 +159,8 @@ class TickResult:
     swap_cover: dict[str, float]      # each producer's contracted share of output
     cashflows: dict[str, float]
     peaker_missing_money_per_mw_year: float
+    consumed_mwh: float = 0.0
+    wholesale_cost: float = 0.0
     lane_volume_mw: float = 0.0
     reserve_margin_gap_mw: float = 0.0
     awards: tuple[Award, ...] = ()
@@ -201,7 +203,28 @@ class RunResult:
 
     @property
     def total_levy(self) -> float:
-        return sum(t.levy_per_mwh * 0.0 for t in self.ticks)
+        """What consumers paid the scheme over the run, in dollars."""
+        return sum(t.levy_per_mwh * t.consumed_mwh for t in self.ticks)
+
+    @property
+    def total_wholesale_cost(self) -> float:
+        return sum(t.wholesale_cost for t in self.ticks)
+
+    def unserved_valued_at_the_cap(self, settings: Settings) -> float:
+        """Unserved energy priced at the value of lost load.
+
+        A reliability failure is a cost even though nobody invoices for it, and a
+        comparison that left it out would show the leg that sheds load as the cheap
+        one. This is the line that stops a bill view being an argument for
+        unreliability.
+        """
+        return sum(t.unserved_gwh * 1000.0 for t in self.ticks) * \
+            float(settings.market["market_price_cap_per_mwh"])
+
+    def consumer_cost(self, settings: Settings) -> float:
+        """What the whole thing costs the people who use the electricity."""
+        return (self.total_wholesale_cost + self.total_levy
+                + self.unserved_valued_at_the_cap(settings))
 
     @property
     def total_awarded_mw(self) -> float:
@@ -430,6 +453,8 @@ def run(settings: Settings, *, ticks: int = 20, start_year: int = 2026,
             swap_cover=cover,
             cashflows=cashflows,
             peaker_missing_money_per_mw_year=peaker_rent - ocgt.fixed_cost_per_mw_year,
+            consumed_mwh=float(res.operational_demand_mw.sum()),
+            wholesale_cost=float((res.price * res.operational_demand_mw).sum()),
             lane_volume_mw=lane_mw,
             reserve_margin_gap_mw=margin_gap,
             awards=tuple(awards),
