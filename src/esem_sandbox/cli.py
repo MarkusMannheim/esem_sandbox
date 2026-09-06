@@ -312,12 +312,14 @@ def compare(args: argparse.Namespace) -> int:
     print(f"unserved energy is valued at the market price cap of ${voll:,.0f}/MWh. "
           "That is\na regulatory figure standing in for what an outage costs, not a "
           "measurement of one.")
-    print("\nONE SEED, AND ONLY HALF OF IT TRAVELS. Across ten weather sequences the "
-          "outage line\nis small, positive and steady; the fuel, fixed and capital "
-          "line swings by billions\neither way and decides the sign of the total. "
-          "Quote the outage avoided. Do not quote\nthe total. tools/ten_seeds.py "
-          "writes and decomposes the envelope, and a copy sits\nunder "
-          "outputs/canonical/.")
+    print("\nONE SEED, AND NOT MUCH OF IT TRAVELS. Across ten weather sequences the "
+          "scheme\nimproves reliability in six and worsens it in four, and lowers "
+          "the total resource\ncost in four. Both lines change sign across the "
+          "seeds, so neither this run's outage\nnor its total is a property of the "
+          "scheme. What does travel is the sort: the outage\navoided is largest on "
+          "the fast-growing draws and nil on the slow ones, where the\nscheme buys "
+          "capacity that has nothing to do. tools/ten_seeds.py writes and\n"
+          "decomposes the envelope, and a copy sits under outputs/canonical/.")
     print("\nA stylised fleet. Illustrative, and not a forecast of anything.")
     picture = plots.dashboard(legs, settings,
                               os.path.join(args.out, "dashboard.png"))

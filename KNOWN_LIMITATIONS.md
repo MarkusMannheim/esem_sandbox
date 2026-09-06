@@ -176,15 +176,26 @@ capacity the scheme delivered.
 The auction runs before the investment step, which is the design's own tick order and
 matters physically: one supply chain builds both. So an award consumes annual build
 room that the merchant rule would otherwise have used, and the scheme leg builds
-noticeably less unsubsidised plant than the merchant leg does. Over twenty years on
-the packaged fleet the scheme leg awarded 11,100 MW and built 55,900 MW where the
-merchant leg built 77,900 MW.
+noticeably less unsubsidised plant than the merchant leg does. Counted off the
+fleet at the end of twenty years on the canonical seed, rather than inferred:
 
-The mix moves toward firm capacity, which is what the lane is buying, and the
-reliability outcome improves. But the size of the improvement is partly a
-reallocation of a fixed annual build rate rather than an increase in it, and the
-annual build rate is a pacing choice rather than an economic force. That makes the
-DIRECTION of the comparison meaningful and its MAGNITUDE softer than it looks.
+| | merchant | with the scheme |
+|---|---|---|
+| merchant build | 65,000 MW | 47,550 MW |
+| awarded | nil | 13,300 MW |
+| **new capacity in total** | **65,000 MW** | **60,850 MW** |
+| unserved energy | 141.6 GWh | 39.5 GWh |
+
+So 17,450 MW of merchant build made way for 13,300 MW of awards, and the scheme leg
+finishes with 4,150 MW LESS new plant than the merchant leg while shedding a quarter
+as much energy. The whole of the improvement on this seed is the MIX, not the amount:
+the lane buys firm capacity and the ceiling it consumes would have gone to something
+else.
+
+Read as a limitation, that means the annual build rate is a pacing choice rather than
+an economic force, and it is doing real work in the comparison. Read as a result, it
+is the more interesting half: on this seed a smaller fleet of the right shape beat a
+larger one of the wrong shape, and that is a statement about what capacity is FOR.
 
 ## A scheme cannot fix a year that arrives before its plant does
 
@@ -254,8 +265,8 @@ procured.
 ## The scheme's worth depends on which future the market turned out to be in
 
 Ten seeds, twenty years each, both legs on each seed's own shared weather. The
-scheme improves reliability in eight of the ten and lowers the total resource cost
-in four.
+scheme improves reliability in six of the ten and makes it worse in four, and it
+lowers the total resource cost in four.
 
 Splitting each seed's resource-cost difference into the outage the scheme avoided
 and everything else - unserved energy priced at the value of lost load is one of the
@@ -263,54 +274,69 @@ four terms, so subtracting it leaves fuel, fixed costs and capital together:
 
 | | across ten seeds |
 |---|---|
-| outage avoided | -$0.02bn to +$0.73bn, positive in eight |
-| fuel, fixed and capital | -$4.35bn to +$2.19bn, positive in three |
+| outage avoided | -$0.15bn to +$2.07bn, positive in six |
+| fuel, fixed and capital | -$6.19bn to +$0.92bn, positive in three |
 
-The outage line is small, positive and steady. The other line is four times larger,
-swings both ways, and decides the sign of the total. **Quote the outage avoided. Do
-not quote the total.**
+Both lines change sign across the seeds, so **neither figure from a single run is a
+property of the scheme**, and the total least of all: the second line is the larger
+of the two on eight of the ten seeds and it decides the sign.
 
-**And the swing is not random.** Sorted by the demand growth path each run drew:
+**But the swing is not random, and the sort is the finding.** Taken by the demand
+growth path each run drew:
 
-- **low growth** (three seeds): resource cost worse by $2.0bn to $4.4bn every time,
-  and the outage avoided is nil, between minus $0.02bn and plus $0.01bn;
-- **high growth** (two seeds): resource cost better both times, and the two largest
-  outage savings in the set;
-- **central growth** (five seeds): two better, three worse.
+| path | seeds | outage avoided | resource cost | reliability |
+|---|---|---|---|---|
+| low | 3 | -$0.07bn to -$0.02bn | worse every time, by $1.2bn to $5.7bn | worse in all three |
+| central | 5 | -$0.15bn to +$0.79bn | three worse, two better | three better, two worse |
+| high | 2 | +$1.64bn and +$2.07bn | one worse by $0.40bn, one better by $0.48bn | far better both times |
 
-So on a slow-growing system the scheme procures capacity that has nothing to do, and
-on a fast-growing one it earns its keep. That is a result about the instrument rather
-than about the weather, and it is the one worth taking away.
+On a slow-growing system the scheme procures capacity that has nothing to do, pays
+for it, and does not improve reliability - on these three draws it slightly worsens
+it. On a fast-growing one it avoids the largest outages in the set. Sorted this way
+the scheme awards 13,000 to 13,550 MW on the high draws and 7,700 to 8,100 MW on the
+low ones, so it is responding to the future it is in; it is just responding to a
+future it only half knows.
 
-**The obvious mechanism was tested and is wrong.** The tempting explanation is that
-the lane is sized from a forward view that keeps its growth priors whatever the
-realised path has been doing, so a scheme that cannot learn which future it is in
-keeps buying for the average of them. That can be tested without a design change:
-collapse the priors onto the path each run actually drew and see what happens. On a
+**The reliability going backwards on the slow draws is measured, and its cause is
+not.** The candidate is the shared annual build ceiling, which the state scheme
+lane is already known to bind against - awards displacing merchant plant rather
+than adding to it, which the next section is about. That has NOT been tested here,
+and it should not be repeated as though it had been.
+
+**The obvious mechanism has been tested twice and has never held up.** The tempting
+explanation is that the lane is sized from a forward view that keeps its growth
+priors whatever the realised path has been doing, so a scheme that cannot learn which
+future it is in keeps buying for the average of them. That can be tested without a
+design change: collapse the priors onto the path each run actually drew, which forces
+the same realised weather and the same realised path, and see what happens. On a
 reduced lattice, so these figures are not comparable with the ten-seed table above:
 
 | seed | path | | awarded | resource cost | outage avoided |
 |---|---|---|---|---|---|
-| 20260101 | low | priors as they are | 4,950 MW | -$2.83bn | -$0.02bn |
-| | | knowing the path | 4,400 MW | -$0.08bn | +$0.00bn |
-| 111 | low | priors as they are | 5,950 MW | -$2.64bn | +$0.01bn |
-| | | knowing the path | 3,250 MW | +$0.47bn | +$0.09bn |
-| 20260904 | high | priors as they are | 9,350 MW | -$3.26bn | +$0.67bn |
-| | | knowing the path | 11,200 MW | -$7.50bn | +$0.14bn |
+| 20260101 | low | priors as they are | 9,050 MW | +$0.50bn | -$0.02bn |
+| | | knowing the path | 6,300 MW | -$2.86bn | +$1.28bn |
+| 111 | low | priors as they are | 6,700 MW | -$5.19bn | +$0.21bn |
+| | | knowing the path | 5,000 MW | -$1.50bn | -$0.16bn |
+| 20260904 | high | priors as they are | 14,950 MW | -$2.15bn | +$4.09bn |
+| | | knowing the path | 15,600 MW | -$2.78bn | +$0.90bn |
+| 31415926 | high | priors as they are | 10,150 MW | +$0.98bn | +$0.86bn |
+| | | knowing the path | 9,000 MW | -$0.11bn | +$0.50bn |
 
-On the low path the explanation holds: knowing where demand is going nearly halves
-what the scheme buys and turns a two-and-a-half billion dollar penalty into a gain.
+**What survives is the negative result.** Perfect foresight about the growth path
+does not rescue the scheme on any of these four draws. It cuts what the scheme buys
+on three of the four, and still leaves the resource cost worse on three and the
+outage avoided smaller on three - and never both better at once. Whatever makes the
+scheme expensive on a slow path, not knowing which path it is on is not it.
 
-**On the high path it reverses.** Knowing the path makes the scheme procure MORE,
-cost MORE, and avoid LESS outage, because the market is better informed too and
-builds more of the answer itself, leaving the scheme less to fix.
-
-So the mechanism is not that the scheme cannot learn. It is that the scheme's penalty
-tracks how much it procures that the market would have covered anyway, and better
-information does not fix that: on a fast path it sharpens the market's own response
-and makes the redundancy worse. A procurement scheme is expensive exactly where it is
-least needed, and knowing more about the future moves where that is rather than
-removing it.
+**What does NOT survive is any positive story about why.** An earlier version of this
+file drew one from the same probe run against the previous projection, where entry
+was assumed to be a peaker: that the scheme's penalty tracks how much it procures
+that the market would have covered anyway, so better information moves the
+redundancy rather than removing it. That table no longer reproduces. Under a
+projection open to technology the four draws point four ways, and neither the
+direction on cost nor the direction on outage is shared by three of them for the same
+reason. Four seeds on a reduced lattice cannot carry a mechanism, and this one is not
+being asserted. It is an open question, and it is a good one for a reader to take.
 
 ## What the simplification costs elsewhere
 
