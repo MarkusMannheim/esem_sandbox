@@ -83,17 +83,32 @@ real market is likewise concentrated in a handful of intervals. But a workshop e
 should expect the payout to be lumpy across weather years rather than smooth: the five
 shape-years pay $29,700, $49,700, $76,300, $93,800 and $208,500.
 
-## Investment decisions inside one year do not see each other
+## Decisions taken against a shared forecast do not see each other
 
-Every candidate is priced as a marginal addition to a market that does not contain
-it. That is the right assumption for one small entrant and the wrong one for twelve
+This model has three places where several decisions are taken in the same year
+against one forecast, and none of them sees the others. They are the same failure
+in three costumes, and it is worth naming as a family because each was found
+separately and none of them looks like the others until it is.
+
+**Entry**, in the forward view: every candidate technology answers "would I be
+worth building?" about a market none of the others has entered. Letting all seven
+move in one pass gave fifteen gigawatts of assumed entry on a twelve gigawatt
+system. Fixed by moving one marginal entrant a tick.
+
+**Exit**: every plant's going-forward position is evaluated against a fleet in
+which none of the others has left. Fixed by capping notices per year and firing
+them worst-first, so the forward reprices between cohorts.
+
+**Investment**: every producer prices every candidate as a marginal addition to a
+market that does not contain it. That is the right assumption for one small entrant and the wrong one for twelve
 decisions taken in the same year against the same forward view, which is what a
 tick here contains: four producers considering three candidates each, none of them
 seeing the others.
 
-What stops that running away is the annual build ceiling, which is a pacing choice
-rather than an economic force. So the size of a year's build is set by the ceiling
-whenever the forward is enthusiastic, and by the economics only when it is not. The
+This third one is NOT fixed, and that is the honest position: what stops it running
+away is the annual build ceiling, which is a pacing choice rather than an economic
+force. So the size of a year's build is set by the ceiling whenever the forward is
+enthusiastic, and by the economics only when it is not. The
 sequence still shows the boom and the bust the exercise is for - on the packaged
 fleet the market builds hard for six years, stops completely in two, and starts
 again - but the amplitude of the boom is a parameter, not a result.

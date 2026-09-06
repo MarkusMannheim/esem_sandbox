@@ -6,6 +6,8 @@ state machine tested only through a plausible-looking market can be rescued by t
 market, and the thing under test here is whether the rule converges at all.
 """
 
+from dataclasses import replace
+
 import numpy as np
 import pytest
 
@@ -228,7 +230,7 @@ def test_the_fixed_point_settles_and_stays_settled(settings):
     state, seen = _converge(settings, curve)
     tail = seen[-8:]
     assert len(set(tail)) == 1, f"the state must stop moving; it ran {tail}"
-    assert state.settled(8, tech.unit_size_mw)
+    assert state.settled(8, {tech.technology: tech.unit_size_mw})
 
 
 def test_it_settles_where_the_last_entrant_still_covers_its_cost(settings):
@@ -292,7 +294,7 @@ def test_the_belief_is_on_the_run_and_not_in_a_module_global(settings):
     b = EntryState()
     assert b.at(8) == 0.0 and a.at(8) > 0.0
     c = a.copy()
-    c.by_offset[8].mw = 99_999.0
+    c.by_offset[8]["ocgt"].mw = 99_999.0
     assert a.at(8) != 99_999.0, "copy() must not alias the beliefs it copies"
 
 
@@ -334,3 +336,86 @@ def test_a_cell_subset_is_restored_to_a_distribution(settings):
     assert sum(c.weight for c in renormalised(subset)) == pytest.approx(1.0)
     ratios = [b.weight / a.weight for a, b in zip(subset, renormalised(subset))]
     assert max(ratios) == pytest.approx(min(ratios)), "relative weights must be kept"
+
+
+# --------------------------------------------------------------------------
+# Entry open to technology
+
+
+def test_the_projection_is_not_told_which_technology_to_assume(settings):
+    """Naming one forces the projection to price replacement capacity at that
+    technology's running cost while the investment step goes and builds something
+    else, so the two halves of the same model disagree about what a market does
+    when it is short.
+
+    And a peaker is not even the obvious guess: on this cost table the cheapest
+    megawatt-year belongs to a two-hour battery, before a dollar of fuel is bought.
+    """
+    from esem_sandbox.core.forward import entry_candidates
+
+    names = {t.technology for t in entry_candidates(settings)}
+    assert names == {t.technology for t in settings.tech_costs}
+    assert len(names) > 1
+    cheapest = min(settings.tech_costs, key=lambda t: t.fixed_cost_per_mw_year)
+    assert cheapest.technology != "ocgt", (
+        "if the peaker ever becomes the cheapest megawatt-year here, the sentence "
+        "above stops being the reason and the reason needs rewriting"
+    )
+
+
+def test_only_one_technology_moves_a_tick(settings):
+    """Every candidate is measured against the SAME anchor, so letting all of them
+    move in one pass has each answer 'would I be worth building?' about a market
+    none of the others has entered yet. On this fleet that gave fifteen gigawatts
+    of assumed entry on a twelve gigawatt system, wandering and never settling."""
+    tech = settings.tech("ocgt")
+    rich = {t.technology: 10 * settings.tech(t.technology).fixed_cost_per_mw_year
+            for t in settings.tech_costs}
+    anchor = _stub_anchor(8, [1.0], shortfall=4000.0)
+    anchor = Anchor(offset=8, year=2038, outcomes=tuple(
+        replace(o, rent_per_mw_year=rich) for o in anchor.outcomes))
+    state = update_projected_entry(EntryState(), [anchor], settings)
+    moved = [t for t, mw in state.mix(8).items() if mw > 0]
+    assert len(moved) == 1, f"{len(moved)} technologies moved in one tick: {moved}"
+
+
+def test_a_technology_keeps_its_bracket_when_another_becomes_marginal(settings):
+    """Assume enough batteries and a combined cycle looks best; assume enough of
+    those and batteries do. Discarding what was learned on a switch made the state
+    climb for ever."""
+    cheap = {t.technology: 0.0 for t in settings.tech_costs}
+    rich = dict(cheap, ocgt=10 * settings.tech("ocgt").fixed_cost_per_mw_year)
+    def anchor_with(rents):
+        base = _stub_anchor(8, [1.0], shortfall=2000.0)
+        return Anchor(offset=8, year=2038, outcomes=tuple(
+            replace(o, rent_per_mw_year=rents) for o in base.outcomes))
+
+    state = update_projected_entry(EntryState(), [anchor_with(rich)], settings)
+    assert state.at(8, "ocgt") > 0
+    # Now nothing pays: the peaker must unwind, and its bracket must survive.
+    after = update_projected_entry(state, [anchor_with(cheap)], settings)
+    assert after.belief(8, "ocgt").hi_mw is not None, (
+        "the observation that this much was too much has to be kept"
+    )
+
+
+def test_an_assumed_battery_is_dispatched_as_a_battery(settings):
+    """A projection that adds undifferentiated capacity prices it at whatever the
+    last thing in the stack costs."""
+    from esem_sandbox.core.forward import anchor_fleet
+
+    fleet = anchor_fleet(settings.fleet, 2035, {"battery_8h": 500.0}, settings)
+    added = [u for u in fleet if u.unit.startswith("projected_entry")]
+    assert len(added) == 1
+    assert added[0].technology == "battery"
+    assert added[0].duration_h == 8.0
+    assert added[0].round_trip_efficiency is not None
+
+
+def test_the_assumed_mix_can_hold_more_than_one_technology(settings):
+    from esem_sandbox.core.forward import anchor_fleet
+
+    fleet = anchor_fleet(settings.fleet, 2035,
+                         {"ocgt": 300.0, "battery_4h": 200.0}, settings)
+    added = sorted(u.unit for u in fleet if u.unit.startswith("projected_entry"))
+    assert added == ["projected_entry_battery_4h", "projected_entry_ocgt"]

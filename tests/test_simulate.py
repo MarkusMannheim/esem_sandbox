@@ -296,36 +296,33 @@ def test_the_legs_coincide_exactly_when_the_lane_never_opens(settings, small):
     assert _fingerprint(scheme) == _fingerprint(merchant)
 
 
-def test_risk_aversion_alone_does_not_close_the_gap(settings, small):
-    """The claim the decomposition exercise exists to refute, pinned as a fact about
-    this model rather than as a hope.
+def test_the_risk_channel_now_reaches_the_projection_as_well(settings, small):
+    """This test used to assert the opposite, and the change is deliberate.
 
-    Setting the risk premium to zero makes every certainty equivalent an expected
-    value and every hurdle a plain fixed cost. It changes what a cap costs, because a
-    cap is priced on the same coefficient. Over these four ticks it does not change
-    which plant gets built: the channel moves a peaker's hurdle by a few per cent of
-    its fixed cost, which is real and is usually not enough to flip a decision.
+    While the projection assumed one technology, the risk premium only scaled one
+    threshold and moved nothing: switching it off left the fleet identical over
+    four ticks, and the decomposition exercise leaned on that. Now the projection
+    chooses among technologies, and the premium is applied per technology, so it
+    decides WHICH plant the forecast assumes gets built as well as how much. That
+    reaches the prices every investor reads, and the fleet moves.
 
-    It is not nothing, and the claim here is deliberately narrow. Raising the premium
-    from 0.25 to 0.30 does move the fleet over six ticks, by 750 MW in one year. What
-    the exercise refutes is the stronger and more tempting claim: that the effect of
-    a long contract can be ATTRIBUTED to the exposure it removes. It cannot, because
-    the channel is small beside the other two, and a decomposition that stopped at
-    this switch would hand the whole result to it.
+    What the decomposition exercise actually refutes survives and is the narrower
+    claim: the effect of a long contract cannot be ATTRIBUTED to the exposure it
+    removes, because that channel is small beside the capital it cheapens and the
+    plant it procures. It is no longer true that the channel changes nothing.
     """
     risk_free = load_settings({"investment": {"risk_premium": 0.0}})
     base = run(settings, ticks=TICKS, seed=SEED, cells=small)
     flat = run(risk_free, ticks=TICKS, seed=SEED, cells=small)
-    assert _fingerprint(flat) == _fingerprint(base), (
-        "if this ever differs, the risk channel has become strong enough to move "
-        "the fleet on its own, and the decomposition story needs rewriting"
+    assert _fingerprint(flat) != _fingerprint(base), (
+        "the risk premium now selects between technologies in the projection, so "
+        "switching it off has to move something"
     )
     base_caps = [c.premium_per_mwh for c in base.book if c.kind == "cap"]
     flat_caps = [c.premium_per_mwh for c in flat.book if c.kind == "cap"]
     assert base_caps and flat_caps
     assert max(base_caps) != pytest.approx(max(flat_caps)), (
-        "and it must still be doing something: a cap is priced on the same "
-        "coefficient, so removing risk aversion has to move its premium"
+        "and it must still price insurance on the same coefficient"
     )
 
 

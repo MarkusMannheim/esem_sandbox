@@ -41,8 +41,24 @@ from ..config import Settings, TechCost, Unit
 from .dispatch import dispatch_year, storage_schedule
 from .report import block_prices
 
-PROJECTED_ENTRY_TECHNOLOGY = "ocgt"
-PROJECTED_ENTRY_UNIT = "projected_entry_ocgt"
+PROJECTED_ENTRY_UNIT = "projected_entry"
+
+
+def entry_candidates(settings: Settings) -> tuple[TechCost, ...]:
+    """What the projection may assume somebody else builds.
+
+    Every technology that can be built, not one named in advance. Naming one
+    forces the projection to price replacement capacity at that technology's
+    running cost while the investment step goes and builds something else, and
+    the two halves of the same model then disagree about what a market does when
+    it is short.
+
+    This is only affordable because the test is per megawatt-year. A test that
+    divided a fixed cost by a duty cycle has to know the duty cycle first, which
+    is why the divided form ends up hard-coded to the one technology whose duty
+    cycle somebody measured.
+    """
+    return tuple(settings.tech_costs)
 
 
 @dataclass(frozen=True)
@@ -223,6 +239,7 @@ class Anchor:
     year: int
     outcomes: tuple[CellOutcome, ...]
     entry_mw: float = 0.0
+    entry_mix: dict[str, float] = field(default_factory=dict)
 
     @property
     def weights(self) -> np.ndarray:
@@ -259,32 +276,45 @@ def _projected_entry_unit(mw: float, tech: TechCost, year: int) -> Unit:
 
     It is a real row in the anchor fleet, not a subtraction from demand, so it
     competes on the stack at its own offer and its effect on the price is whatever
-    the merit order says it is.
+    the merit order says it is. It carries its own duration too, so an assumed
+    battery is dispatched as a battery rather than as a generator that never runs
+    out of energy.
     """
     return Unit(
-        unit=PROJECTED_ENTRY_UNIT, technology=tech.technology, capacity_mw=mw,
+        unit=f"{PROJECTED_ENTRY_UNIT}_{tech.technology}",
+        technology=tech.dispatch_technology, capacity_mw=mw,
         availability=tech.availability, srmc_per_mwh=tech.srmc_per_mwh,
         retirement_year=9999, commissioned_year=year, must_run_mw=0.0,
-        energy_budget_gwh=None, duration_h=None, round_trip_efficiency=None,
+        energy_budget_gwh=None, duration_h=tech.duration_h,
+        round_trip_efficiency=0.85 if tech.duration_h else None,
         firm_factor=tech.firm_factor, cap_eligible=tech.cap_eligible,
+        fom_per_kw_year=tech.fom_per_kw_year,
     )
 
 
-def anchor_fleet(fleet: tuple[Unit, ...], year: int, entry_mw: float,
-                 settings: Settings) -> tuple[Unit, ...]:
-    """Today's fleet, less what has retired by ``year``, plus projected entry."""
+def anchor_fleet(fleet: tuple[Unit, ...], year: int,
+                 entry: dict[str, float] | None, settings: Settings
+                 ) -> tuple[Unit, ...]:
+    """Today's fleet, less what has retired by ``year``, plus the projected mix.
+
+    One row per assumed technology, each dispatched as itself, because a projection
+    that added a gigawatt of "capacity" without saying what kind would price it at
+    whatever the last thing in the stack costs.
+    """
     live = tuple(u for u in fleet if u.in_service(year))
-    if entry_mw > 0.0:
-        tech = settings.tech(PROJECTED_ENTRY_TECHNOLOGY)
-        live = live + (_projected_entry_unit(entry_mw, tech, year),)
+    for technology, mw in sorted((entry or {}).items()):
+        if mw > 0.0:
+            live = live + (_projected_entry_unit(mw, settings.tech(technology),
+                                                 year),)
     return live
 
 
 def dispatch_anchor(settings: Settings, fleet: tuple[Unit, ...], bundle: dict,
                     *, offset: int, year: int, peak_mw: float,
-                    cells: tuple[Cell, ...], entry_mw: float = 0.0) -> Anchor:
+                    cells: tuple[Cell, ...],
+                    entry: dict[str, float] | None = None) -> Anchor:
     """Dispatch every cell of the lattice at one anchor."""
-    live = anchor_fleet(fleet, year, entry_mw, settings)
+    live = anchor_fleet(fleet, year, entry, settings)
     at_anchor = replace(settings, fleet=live)
     outcomes: list[CellOutcome] = []
     for cell in cells:
@@ -317,17 +347,15 @@ def dispatch_anchor(settings: Settings, fleet: tuple[Unit, ...], bundle: dict,
             operational_demand_mwh=float(res.operational_demand_mw.sum()),
         ))
     return Anchor(offset=offset, year=year, outcomes=tuple(outcomes),
-                  entry_mw=entry_mw)
+                  entry_mw=sum((entry or {}).values()), entry_mix=dict(entry or {}))
 
 
 @dataclass
 class EntryBelief:
-    """What the projection assumes about entry at one anchor, and what it has
-    learned about where the truth lies.
+    """What the projection assumes about entry of ONE technology at one anchor.
 
-    ``lo_mw`` is the most assumed entry known to still leave a peaker earning its
-    cost; ``hi_mw`` is the least known to push it below. Between them lies the free
-    entry fixed point.
+    ``lo_mw`` is the most assumed entry of it known to still leave that technology
+    earning its cost; ``hi_mw`` is the least known to push it below.
     """
 
     mw: float = 0.0
@@ -338,121 +366,176 @@ class EntryBelief:
 
 @dataclass
 class EntryState:
-    """How much plant the projection assumes somebody else builds, by anchor.
+    """How much plant the projection assumes somebody else builds, by anchor and
+    by technology.
 
-    This is carried on the run rather than in a module global. The model this one
-    simplifies keeps it in module state, which means two legs of a paired run share
-    one belief about entry and a test leaves its state behind for the next test.
+    Per technology, and that is the whole point. A single assumed technology
+    cannot converge here: assume enough batteries and a combined cycle looks best,
+    assume enough of those and batteries do, and a rule that picks the best one
+    each tick oscillates between them for ever while the megawatts climb. The
+    answer a market gives is a MIX, and the fixed point is the one where no
+    technology has a surplus left - which is what free entry with more than one
+    technology in it means.
+
+    This is carried on the run rather than in a module global. A global means two
+    legs of a paired run share one belief and a test leaves state behind for the
+    next.
     """
 
-    by_offset: dict[int, EntryBelief] = field(default_factory=dict)
+    by_offset: dict[int, dict[str, EntryBelief]] = field(default_factory=dict)
 
-    def at(self, offset: int) -> float:
-        return self.by_offset.get(offset, EntryBelief()).mw
+    def at(self, offset: int, technology: str | None = None) -> float:
+        beliefs = self.by_offset.get(offset, {})
+        if technology is not None:
+            return beliefs.get(technology, EntryBelief()).mw
+        return sum(b.mw for b in beliefs.values())
 
-    def belief(self, offset: int) -> EntryBelief:
-        return self.by_offset.get(offset, EntryBelief())
+    def mix(self, offset: int) -> dict[str, float]:
+        """What the projection assumes gets built, by technology."""
+        return {t: b.mw for t, b in self.by_offset.get(offset, {}).items()
+                if b.mw > 0.0}
 
-    def settled(self, offset: int, resolution_mw: float) -> bool:
-        b = self.by_offset.get(offset)
-        if b is None or b.lo_mw is None or b.hi_mw is None:
+    def belief(self, offset: int, technology: str) -> EntryBelief:
+        return self.by_offset.get(offset, {}).get(technology, EntryBelief())
+
+    def settled(self, offset: int, resolution: dict[str, float]) -> bool:
+        beliefs = self.by_offset.get(offset)
+        if not beliefs:
             return False
-        return (b.hi_mw - b.lo_mw) <= resolution_mw
+        for technology, b in beliefs.items():
+            if b.lo_mw is None or b.hi_mw is None:
+                if b.mw > 0.0:
+                    return False
+                continue
+            if (b.hi_mw - b.lo_mw) > resolution.get(technology, 0.0):
+                return False
+        return True
 
     def copy(self) -> "EntryState":
-        return EntryState({k: EntryBelief(v.mw, v.lo_mw, v.hi_mw, v.step_mw)
-                           for k, v in self.by_offset.items()})
+        return EntryState({
+            offset: {t: EntryBelief(b.mw, b.lo_mw, b.hi_mw, b.step_mw)
+                     for t, b in beliefs.items()}
+            for offset, beliefs in self.by_offset.items()})
 
 
 def update_projected_entry(state: EntryState, anchors: list[Anchor],
                            settings: Settings, *,
-                           threshold_loading_per_mw_year: float = 0.0) -> EntryState:
-    """One adaptive step of the free-entry fixed point.
+                           threshold_loading_per_mw_year: "float | dict[str, float]"
+                           = 0.0) -> EntryState:
+    """One adaptive step of the free-entry fixed point, for every technology.
 
-    Where a peaker's projected rent clears its own fixed cost, the projection grows
-    the plant it assumes will be built; where it does not, the assumption decays.
-    At the fixed point rent sits at the threshold, which is what free entry means.
+    Where a technology's projected rent clears its own fixed cost, the projection
+    grows the plant it assumes will be built; where it does not, the assumption
+    decays. At the fixed point every technology's rent sits at or below its cost,
+    with equality for the ones that entered, which is what free entry means when
+    more than one thing can be built.
 
-    **Why this converges in megawatts and not in dollars.** The obvious rule, and
-    the one this is drawn from, grows by a step sized to the projected shortfall,
-    decays by halving the state, and stops when rent lands within a tolerance of
-    break-even. On this fleet it never stops. The eight-year anchor settles into a
-    four-cycle at 3,548 - 5,871 - 7,070 - 3,535 MW and the expected unserved energy
-    it reports swings between 0.02 and 0.49 per cent depending only on which phase
-    of the cycle a tick lands in. Damping the step reduces the amplitude and does
-    not remove the cycle.
+    **Why every technology and not one named in advance.** Naming one forces the
+    projection to price replacement capacity at that technology's running cost
+    while the investment step goes and builds something else, so the two halves of
+    the same model disagree about what a market does when it is short. On the
+    packaged cost table a four-hour battery's fixed cost is below an open-cycle
+    peaker's before a dollar of fuel is bought, so the peaker is not even the
+    obvious guess. This is only affordable because the test is per megawatt-year: a
+    test that divides a fixed cost by a duty cycle has to know the duty cycle
+    first, which is why the divided form ends up hard-coded to the one technology
+    whose duty cycle somebody measured.
 
-    The cause is not the step size. Rent is a step function of assumed entry,
-    because the price is set by a merit order and a ladder of discrete tranches:
-    between 6,243 and 6,676 MW of assumed entry the peaker's rent falls thirty
-    thousand dollars at once. There is no quantity of entry at which rent sits
-    within a two per cent band of break-even, so a rule that keeps moving until it
-    lands in that band moves for ever. A tolerance on rent is a stopping test that
-    the model's own arithmetic cannot satisfy.
+    **Why it converges in megawatts and not in dollars.** Rent is a step function
+    of assumed entry, because the price is set by a merit order and a ladder of
+    discrete tranches: on this fleet a peaker's rent falls thirty thousand dollars
+    between 6,243 and 6,676 MW of assumed entry. There is no quantity at which rent
+    sits within a tolerance band of break-even, so a rule that stops only when it
+    lands there does not stop - it settles into a four-cycle and reports whichever
+    phase a tick lands in. Each technology brackets instead, halving until the
+    bracket is narrower than one generating unit, and settles on the lower edge
+    where the last entrant still covers its own cost. Same technique the hydro
+    schedule uses against the same discreteness.
 
-    So the state brackets instead. Each observation tells it which side of the
-    fixed point the current assumption lies on, the bracket narrows by halving, and
-    it stops when the bracket is narrower than one generating unit, which is the
-    finest distinction entry can actually be built in. It settles on the lower
-    edge: the largest assumed entry at which the last entrant still covers its own
-    cost, which is what free entry means. This is the technique the hydro schedule
-    already uses here, for the same reason - a threshold search against a discrete
-    stack - and it is exact where a tolerance rule is not.
-
-    Two rules keep it honest. No anchor closer than the technology's lead time can
-    gain new assumed entry, because the decision that would deliver it lies in the
-    past and the past is not a thing a projection gets to change. And where entry
-    cannot earn its cost anywhere, the state falls to zero and the projected
-    unserved energy stays visible: that shortfall is the finding, and assuming it
-    away is how a model comes to report that a market is adequate because it
-    assumed the capacity that would have made it so.
-
-    ``threshold_loading_per_mw_year`` is the risk premium a merchant entrant would
-    demand on top of break-even. It is passed in rather than computed here so the
-    threshold matches the leg's own investment test: a projection that assumes
-    entry the leg itself would reject is not a projection of that leg.
+    Two rules keep it honest. No anchor closer than a technology's lead time can
+    gain new assumed entry of it, because the decision that would deliver it lies
+    in the past. And where nothing can earn its cost the state falls to zero and
+    the projected unserved energy stays visible: that shortfall is the finding, and
+    assuming it away is how a model reports a market as adequate because it assumed
+    the capacity that would have made it so.
     """
-    tech = settings.tech(PROJECTED_ENTRY_TECHNOLOGY)
-    threshold = tech.fixed_cost_per_mw_year + threshold_loading_per_mw_year
     step_min = float(settings.forward["entry_step_min_mw"])
     decay = float(settings.forward["entry_decay"])
-    resolution = tech.unit_size_mw
+    loadings = (threshold_loading_per_mw_year
+                if isinstance(threshold_loading_per_mw_year, dict) else None)
     out = state.copy()
     for anchor in anchors:
-        prior = state.belief(anchor.offset)
-        here = prior.mw
-        pays = anchor.expected_rent[tech.technology] >= threshold
+        beliefs = out.by_offset.setdefault(anchor.offset, {})
 
-        # Read the bracket off this observation, discarding any prior edge the
-        # observation contradicts. Rent falls as assumed entry rises, so an edge
-        # on the far side of the current point survives and one on the near side
-        # is superseded by it.
+        # ONE technology a tick, and it is the marginal one. Every candidate is
+        # measured against the same anchor, so letting all seven move in one pass
+        # has each of them answer "would I be worth building?" about a market none
+        # of the others has entered yet, and the total overshoots by roughly the
+        # number of candidates - on this fleet, fifteen gigawatts of assumed entry
+        # on a twelve gigawatt system, wandering and never settling. A market adds
+        # a marginal entrant, sees the price move, and then adds the next.
+        #
+        # Every technology keeps its own bracket between ticks, so the one that
+        # stops being marginal does not lose what was learned about it.
+        ranked = []
+        priced = anchor.expected_rent
+        for tech in entry_candidates(settings):
+            # A technology the anchor did not price is one this view cannot judge,
+            # so it is not a candidate here. A dispatched anchor prices them all;
+            # this only bites where a caller supplies its own outcomes.
+            if tech.technology not in priced:
+                continue
+            loading = (loadings.get(tech.technology, 0.0) if loadings is not None
+                       else float(threshold_loading_per_mw_year))
+            surplus = (priced[tech.technology]
+                       - tech.fixed_cost_per_mw_year - loading)
+            ranked.append((surplus, tech))
+        if not ranked:
+            continue
+        best = max(ranked, key=lambda r: r[0])
+        # Grow the best where anything pays; otherwise unwind the worst offender,
+        # which is the one furthest from covering its cost.
+        surplus, tech = best if best[0] >= 0.0 else min(
+            (r for r in ranked if state.belief(anchor.offset, r[1].technology).mw > 0),
+            key=lambda r: r[0], default=best)
+
+        prior = state.belief(anchor.offset, tech.technology)
+        here = prior.mw
+        pays = surplus >= 0.0
+        resolution = tech.unit_size_mw
+
         if pays:
             lo: float | None = here
-            hi = prior.hi_mw if (prior.hi_mw is not None and prior.hi_mw > here) else None
+            hi = prior.hi_mw if (prior.hi_mw is not None
+                                 and prior.hi_mw > here) else None
         else:
             hi = here
-            lo = prior.lo_mw if (prior.lo_mw is not None and prior.lo_mw < here) else None
+            lo = prior.lo_mw if (prior.lo_mw is not None
+                                 and prior.lo_mw < here) else None
 
         if lo is not None and hi is not None:
             nxt = lo if (hi - lo) <= resolution else 0.5 * (lo + hi)
             step = prior.step_mw
         elif hi is None:
-            # Never yet seen enough entry to satisfy the market: climb, sized to
-            # the shortfall, doubling while the bracket stays open.
-            step = max(step_min, 0.5 * anchor.expected_peak_shortfall_mw,
-                       prior.step_mw * 2.0 if prior.step_mw else 0.0)
+            # Sized to the shortfall, and NOT doubled while the bracket stays open.
+            # Doubling was harmless while one technology was assumed, because the
+            # first shortfall-sized step already bracketed it. With several
+            # technologies taking turns, a technology that is marginal for two
+            # consecutive ticks doubles twice before anything contradicts it: on
+            # this fleet a two-hour battery went 2,584 to 6,030 to 12,921 MW, by
+            # which point its own entry had killed the spread it was entering for
+            # and its rent was $8,594 against a $107,718 cost. The overshoot was
+            # the step rule, not the economics.
+            step = max(step_min, 0.5 * anchor.expected_peak_shortfall_mw)
             nxt = here + step
         else:
-            # Even this little assumed entry is too much: retreat. Nothing is known
-            # about the lower edge, so the retreat is proportional to the state.
             step = max(step_min, here * decay)
             nxt = max(0.0, here - step)
 
         if nxt > here and anchor.offset < tech.lead_years:
             continue                       # no new entry inside the build lead
-        out.by_offset[anchor.offset] = EntryBelief(mw=nxt, lo_mw=lo, hi_mw=hi,
-                                                   step_mw=step)
+        beliefs[tech.technology] = EntryBelief(mw=nxt, lo_mw=lo, hi_mw=hi,
+                                               step_mw=step)
     return out
 
 
@@ -573,7 +656,7 @@ def forward_view(settings: Settings, fleet: tuple[Unit, ...], bundle: dict, *,
     anchors = tuple(
         dispatch_anchor(settings, fleet, bundle, offset=int(offset),
                         year=year + int(offset), peak_mw=peak_mw, cells=plan,
-                        entry_mw=entry.at(int(offset)))
+                        entry=entry.mix(int(offset)))
         for offset in settings.forward["anchor_offsets"]
     )
     return ForwardView(anchors=anchors, entry=entry)

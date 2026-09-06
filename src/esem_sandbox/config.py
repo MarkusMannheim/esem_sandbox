@@ -132,6 +132,17 @@ class TechCost:
     cap_eligible: bool
 
     @property
+    def dispatch_technology(self) -> str:
+        """What the dispatcher calls this.
+
+        The cost table names storage by duration, because a two-hour and an
+        eight-hour battery are different investments. The dispatcher cares only
+        that a thing is a store. Keeping the translation here means the forward,
+        the investment step and the auction cannot each invent their own.
+        """
+        return "battery" if self.duration_h else self.technology
+
+    @property
     def crf(self) -> float:
         """Capital recovery factor: the annuity that repays one dollar over the life."""
         r, n = self.wacc, self.life_years

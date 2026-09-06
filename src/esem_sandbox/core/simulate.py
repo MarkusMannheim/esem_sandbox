@@ -83,11 +83,7 @@ BOOTSTRAP_YEARS = 3
 MERCHANT = "merchant"
 ESEM = "esem"
 
-# tech_costs.csv names storage by duration, because a two-hour and an eight-hour
-# battery are different investments. The dispatcher cares only that a thing is a
-# store, so a built unit carries the dispatch technology and its duration.
-_DISPATCH_TECHNOLOGY = {"battery_2h": "battery", "battery_4h": "battery",
-                        "battery_8h": "battery"}
+
 
 
 @dataclass(frozen=True)
@@ -340,7 +336,7 @@ def _new_unit(tech: TechCost, mw: float, name: str, decided_year: int) -> Unit:
     commissioned = decided_year + tech.lead_years
     return Unit(
         unit=name,
-        technology=_DISPATCH_TECHNOLOGY.get(tech.technology, tech.technology),
+        technology=tech.dispatch_technology,
         capacity_mw=mw, availability=tech.availability,
         srmc_per_mwh=tech.srmc_per_mwh,
         retirement_year=commissioned + tech.life_years,
@@ -357,22 +353,30 @@ def _cap_payoff_per_mw_year(price: np.ndarray, strike: float) -> float:
 
 
 def _merchant_entry_loading(settings: Settings, view: ForwardView,
-                            roster: tuple[Agent, ...]) -> float:
-    """The risk premium a representative merchant would want on top of break-even.
+                            roster: tuple[Agent, ...]) -> dict[str, float]:
+    """The risk premium a representative merchant would want, per technology.
 
     The projection is only allowed to assume entry that the leg's own investment
     test would actually take. A projection of a merchant market that assumed
     break-even entry would be projecting a market with a different investor in it.
+
+    Per technology, because the projection now chooses one rather than being told
+    which. A peaker and a battery do not carry the same spread across futures, so
+    they do not carry the same loading, and using one number for both would decide
+    the choice between them on the wrong quantity.
     """
     producers = [a for a in roster if a.kind == PRODUCER]
     if not producers:
-        return 0.0
-    tech = settings.tech("ocgt")
-    rents = view.lifetime_rent(tech)
-    weights = view.weights
+        return {}
     representative = max(a.risk_aversion for a in producers)
     a = cara_coefficient(representative, 1.0, settings)
-    return float(rents @ weights) - cara_certainty_equivalent(rents, weights, a)
+    weights = view.weights
+    out: dict[str, float] = {}
+    for tech in settings.tech_costs:
+        rents = view.lifetime_rent(tech)
+        out[tech.technology] = float(rents @ weights) - cara_certainty_equivalent(
+            rents, weights, a)
+    return out
 
 
 def run(settings: Settings, *, ticks: int = 20, start_year: int = 2026,
