@@ -73,6 +73,11 @@ settlement, the forward view, the investment and exit rules, and the procurement
 scheme with its auction, its recycling and its levy. What is not built is the
 state scheme lane, seasonal contract volumes, and the notebook of exercises.
 
+## How it works
+
+[ARCHITECTURE.md](ARCHITECTURE.md) is the map: what each piece does, what a year
+looks like, and where to start reading.
+
 ## Known limitations
 
 [KNOWN_LIMITATIONS.md](KNOWN_LIMITATIONS.md) lists what this model gets wrong, with

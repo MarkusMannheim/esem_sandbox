@@ -115,3 +115,55 @@ def test_a_path_still_works_and_wins_over_a_name(tmp_path):
     local.write_text('[run]\nleg = "merchant"\nticks = 3\n')
     _, options = _scenario(str(local))
     assert options == {"leg": "merchant", "ticks": 3}
+
+
+def test_every_packaged_data_row_carries_its_derivation():
+    """The repository's own rule, enforced rather than trusted.
+
+    DATA_SOURCES.md says a new data file needs a row in its table and a derivation
+    column. A rule that lives only in a document is a rule that lasts until the next
+    person in a hurry, and the whole provenance claim of this repository rests on
+    every row being able to say where it came from.
+    """
+    from importlib import resources
+
+    from esem_sandbox.config import read_csv
+
+    folder = resources.files("esem_sandbox") / "data"
+    names = sorted(p.name for p in folder.iterdir() if p.name.endswith(".csv"))
+    assert len(names) >= 5, names
+    for name in names:
+        rows = read_csv(name)
+        assert rows, f"{name} is empty"
+        assert "derivation" in rows[0], f"{name} has no derivation column"
+        for i, row in enumerate(rows):
+            assert (row.get("derivation") or "").strip(), (
+                f"{name} row {i} does not say where it came from"
+            )
+
+
+def test_every_packaged_data_file_is_named_in_data_sources():
+    """A file that ships without a row in the table is a file whose terms nobody
+    stated."""
+    import pathlib
+    from importlib import resources
+
+    doc = (pathlib.Path(__file__).resolve().parents[1] / "DATA_SOURCES.md").read_text()
+    folder = resources.files("esem_sandbox") / "data"
+    for path in sorted(folder.iterdir()):
+        if path.name.endswith((".csv", ".toml")):
+            assert f"`{path.name}`" in doc, f"{path.name} is not in DATA_SOURCES.md"
+
+
+def test_the_architecture_note_names_every_module():
+    """A map with a missing road is worse than no map. The model is meant to be
+    understood in an hour, and a reader who finds a module nobody mentioned has to
+    work out on their own whether it matters."""
+    import pathlib
+
+    root = pathlib.Path(__file__).resolve().parents[1]
+    doc = (root / "ARCHITECTURE.md").read_text()
+    modules = sorted(p.name for p in (root / "src/esem_sandbox/core").glob("*.py")
+                     if p.name != "__init__.py")
+    missing = [m for m in modules if m not in doc]
+    assert not missing, f"ARCHITECTURE.md does not mention {missing}"

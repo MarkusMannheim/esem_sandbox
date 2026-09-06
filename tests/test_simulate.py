@@ -302,11 +302,16 @@ def test_risk_aversion_alone_does_not_close_the_gap(settings, small):
 
     Setting the risk premium to zero makes every certainty equivalent an expected
     value and every hurdle a plain fixed cost. It changes what a cap costs, because a
-    cap is priced on the same coefficient. It does NOT change which plant gets built:
-    on this fleet the risk channel moves a peaker's hurdle by a few per cent of its
-    fixed cost, which is real and is not enough to flip a decision. So the effect of
-    a long contract cannot be attributed to the exposure it removes, and anybody who
-    says it can is describing a different model.
+    cap is priced on the same coefficient. Over these four ticks it does not change
+    which plant gets built: the channel moves a peaker's hurdle by a few per cent of
+    its fixed cost, which is real and is usually not enough to flip a decision.
+
+    It is not nothing, and the claim here is deliberately narrow. Raising the premium
+    from 0.25 to 0.30 does move the fleet over six ticks, by 750 MW in one year. What
+    the exercise refutes is the stronger and more tempting claim: that the effect of
+    a long contract can be ATTRIBUTED to the exposure it removes. It cannot, because
+    the channel is small beside the other two, and a decomposition that stopped at
+    this switch would hand the whole result to it.
     """
     risk_free = load_settings({"investment": {"risk_premium": 0.0}})
     base = run(settings, ticks=TICKS, seed=SEED, cells=small)

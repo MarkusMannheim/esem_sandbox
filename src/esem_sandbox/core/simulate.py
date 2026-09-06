@@ -62,6 +62,9 @@ from .esem import (
     firm_contribution_mw, lane_volume_mw, levy_per_mwh,
     long_run_cost_per_mw_year, recycle, reserve_margin_gap_mw, screen,
 )
+from .scheme import (
+    SCHEME_COUNTERPARTY, SchemeYear, clear_scheme, load_scheme, scheme_contracts,
+)
 from .investment import (
     ExitLedger, achieved_swap_cover, build_ceiling_mw, build_size_mw,
     cara_coefficient, exit_notices, rank_candidates, residual_exposure,
@@ -182,6 +185,7 @@ class TickResult:
     fuel_and_vom: float = 0.0
     fixed_cost_of_fleet: float = 0.0
     annualised_capex_of_new_build: float = 0.0
+    scheme_year: SchemeYear | None = None
     lane_volume_mw: float = 0.0
     reserve_margin_gap_mw: float = 0.0
     awards: tuple[Award, ...] = ()
@@ -374,7 +378,7 @@ def run(settings: Settings, *, ticks: int = 20, start_year: int = 2026,
         peak_mw: float = 12_500.0, seed: int | None = None,
         cells: tuple[Cell, ...] | None = None, leg: str = MERCHANT,
         retire: dict[str, int] | None = None, clearing: str = "anchor",
-        bundle: dict | None = None) -> RunResult:
+        scheme: bool = False, bundle: dict | None = None) -> RunResult:
     """One leg of a run: dispatch, contract, invest, twenty times over.
 
     ``leg`` selects the counterfactual. Both legs draw the same weather from the same
@@ -396,6 +400,7 @@ def run(settings: Settings, *, ticks: int = 20, start_year: int = 2026,
                      fleet=forced_retirements(settings.fleet, retire, start_year),
                      roster=roster)
 
+    scheme_row = load_scheme(settings) if scheme else None
     strike = float(settings.contracts["cap_strike_per_mwh"])
     tenor = int(settings.contracts["swap_tenor_years"])
     ocgt = settings.tech("ocgt")
@@ -495,6 +500,20 @@ def run(settings: Settings, *, ticks: int = 20, start_year: int = 2026,
                               peak_mw=level, lane_mw=lane_mw, built=built_this_year,
                               tick=t)
 
+        # 7b. The state scheme, when one is running. Its quantity comes from a
+        #     policy rather than from the system, so it runs whatever the market is
+        #     doing and can miss its milestone; which constraint missed it is the
+        #     output.
+        scheme_year = None
+        if scheme_row is not None:
+            scheme_year, scheme_lines = _scheme_round(
+                settings, state, view, scheme_row, year=year, peak_mw=level,
+                built=built_this_year, tick=t)
+            expected = view.nearest.expected_block_prices["overnight"]
+            for line in scheme_lines:
+                _commit_scheme_award(settings, state, line, scheme_row, year=year,
+                                     expected_price=expected)
+
         # 8. Exit, then entry.
         notices = exit_notices(state.fleet, view, settings, year, state.exit_ledger)
         noticed = {u.unit for u, _ in notices}
@@ -570,6 +589,7 @@ def run(settings: Settings, *, ticks: int = 20, start_year: int = 2026,
             fuel_and_vom=fuel,
             fixed_cost_of_fleet=fixed,
             annualised_capex_of_new_build=capital,
+            scheme_year=scheme_year,
             lane_volume_mw=lane_mw,
             reserve_margin_gap_mw=margin_gap,
             awards=tuple(awards),
@@ -728,6 +748,76 @@ def _auction(settings: Settings, state: RunState, view: ForwardView,
                          price_per_mw_year=line.price_per_mw_year,
                          strike_per_mwh=strike, commissioning_year=commissioning))
     return out
+
+
+def _scheme_round(settings: Settings, state: RunState, view: ForwardView,
+                  row, *, year: int, peak_mw: float, built: dict[str, float],
+                  tick: int):
+    """One year of the state scheme, bid for in NAMEPLATE megawatts.
+
+    The reliability lane buys delivered firm capacity because that is what closes a
+    reliability gap. A capacity target is written in nameplate, so that is what is
+    bid and cleared here, and the two must not be added together: nine gigawatts of
+    nameplate wind at a firm factor of a tenth is nine hundred megawatts of firm
+    capacity.
+    """
+    tenor = int(settings.esem["contract_tenor_years"])
+    producers = [a for a in state.roster if a.kind == PRODUCER]
+    if not producers:
+        return clear_scheme(row, [], year)[0], []
+    rotation = tick % len(producers)
+    ordered = producers[rotation:] + producers[:rotation]
+    representative = max(a.risk_aversion for a in producers)
+
+    bids: list[Bid] = []
+    for name in row.technologies:
+        try:
+            tech = settings.tech(name)
+        except KeyError:
+            continue
+        capacity = build_size_mw(peak_mw, tech, settings)
+        room = build_ceiling_mw(peak_mw, tech, settings) - built.get(name, 0.0)
+        capacity = min(capacity, room)
+        if capacity < tech.unit_size_mw:
+            continue
+        capacity = (capacity // tech.unit_size_mw) * tech.unit_size_mw
+        share = min(1.0, row.tenor_years / max(1, tech.life_years))
+        exposure = residual_exposure(settings, tech.life_years,
+                                     award_years=row.tenor_years, award_cover=1.0)
+        rents = view.lifetime_rent(tech)
+        a = cara_coefficient(representative, exposure, settings)
+        bankable = cara_certainty_equivalent(rents, view.weights, a)
+        price = long_run_cost_per_mw_year(
+            tech, blended_wacc(tech, settings, share), bankable)
+        for agent in ordered:
+            bids.append(Bid(bidder=agent.name, technology=name,
+                            capacity_mw=capacity, firm_mw=capacity,
+                            price_per_mw_year=price, lead_years=tech.lead_years))
+    return clear_scheme(row, bids, year)
+
+
+def _commit_scheme_award(settings: Settings, state: RunState, line, row, *,
+                         year: int, expected_price: float) -> None:
+    """Build what the scheme contracted, and hold the contract to maturity."""
+    tech = settings.tech(line.bid.technology)
+    units = int(line.capacity_mw // tech.unit_size_mw)
+    if units < 1:
+        return
+    capacity = units * tech.unit_size_mw
+    name = f"{tech.technology}_{year}_{line.bid.bidder}_scheme"
+    unit = _new_unit(tech, capacity, name, year)
+    state.new_capital.append((unit.commissioned_year, unit.retirement_year,
+                              capacity * tech.capex_per_kw * 1000.0 * tech.crf))
+    state.fleet = state.fleet + (unit,)
+    state.roster = tuple(
+        replace(a, units=a.units + (name,)) if a.name == line.bid.bidder else a
+        for a in state.roster)
+    sized = AwardLine(bid=line.bid, firm_mw=capacity, capacity_mw=capacity,
+                      price_per_mw_year=line.price_per_mw_year)
+    state.book.extend(scheme_contracts(
+        [sized], row,
+        strikes={tech.technology: award_strike_per_mwh(expected_price, sized)},
+        commissioning={tech.technology: unit.commissioned_year}))
 
 
 def _cover(settings: Settings, state: RunState, res: DispatchResult, *,

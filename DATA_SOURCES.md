@@ -75,9 +75,19 @@ for a whole run rather than stepping it at 2028.
 | `scheme.csv` | One state scheme's milestone trajectory: a service, a year and a nameplate megawatt figure | No published source and none implied. It is a stylised ramp with round numbers, not any jurisdiction's target, and it is here so that a milestone binding, a ceiling binding and a budget binding are things the model can show rather than assume. The policy parameters that go with it - what may bid, the price ceiling, the annual budget and the tenor - are in `settings.toml` |
 | `settings.toml` | Market price cap, thresholds, blocks, reliability standard, weather seed, contract, forward, investment and scheme parameters | AEMC reliability settings and model parameters. The market and reliability keys carry their source in a comment; the dispatch, time, weather, contracts, forward, investment and esem keys are model parameters with no external source and are documented as such, each with a comment saying what it does and why it is a choice. A test requires every declared key to be read somewhere, or listed as staged with a reason |
 
+## What is committed under `outputs/canonical/`
+
+Model output: tables and charts produced by running the model, committed so that a
+talk never depends on live compute or a conference wifi connection. They are
+generated from synthetic weather and the stylised tables above and reproduce no
+source dataset, so they carry the same terms as the tables they came from. Every
+chart says on its face that it is illustrative and not a forecast.
+
 ## Rules for changing anything here
 
-1. A new file needs a row in the table above and a `derivation` column.
+1. A new file needs a row in the table above and a `derivation` column, with a
+   value on every row. A test enforces both, because a rule that lives only in a
+   document is a rule that lasts until the next person in a hurry.
 2. Public sources only. No unpublished modelling and no third-party material.
 3. If a real trace bundle is ever added, the two clauses above must be
    transcribed first, and synthetic weather stays the default regardless.
