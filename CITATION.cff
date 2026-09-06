@@ -1,0 +1,28 @@
+cff-version: 1.2.0
+title: esem-sandbox
+message: >-
+  A teaching model. If you use it or its figures, please cite it, and please say
+  that every number it produces is illustrative rather than a forecast.
+type: software
+authors:
+  - name: Commonwealth of Australia
+abstract: >-
+  A small electricity market model built to be understood in an hour and run in a
+  workshop. It simulates one region hour by hour: plant is dispatched and the price
+  is set by the last unit needed to meet demand. Over twenty annual steps, contracts
+  move risk between the firms in it, investors decide what to build against a view
+  of the future they extrapolate rather than forecast, and a procurement scheme can
+  be switched on and compared against the same weather. It is a simplification of a
+  larger research model, keeping that model's scarcity pricing, contract settlement
+  and investment rule, and dropping everything locational. The fleet is stylised and
+  the weather is synthetic.
+keywords:
+  - electricity market
+  - reliability
+  - capacity procurement
+  - agent-based model
+  - teaching model
+license: MIT
+repository-code: https://github.com/MarkusMannheim/esem_sandbox
+version: 0.1.0
+date-released: '2026-09-06'

@@ -26,3 +26,6 @@ esem_sandbox = ["data/*.csv", "data/*.toml", "data/*.npz"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+markers = [
+    "slow: exercises that run the model end to end",
+]

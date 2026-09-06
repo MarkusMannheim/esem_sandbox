@@ -284,7 +284,9 @@ def compare(args: argparse.Namespace) -> int:
           "measurement of one.")
     print("\nOne seed, one growth path, a stylised fleet. Illustrative, and not a "
           "forecast\nof anything.")
-    print(f"wrote {path}")
+    picture = plots.dashboard(legs, settings,
+                              os.path.join(args.out, "dashboard.png"))
+    print(f"wrote {path}\n      {picture}")
     return 0
 
 

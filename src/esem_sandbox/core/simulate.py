@@ -38,7 +38,7 @@ from .clearing import (
     cap_cost_basis, clear_bilateral, energy_margin_per_mw_year,
     ewma_block_anchor,
 )
-from .contracts import Contract, age, settle_book
+from .contracts import CAP, Contract, age, settle_book
 from .dispatch import DispatchResult, dispatch_year
 from .forward import (
     Cell, EntryState, ForwardView, cell_plan, forward_view, peak_banded,
@@ -54,7 +54,7 @@ from .investment import (
     ExitLedger, achieved_swap_cover, build_ceiling_mw, build_size_mw,
     cara_coefficient, exit_notices, rank_candidates, residual_exposure,
 )
-from .report import block_prices
+from .report import block_prices, duration_curve
 from .weather import generate_bundle
 from .clearing import cara_certainty_equivalent
 
@@ -161,6 +161,12 @@ class TickResult:
     peaker_missing_money_per_mw_year: float
     consumed_mwh: float = 0.0
     wholesale_cost: float = 0.0
+    # FOR CHARTS ONLY, and sampled, which nothing that settles money may be. The
+    # rule this model keeps is that a cap payout and a cap premium read the full
+    # hourly series; a picture of a duration curve is the one place a sample is the
+    # right object, because the eye cannot read 8,760 points anyway.
+    price_duration: np.ndarray = field(default_factory=lambda: np.zeros(0))
+    cap_premium_per_mwh: float = 0.0
     fuel_and_vom: float = 0.0
     fixed_cost_of_fleet: float = 0.0
     annualised_capex_of_new_build: float = 0.0
@@ -416,10 +422,11 @@ def run(settings: Settings, *, ticks: int = 20, start_year: int = 2026,
                 if c.start_year == year + 1:
                     recycled_mw[c.holder] = recycled_mw.get(c.holder, 0.0) + c.volume_mw
 
-        state.book.extend(_clear(settings, state, res, year=year,
-                                 start_year=year + 1, tenor_years=tenor,
-                                 peak_mw=level, ocgt=ocgt,
-                                 already_covered_mw=recycled_mw))
+        written = _clear(settings, state, res, year=year,
+                         start_year=year + 1, tenor_years=tenor,
+                         peak_mw=level, ocgt=ocgt,
+                         already_covered_mw=recycled_mw)
+        state.book.extend(written)
 
         # 7. The auction, when the scheme is on. New entrants only, sized on the
         #    near anchor's shortfall, cleared pay-as-bid, awarded at final
@@ -508,6 +515,9 @@ def run(settings: Settings, *, ticks: int = 20, start_year: int = 2026,
             peaker_missing_money_per_mw_year=peaker_rent - ocgt.fixed_cost_per_mw_year,
             consumed_mwh=float(res.operational_demand_mw.sum()),
             wholesale_cost=float((res.price * res.operational_demand_mw).sum()),
+            price_duration=duration_curve(res.price, points=600),
+            cap_premium_per_mwh=float(np.mean([
+                c.premium_per_mwh for c in written if c.kind == CAP] or [0.0])),
             fuel_and_vom=fuel,
             fixed_cost_of_fleet=fixed,
             annualised_capex_of_new_build=capital,

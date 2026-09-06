@@ -12,6 +12,8 @@ switched on, and the same twenty years run again beside it on the same weather.
 It is a teaching model. Every chart it produces is illustrative, and it is not a
 forecast of anything.
 
+[![Open the exercises in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/MarkusMannheim/esem_sandbox/blob/main/notebooks/exercises.ipynb)
+
 ## Install and run
 
 ```bash
@@ -23,6 +25,21 @@ esem-sandbox compare    # the same twenty years with and without the scheme
 
 There is no solver, no licence key and no data to download. The two runtime
 dependencies are numpy and matplotlib.
+
+## The exercises
+
+[notebooks/exercises.ipynb](notebooks/exercises.ipynb) is three exercises of about
+ten minutes each. Each says what should move and what should not, so a reader can
+tell a result from a hope.
+
+1. **The same weather, with and without the scheme.** What it buys, what it costs,
+   and why the first years of a run are identical however much it bought.
+2. **The decomposition dial.** Three switches, so the effect can be split between
+   the risk a contract removes, the capital it cheapens, and the plant it buys.
+   With all three off the two legs coincide exactly.
+3. **Why the hourly series.** What averaging does to a cap payout, the worst week
+   with the stores draining, and what the batteries actually delivered in the hours
+   load was shed.
 
 ## What it is not
 
