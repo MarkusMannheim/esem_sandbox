@@ -1,0 +1,21 @@
+# The bilateral market cleared by crossing curves instead of at an anchor.
+#
+# The core path assumes both sides accept the anchor and trades the whole volume a
+# retailer wanted. This one makes them find each other: writers offer ascending,
+# holders bid descending, everybody who trades settles at one price, and only what
+# both sides wanted changes hands.
+#
+# On this market that assumption is worth about two fifths of the contracted volume,
+# which then shows up in every producer's exposure and so in every hurdle. Run it
+# against the merchant scenario to see what the simpler market was hiding.
+#
+# Read the size of that with care. Both curves step away from the same anchor, so
+# they are mirror images: the price comes back at the anchor whatever they are
+# shaped like, and the share that trades is decided by crossing_steps rather than by
+# crossing_spread. Three slices trade two thirds, five trade three fifths, and any
+# even number trades exactly one half. The direction is a property of the market;
+# the magnitude turns on the parity of a setting.
+[run]
+leg = "merchant"
+ticks = 20
+clearing = "crossing"

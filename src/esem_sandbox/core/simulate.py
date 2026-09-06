@@ -5,16 +5,28 @@ Each tick, in this order and for reasons:
 1. Plant decided years ago and finished this year enters service.
 2. The year is dispatched and priced.
 3. Contracts written in earlier ticks settle against that price.
-4. The book ages: what has expired leaves it.
+4. The book ages: what has finished delivering leaves it.
 5. The forward view is rebuilt and the free-entry belief takes one step.
-6. The bilateral market clears against the anchors the realised year just moved.
-7. Exit notices are given, and then entry is decided.
+6. The administrator offers its position back, and then the bilateral market covers
+   whatever the retailers still need.
+7. The scheme's auction runs, when the scheme is on, awarding at final investment
+   decision.
+8. Exit notices are given, and then entry is decided.
 
-Exit comes before entry within a tick because a plant giving notice this year is
-part of the fleet an entrant is deciding against, and the other way round an
-entrant would be pricing a market that still contained plant everyone knew was
-leaving. Contracts struck at a tick first settle at the next, because a contract
-signed in December does not settle the year it was signed in.
+Three of those orderings are load-bearing.
+
+The administrator sells before the bilateral market rather than after, because a
+retailer that bought a recycled strip does not also need the same cover from a
+producer. The other way round it hedges one load twice and reports itself twice as
+covered as it is, which feeds straight into the exposure term the investment rule
+turns on.
+
+Exit comes before entry, because a plant giving notice this year is part of the
+fleet an entrant is deciding against; the other way round an entrant prices a market
+that still contains plant everyone knows is leaving.
+
+Contracts struck at a tick first settle at the next, because a contract signed in
+December does not settle the year it was signed in.
 
 **Nothing here forecasts.** The anchors are exponentially weighted averages of
 prices that have already happened, and the forward view is an enumeration of
@@ -279,6 +291,40 @@ class RunResult:
         return out
 
 
+def forced_retirements(fleet: tuple[Unit, ...], retire: dict[str, int] | None,
+                       start_year: int) -> tuple[Unit, ...]:
+    """Close plant because somebody decided to, not because it stopped paying.
+
+    Separate from the economic exit rule and deliberately so. Exit is a decision a
+    firm takes when the going-forward position turns negative twice; this is a
+    closure the world imposes, and the two must not be gated by the same switch or
+    a run with economic exit turned off would quietly ignore a policy as well.
+
+    The exercise it exists for is the boom and the bust: pull a coal retirement
+    forward against a two-year gas lead and watch entry cluster, arrive late, and
+    overshoot. That is worth being able to do in one line of a scenario file, and it
+    is worth failing loudly when the line names a plant that is not there.
+    """
+    if not retire:
+        return fleet
+    known = {u.unit for u in fleet}
+    unknown = set(retire) - known
+    if unknown:
+        raise ValueError(
+            f"cannot retire plant that does not exist: {', '.join(sorted(unknown))}. "
+            f"The fleet holds {', '.join(sorted(known))}"
+        )
+    early = {u: y for u, y in retire.items() if y < start_year}
+    if early:
+        raise ValueError(
+            f"cannot retire plant before the run starts in {start_year}: {early}. "
+            "A plant that never operates should be taken out of the fleet, not "
+            "retired in the past, or the run will report capacity it never had"
+        )
+    return tuple(replace(u, retirement_year=int(retire[u.unit]))
+                 if u.unit in retire else u for u in fleet)
+
+
 def _demand(bundle: dict, shape_year: int, peak_mw: float,
             peak_multiplier: float) -> np.ndarray:
     shape = bundle["demand_shape"][shape_year]
@@ -327,6 +373,7 @@ def _merchant_entry_loading(settings: Settings, view: ForwardView,
 def run(settings: Settings, *, ticks: int = 20, start_year: int = 2026,
         peak_mw: float = 12_500.0, seed: int | None = None,
         cells: tuple[Cell, ...] | None = None, leg: str = MERCHANT,
+        retire: dict[str, int] | None = None, clearing: str = "anchor",
         bundle: dict | None = None) -> RunResult:
     """One leg of a run: dispatch, contract, invest, twenty times over.
 
@@ -345,7 +392,9 @@ def run(settings: Settings, *, ticks: int = 20, start_year: int = 2026,
 
     roster = default_roster()
     check_roster(roster, ownable_units(settings.fleet))
-    state = RunState(year=start_year, fleet=settings.fleet, roster=roster)
+    state = RunState(year=start_year,
+                     fleet=forced_retirements(settings.fleet, retire, start_year),
+                     roster=roster)
 
     strike = float(settings.contracts["cap_strike_per_mwh"])
     tenor = int(settings.contracts["swap_tenor_years"])
@@ -367,7 +416,7 @@ def run(settings: Settings, *, ticks: int = 20, start_year: int = 2026,
         state.cap_payoffs.append(_cap_payoff_per_mw_year(res.price, strike))
         state.book.extend(_clear(settings, state, res, year=year,
                                  start_year=start_year, tenor_years=k,
-                                 peak_mw=level, ocgt=ocgt))
+                                 peak_mw=level, ocgt=ocgt, clearing=clearing))
 
     results: list[TickResult] = []
     pipeline: list[Unit] = []
@@ -425,7 +474,7 @@ def run(settings: Settings, *, ticks: int = 20, start_year: int = 2026,
         written = _clear(settings, state, res, year=year,
                          start_year=year + 1, tenor_years=tenor,
                          peak_mw=level, ocgt=ocgt,
-                         already_covered_mw=recycled_mw)
+                         already_covered_mw=recycled_mw, clearing=clearing)
         state.book.extend(written)
 
         # 7. The auction, when the scheme is on. New entrants only, sized on the
@@ -535,8 +584,8 @@ def run(settings: Settings, *, ticks: int = 20, start_year: int = 2026,
 
 def _clear(settings: Settings, state: RunState, res: DispatchResult, *,
            year: int, start_year: int, tenor_years: int, peak_mw: float,
-           ocgt: TechCost,
-           already_covered_mw: dict[str, float] | None = None) -> list[Contract]:
+           ocgt: TechCost, already_covered_mw: dict[str, float] | None = None,
+           clearing: str = "anchor") -> list[Contract]:
     """Price and write this tick's bilateral contracts.
 
     The cap's cost basis nets the energy margin the peaker earned in the pool. That
@@ -555,7 +604,7 @@ def _clear(settings: Settings, state: RunState, res: DispatchResult, *,
         peak_load_mw=float(res.operational_demand_mw.max()),
         cap_payoffs_per_mw=payoffs, cap_weights=weights,
         cap_cost_basis_per_mwh=basis,
-        already_covered_mw=already_covered_mw or {})
+        already_covered_mw=already_covered_mw or {}, clearing=clearing)
 
 
 def _auction(settings: Settings, state: RunState, view: ForwardView,
@@ -646,7 +695,15 @@ def _auction(settings: Settings, state: RunState, view: ForwardView,
         if units < 1:
             continue
         capacity = units * tech.unit_size_mw
-        line = AwardLine(bid=line.bid, firm_mw=line.firm_mw, capacity_mw=capacity,
+        # The firm megawatts are scaled with the truncation, not carried across it.
+        # Clearing hands back a part-filled bid, and rounding that down to whole
+        # generating units shrinks the plant; keeping the pre-rounding firm figure
+        # made the scheme report contracting more capacity than it built AND pay for
+        # it, because the strike spreads the bid over the contracted volume and the
+        # bid was sized on firm megawatts that no longer existed.
+        shrink = capacity / line.capacity_mw if line.capacity_mw > 0 else 0.0
+        line = AwardLine(bid=line.bid, firm_mw=line.firm_mw * shrink,
+                         capacity_mw=capacity,
                          price_per_mw_year=line.price_per_mw_year)
         strike = award_strike_per_mwh(expected_price, line)
         commissioning = year + tech.lead_years

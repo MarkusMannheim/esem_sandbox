@@ -29,7 +29,10 @@ _SECTIONS = {
         "peak_band_weights",
     },
     "contracts": {"cap_strike_per_mwh", "swap_tenor_years",
-                  "anchor_half_life_years"},
+                  "anchor_half_life_years", "crossing_steps", "crossing_spread"},
+    "scheme": {
+        "technologies", "ceiling_per_mw_year", "budget_per_year", "tenor_years",
+    },
     "esem": {
         "contract_tenor_years", "contracted_wacc", "screen_multiple_of_spot",
         "screen_floor_per_mwh", "recycling_window_years", "recycling_conduct",
@@ -175,6 +178,7 @@ class Settings:
     weather: dict[str, Any]
     contracts: dict[str, Any] = field(default_factory=dict)
     esem: dict[str, Any] = field(default_factory=dict)
+    scheme: dict[str, Any] = field(default_factory=dict)
     forward: dict[str, Any] = field(default_factory=dict)
     investment: dict[str, Any] = field(default_factory=dict)
     fleet: tuple[Unit, ...] = field(repr=False, default=())
@@ -321,6 +325,7 @@ def load_settings(overrides: dict[str, dict[str, Any]] | None = None) -> Setting
         weather=raw["weather"],
         contracts=raw["contracts"],
         esem=raw["esem"],
+        scheme=raw["scheme"],
         forward=raw["forward"],
         investment=raw["investment"],
         fleet=fleet,

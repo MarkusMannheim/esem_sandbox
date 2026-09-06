@@ -44,3 +44,4 @@ a regulatory figure standing in for what an outage costs, not a measurement of o
 One seed, one growth path, a stylised fleet. Illustrative, and not a forecast
 of anything.
 wrote outputs/comparison.csv
+      outputs/dashboard.png

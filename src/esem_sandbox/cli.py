@@ -11,6 +11,7 @@ import csv
 import os
 import sys
 import tomllib
+from importlib import resources
 
 import numpy as np
 
@@ -26,24 +27,45 @@ DEFAULT_PEAK_MW = 12500.0
 
 
 def _scenario(path: str | None) -> tuple[dict, dict]:
-    """Read a scenario file into settings overrides and run options.
+    """Read a scenario into settings overrides and run options.
 
     A scenario is a TOML file with an optional ``[run]`` table naming the leg, the
-    horizon, the peak and the seed, and any settings sections it wants to change.
-    The overrides go through the same strict loader everything else does, so a typo
-    in a scenario fails loudly rather than leaving a default quietly in place.
+    horizon, the peak, the seed, plant to close early and which market clears, plus
+    any settings sections it wants to change. The overrides go through the same
+    strict loader everything else does, so a typo in a scenario fails loudly rather
+    than leaving a default quietly in place.
+
+    Either a path or a packaged name. The packaged scenarios ship inside the wheel,
+    so ``--scenario scheme`` works after a plain install; without that, the only
+    scenarios a reader could run would be the ones they had cloned the repository
+    for, and the command that names them would be in a README they could not follow.
     """
     if not path:
         return {}, {}
+    packaged = resources.files("esem_sandbox") / "scenarios" / f"{path}.toml"
+    if not os.path.exists(path) and packaged.is_file():
+        raw = tomllib.loads(packaged.read_text(encoding="utf-8"))
+        options = raw.pop("run", {})
+        _check_run(options)
+        return raw, options
     with open(path, "rb") as fh:
         raw = tomllib.load(fh)
     options = raw.pop("run", {})
-    unknown = set(options) - {"leg", "ticks", "peak", "seed", "year"}
-    if unknown:
-        raise ValueError(
-            f"unknown key(s) in [run]: {', '.join(sorted(unknown))}"
-        )
+    _check_run(options)
     return raw, options
+
+
+def _check_run(options: dict) -> None:
+    unknown = set(options) - {"leg", "ticks", "peak", "seed", "year", "retire",
+                              "clearing"}
+    if unknown:
+        raise ValueError(f"unknown key(s) in [run]: {', '.join(sorted(unknown))}")
+
+
+def scenario_names() -> list[str]:
+    """What ships in the wheel, for the command line's help text."""
+    folder = resources.files("esem_sandbox") / "scenarios"
+    return sorted(p.name[:-5] for p in folder.iterdir() if p.name.endswith(".toml"))
 
 
 def _apply(args: argparse.Namespace, options: dict) -> argparse.Namespace:
@@ -144,7 +166,9 @@ def simulate(args: argparse.Namespace) -> int:
     os.makedirs(args.out, exist_ok=True)
     result = run_simulation(settings, ticks=args.ticks, start_year=args.year,
                             peak_mw=args.peak, seed=args.seed,
-                            leg=getattr(args, "leg", MERCHANT))
+                            leg=getattr(args, "leg", MERCHANT),
+                            retire=getattr(args, "retire", None),
+                            clearing=getattr(args, "clearing", "anchor"))
     standard = settings.reliability["standard_use_fraction"]
 
     rows = []
@@ -307,7 +331,7 @@ def main(argv: list[str] | None = None) -> int:
     m.add_argument("--out", default="outputs")
     m.add_argument("--leg", choices=(MERCHANT, ESEM), default=MERCHANT,
                    help="the market on its own, or with the scheme switched on")
-    m.add_argument("--scenario", help="a scenario file; see scenarios/")
+    m.add_argument("--scenario", help=f"a scenario file, or one of: {', '.join(scenario_names())}")
     m.set_defaults(func=simulate)
     c = sub.add_parser("compare", help="run both legs on the same weather")
     c.add_argument("--year", type=int, default=2026)
@@ -315,7 +339,7 @@ def main(argv: list[str] | None = None) -> int:
     c.add_argument("--peak", type=float, default=DEFAULT_PEAK_MW)
     c.add_argument("--seed", type=int, default=None)
     c.add_argument("--out", default="outputs")
-    c.add_argument("--scenario", help="a scenario file; see scenarios/")
+    c.add_argument("--scenario", help=f"a scenario file, or one of: {', '.join(scenario_names())}")
     c.set_defaults(func=compare)
     args = parser.parse_args(argv)
     return args.func(args)

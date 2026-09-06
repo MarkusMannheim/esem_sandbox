@@ -50,3 +50,10 @@ jobs:
           pip install "$GITHUB_WORKSPACE"/dist/*.whl
           esem-sandbox run --out "$RUNNER_TEMP/smoke/out"
           test -f "$RUNNER_TEMP/smoke/out/dispatch_summary.csv"
+          # The scenarios must ship inside the wheel, not only in the repository.
+          # Without them the only ones a reader could run would be the ones they had
+          # cloned for, and the command that names them is in a README they would be
+          # reading on PyPI.
+          esem-sandbox simulate --scenario scheme --ticks 2 \
+            --out "$RUNNER_TEMP/smoke/out"
+          test -f "$RUNNER_TEMP/smoke/out/run_summary.csv"

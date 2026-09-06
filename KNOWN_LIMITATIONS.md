@@ -158,6 +158,30 @@ its own account. The conduct lever offers a fire sale as the alternative, which 
 the other end of the same absence of judgement. A real administrator would sit
 somewhere between, and where it sat would be worth money.
 
+## Both sides of the bid-curve market step away from the same anchor
+
+The extension that makes the two sides of the contract market find each other,
+rather than both accepting an anchor, builds each curve by stepping away from that
+same anchor in equal slices. That makes them mirror images, and mirror images have a
+property worth knowing before reading anything into a run made this way: the price
+comes back at the anchor whatever the curves are shaped like, and the volume is
+decided by how finely they are cut rather than by how steep they are.
+
+The elasticity lever does work where the two sides value the block differently, which
+is what elasticity should mean. It does nothing where they agree. Giving the two
+sides genuinely different valuations would need a model of what each of them thinks
+the block is worth, which is a bigger thing than this extension is.
+
+What the extension does show is real in DIRECTION and parametric in SIZE. Assuming
+both sides accept the anchor buys more cover than making them find each other, and
+that flows straight into every producer's exposure and so into every hurdle. But how
+much more is set by how many slices each curve is cut into, and by whether that
+number is odd. Three slices trade two thirds, five trade three fifths, and any even
+number trades exactly one half: with an odd count one slice sits on the anchor and
+crosses with its mirror, and with an even count none does. The two fifths quoted
+elsewhere is five slices, and five is a setting rather than a finding. A magnitude
+that turns on the parity of a parameter is not a magnitude to quote at a room.
+
 ## What the simplification costs elsewhere
 
 One region, so nothing locational: no interconnectors, no transmission build, no

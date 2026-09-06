@@ -22,7 +22,7 @@ esem-sandbox = "esem_sandbox.cli:main"
 where = ["src"]
 
 [tool.setuptools.package-data]
-esem_sandbox = ["data/*.csv", "data/*.toml", "data/*.npz"]
+esem_sandbox = ["data/*.csv", "data/*.toml", "data/*.npz", "scenarios/*.toml"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

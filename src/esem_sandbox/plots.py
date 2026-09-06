@@ -5,6 +5,7 @@ from __future__ import annotations
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
+from matplotlib.ticker import MaxNLocator  # noqa: E402
 import numpy as np  # noqa: E402
 
 from .core.report import duration_curve  # noqa: E402
@@ -61,6 +62,15 @@ def _readable_on(hex_colour: str) -> str:
                 for c in (r, g, b)]
     luminance = 0.2126 * channels[0] + 0.7152 * channels[1] + 0.0722 * channels[2]
     return INK if luminance > 0.42 else "#ffffff"
+
+
+def _years(ax) -> None:
+    """Whole years on a year axis.
+
+    Matplotlib will happily put a tick at 2027.5, which is not a year, and a reader
+    who sees one starts wondering what happened in the middle of it.
+    """
+    ax.xaxis.set_major_locator(MaxNLocator(integer=True, nbins=8))
 
 
 def _style(ax) -> None:
@@ -147,7 +157,13 @@ def _fleet_by_group(tick) -> dict[str, float]:
 
 
 def _panel_capacity(ax, legs) -> None:
-    """What each leg ended up with. Magnitude and identity, so a stacked bar."""
+    """The fleet in service in the final year. Magnitude and identity, so a stacked
+    bar.
+
+    In service, which is not the same as decided: plant committed in the last few
+    years of a run is still being built when the run ends, and a panel titled for
+    what was built would be counting something the chart does not show.
+    """
     labels, bottoms = [], []
     for name, result in legs.items():
         labels.append(LEG_LABEL[name])
@@ -160,16 +176,25 @@ def _panel_capacity(ax, legs) -> None:
         ax.bar(labels, values, bottom=base, color=TECH_COLOUR[group], width=0.55,
                edgecolor=SURFACE, linewidth=2, label=group)
         for x, (v, b) in enumerate(zip(values, base)):
-            if v > 1.5:
+            # A label only goes inside a segment big enough to hold it, and "big
+            # enough" is a share of the axis rather than a number of gigawatts: on a
+            # 70 GW stack a 1.9 GW slice is a two-millimetre band, and a label
+            # written across it lands on its neighbours.
+            if v > 0.055 * float(base.max() + values.max()):
                 ax.text(x, b + v / 2, f"{group} {v:,.1f}", ha="center", va="center",
                         fontsize=7.5, color=_readable_on(TECH_COLOUR[group]))
         base = base + values
+    # Whatever was too thin to label inside gets named in a legend instead, so no
+    # segment is identified by its colour alone.
+    ax.legend(frameon=False, fontsize=7, labelcolor=INK_2, ncol=3,
+              loc="upper left", handlelength=1.0, columnspacing=0.9,
+              handletextpad=0.35, borderaxespad=0.2)
     for x, total in enumerate(base):
         ax.text(x, total * 1.02, f"{total:,.1f} GW", ha="center", va="bottom",
                 fontsize=9, color=INK)
     ax.set_ylabel("installed capacity, GW")
-    ax.set_title("What each leg built")
-    ax.set_ylim(0, base.max() * 1.15)
+    ax.set_title("The fleet at the end")
+    ax.set_ylim(0, base.max() * 1.40)   # headroom for the legend and the totals
 
 
 def _panel_unserved(ax, legs, standard) -> None:
@@ -185,6 +210,7 @@ def _panel_unserved(ax, legs, standard) -> None:
     ax.text(years[0], 1.15, "the reliability standard", fontsize=7.5, color=INK_2)
     ax.set_ylabel("unserved energy, times the standard")
     ax.set_title("Reliability, each year")
+    _years(ax)
     ax.legend(frameon=False, fontsize=8, labelcolor=INK_2)
 
 
@@ -247,6 +273,7 @@ def _panel_cap(ax, legs) -> None:
                 color=LEG_COLOUR[name], label=LEG_LABEL[name])
     ax.set_ylabel("cap premium, \\$/MWh")
     ax.set_title("What a cap cost")
+    _years(ax)
     ax.legend(frameon=False, fontsize=8, labelcolor=INK_2)
 
 
@@ -257,6 +284,7 @@ def _panel_levy(ax, esem) -> None:
            edgecolor=SURFACE, linewidth=1.5)
     ax.set_ylabel("levy, \\$/MWh")
     ax.set_title("What consumers paid the scheme")
+    _years(ax)
 
 
 def _panel_costs(ax, legs, settings) -> None:
@@ -286,7 +314,7 @@ def _panel_costs(ax, legs, settings) -> None:
     ax.set_xticks(x)
     ax.set_xticklabels(["the bill", "the resource cost"])
     ax.set_ylabel("\\$bn over the horizon")
-    ax.set_title("What it costs, two ways")
+    ax.set_title("What it costs, two ways", pad=28)
     ax.legend(frameon=False, fontsize=8, labelcolor=INK_2, loc="upper right",
               handletextpad=0.4)
     moved = bills[0] - bills[1]
@@ -294,12 +322,14 @@ def _panel_costs(ax, legs, settings) -> None:
     # Dollar signs are escaped everywhere text is drawn. Unescaped, matplotlib reads
     # the span between two of them as mathtext and silently italicises the words in
     # between, which turned this note into "bill moves 2.9bn, resourcecost1.2bn".
-    ax.text(0.02, 0.97,
-            f"bill moves \\${abs(moved):,.1f}bn, resource cost "
-            f"\\${abs(saved):,.1f}bn\n"
-            f"the \\${abs(moved - saved):,.1f}bn between them is a transfer",
-            transform=ax.transAxes, fontsize=7.5, color=INK_2, va="top")
-    ax.set_ylim(0, top * 1.30)
+    # Above the axes rather than inside them. Inside, it competed with the legend
+    # for the only empty corner, and the loser was whichever was drawn first.
+    ax.text(0.0, 1.01,
+            f"the bill moves \\${abs(moved):,.1f}bn and the resource cost "
+            f"\\${abs(saved):,.1f}bn.\nThe \\${abs(moved - saved):,.1f}bn "
+            "between them is a transfer.",
+            transform=ax.transAxes, fontsize=7.5, color=INK_2, va="bottom")
+    ax.set_ylim(0, top * 1.28)
 
 
 def _panel_lane(ax, esem) -> None:
@@ -313,6 +343,7 @@ def _panel_lane(ax, esem) -> None:
             markeredgecolor=SURFACE, markeredgewidth=1.2, label="contracted, firm MW")
     ax.set_ylabel("firm capacity, MW")
     ax.set_title("What the lane asked for, and got")
+    _years(ax)
     ax.legend(frameon=False, fontsize=8, labelcolor=INK_2)
 
 

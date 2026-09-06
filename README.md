@@ -41,6 +41,23 @@ tell a result from a hope.
    with the stores draining, and what the batteries actually delivered in the hours
    load was shed.
 
+## Scenarios
+
+[src/esem_sandbox/scenarios/](src/esem_sandbox/scenarios/) holds the runs the
+exercises use. Each is a small file naming a leg, a horizon and anything it changes.
+They ship inside the package, so they can be named rather than found:
+
+```bash
+esem-sandbox simulate --scenario early_coal_exit
+esem-sandbox compare  --scenario short_tenor
+esem-sandbox simulate --scenario my_own_file.toml
+```
+
+A scenario can close a plant early, shorten the scheme's contracts, change what the
+administrator does with volume nobody buys, or make the contract market clear by
+crossing curves instead of at an anchor. Anything it names wrongly fails loudly
+rather than falling back to a default.
+
 ## What it is not
 
 A simplified version of a larger research model, which keeps that model's

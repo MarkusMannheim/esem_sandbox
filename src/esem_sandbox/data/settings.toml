@@ -153,6 +153,13 @@ swap_tenor_years = 3
 # It is what makes the boom-and-bust exercise work, so it is a setting rather than
 # a number buried in a function.
 anchor_half_life_years = 2.0
+# The bid-curve extension. Both sides step away from the anchor in this many slices,
+# reaching this far from it as a fraction. They decide how elastic each side is, and
+# elasticity is the only thing in that construction that changes the volume traded.
+# They do nothing on the anchor path, which is the default: which market clears is a
+# scenario's choice, named in its [run] table, not a flag hidden in a settings file.
+crossing_steps = 5
+crossing_spread = 0.25
 
 [esem]
 # The procurement scheme. Nothing here is on by default: the scheme is a leg you
@@ -192,3 +199,26 @@ overhead_per_year = 25000000.0
 # of thumb about how much capacity a peak needs; the lane is sized on the shortfall
 # itself, and showing both is how an audience sees the difference.
 reserve_margin = 0.15
+
+[scheme]
+# A state scheme, buying a named service against a milestone in a policy rather than
+# a quantity computed from the system. It runs only when a scenario asks for it.
+#
+# NOTE WHAT THE MILESTONE IS IN. The reliability lane buys DELIVERED FIRM megawatts,
+# because that is what closes a reliability gap. A capacity target is written in
+# NAMEPLATE megawatts, because that is what such a target is written in. The two are
+# not the same product and conflating them is how a target comes to be credited with
+# reliability it did not buy: nine gigawatts of nameplate wind at a firm factor of a
+# tenth is nine hundred megawatts of firm capacity, and a scheme that reported the
+# first number as though it were the second would be out by a factor of ten.
+technologies = ["wind", "solar"]
+# The most the scheme will pay, per MW-year of nameplate, net of what the plant
+# expects to earn in the pool. A policy parameter with no published source: it is
+# here so that a ceiling binding is a visible outcome rather than an assumption.
+ceiling_per_mw_year = 120000.0
+# The most it will spend in a year. Also a policy parameter, and the other way a
+# milestone can be missed.
+budget_per_year = 250000000.0
+# How long an award is contracted for. Longer than the reliability lane's, because a
+# capacity target is usually underwriting a build rather than keeping plant open.
+tenor_years = 15

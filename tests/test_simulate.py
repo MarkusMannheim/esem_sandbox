@@ -370,3 +370,93 @@ def test_switching_off_the_financing_channel_changes_the_scheme_and_not_the_mark
         f"a plant financed at the merchant rate cannot ask for less: "
         f"{levelled_cost:,.0f} against {base_cost:,.0f}"
     )
+
+
+def test_a_plant_can_be_closed_by_policy_rather_than_economics(settings, small):
+    """Forced closure is separate from the economic exit rule and deliberately so.
+    Exit is a decision a firm takes when its going-forward position turns negative
+    twice; this is a closure the world imposes, and gating both on one switch would
+    let a run with economic exit turned off quietly ignore a policy as well."""
+    from esem_sandbox.core.simulate import forced_retirements
+
+    base = run(settings, ticks=TICKS, seed=SEED, cells=small)
+    early = run(settings, ticks=TICKS, seed=SEED, cells=small,
+                retire={"coal_b": 2029})
+    fleet = {u.unit: u for u in early.fleet}
+    assert fleet["coal_b"].retirement_year == 2029
+    assert _fingerprint(early) != _fingerprint(base), (
+        "closing 2.6 GW of coal early has to change something"
+    )
+
+
+def test_retiring_plant_that_does_not_exist_fails_loudly(settings):
+    from esem_sandbox.core.simulate import forced_retirements
+
+    with pytest.raises(ValueError, match="does not exist"):
+        forced_retirements(settings.fleet, {"coal_z": 2030}, 2026)
+
+
+def test_plant_cannot_be_retired_before_the_run_starts(settings):
+    """A plant that never operates should be taken out of the fleet, not retired in
+    the past, or the run reports capacity it never had."""
+    from esem_sandbox.core.simulate import forced_retirements
+
+    with pytest.raises(ValueError, match="before the run starts"):
+        forced_retirements(settings.fleet, {"coal_b": 2020}, 2026)
+
+
+def test_no_forced_retirement_leaves_the_fleet_exactly_as_it_was(settings):
+    from esem_sandbox.core.simulate import forced_retirements
+
+    assert forced_retirements(settings.fleet, None, 2026) is settings.fleet
+    assert forced_retirements(settings.fleet, {}, 2026) is settings.fleet
+
+
+def test_a_market_that_has_to_find_a_price_trades_less_than_one_that_assumes_it(
+        settings, small):
+    """What the bid-curve extension is for.
+
+    The core path clears at an anchor: both sides accept it and the whole volume
+    trades. The extension makes them find each other, and only what both wanted
+    trades. The difference between the two runs is the price of that assumption, and
+    on this market it is about two fifths of the contracted volume, which then shows
+    up in every producer's exposure and so in every hurdle.
+    """
+    anchored = run(settings, ticks=4, seed=SEED, cells=small)
+    crossed = run(settings, ticks=4, seed=SEED, cells=small, clearing="crossing")
+    volume = lambda r: sum(c.volume_mw for c in r.book if c.kind == SWAP)
+    assert volume(crossed) < volume(anchored) * 0.8, (
+        f"{volume(crossed):,.0f} against {volume(anchored):,.0f} MW"
+    )
+    assert min(crossed.ticks[-1].swap_cover.values()) < \
+        min(anchored.ticks[-1].swap_cover.values()), (
+        "less cover bought has to mean less cover held"
+    )
+
+
+def test_an_unknown_clearing_rule_fails_rather_than_falling_back(settings, small):
+    with pytest.raises(ValueError, match="clearing"):
+        run(settings, ticks=1, seed=SEED, cells=small, clearing="whatever")
+
+
+def test_the_scheme_never_records_more_firm_capacity_than_it_built(settings, small):
+    """Clearing hands back a part-filled bid and the award rounds it down to whole
+    generating units. Carrying the pre-rounding firm figure across that made the
+    scheme report contracting capacity it had not built, and pay for it: the strike
+    spreads the bid over the contracted volume, and the bid was sized on firm
+    megawatts that no longer existed."""
+    from esem_sandbox.core.esem import firm_contribution_mw
+    from esem_sandbox.core.simulate import ESEM
+
+    result = run(settings, ticks=6, seed=SEED, cells=small, leg=ESEM)
+    awards = [a for t in result.ticks for a in t.awards]
+    assert awards, "the lane awarded nothing, so this test proves nothing"
+    for award in awards:
+        tech = settings.tech(award.technology)
+        ceiling = award.capacity_mw * tech.availability
+        assert award.firm_mw <= ceiling + 1e-9, (
+            f"{award.technology} recorded {award.firm_mw:,.1f} firm MW from "
+            f"{award.capacity_mw:,.0f} MW of plant, which cannot deliver more than "
+            f"{ceiling:,.1f}"
+        )
+        assert award.capacity_mw % tech.unit_size_mw == 0

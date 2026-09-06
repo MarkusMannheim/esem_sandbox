@@ -1,0 +1,15 @@
+# A coal station closes eight years early, and the market has two years' notice.
+#
+# The boom-and-bust exercise. Gas takes two years to build and combined cycle three,
+# so a retirement pulled forward inside those leads cannot be replaced in time
+# whatever the price does. Watch entry cluster in the years after the gap opens,
+# arrive together, and overshoot into a market that no longer needs it.
+#
+# This is a FORCED retirement: the plant closes because something decided it should,
+# not because it stopped covering its costs. It is deliberately separate from the
+# economic exit rule, so that a run with economic exit doing nothing still honours a
+# policy.
+[run]
+leg = "merchant"
+ticks = 20
+retire = { coal_b = 2031 }

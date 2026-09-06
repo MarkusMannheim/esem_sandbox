@@ -14,6 +14,11 @@ scheme moves the bill by $10.37bn and the resource cost by $0.51bn, and the
 $9.86bn between them is a transfer from generators to consumers rather than a
 saving by anybody. The bill alone would overstate the scheme by twenty times.
 
+`dashboard.png` is the same paired run as eight panels: the fleet at the end, the
+reliability outcome against the standard, price duration, every build against the
+test it passed, the two cost views with the transfer between them named, what the
+lane asked for and got, what consumers paid, and what a cap cost.
+
 The most useful row is 2027, where both legs shed the same 28.3 GWh. The plant
 awarded in 2026 has not been built yet. A procurement scheme is an instrument
 about the future, and it cannot fix a year that arrives before its plant does.

@@ -67,8 +67,8 @@ def test_every_packaged_scenario_loads_and_is_strict():
     import pytest as _pytest
     from esem_sandbox.cli import _scenario
 
-    files = sorted(glob.glob("scenarios/*.toml"))
-    assert len(files) >= 4, f"expected the packaged scenarios, found {files}"
+    files = sorted(glob.glob("src/esem_sandbox/scenarios/*.toml"))
+    assert len(files) >= 6, f"expected the packaged scenarios, found {files}"
     for path in files:
         overrides, options = _scenario(path)
         load_settings(overrides)
@@ -92,3 +92,26 @@ def test_a_scenario_with_a_bad_run_option_is_rejected(tmp_path):
     bad.write_text('[run]\nlegg = "esem"\n')
     with pytest.raises(ValueError, match="unknown key"):
         _scenario(str(bad))
+
+
+def test_a_packaged_scenario_can_be_named_rather_than_found():
+    """The scenarios ship inside the wheel. Without that, the only ones a reader
+    could run would be the ones they had cloned the repository for, and the command
+    naming them would be in a README they could not follow."""
+    from esem_sandbox.cli import _scenario, scenario_names
+
+    names = scenario_names()
+    assert {"merchant", "scheme"} <= set(names)
+    for name in names:
+        overrides, options = _scenario(name)
+        load_settings(overrides)
+        assert options.get("leg") in ("merchant", "esem"), name
+
+
+def test_a_path_still_works_and_wins_over_a_name(tmp_path):
+    from esem_sandbox.cli import _scenario
+
+    local = tmp_path / "scheme.toml"
+    local.write_text('[run]\nleg = "merchant"\nticks = 3\n')
+    _, options = _scenario(str(local))
+    assert options == {"leg": "merchant", "ticks": 3}

@@ -33,6 +33,7 @@ import numpy as np
 from ..config import Settings, Unit
 from .agents import PRODUCER, RETAILER
 from .contracts import CAP, SWAP, Contract
+from .crossing import cross, ladder
 from .report import block_mask
 
 def cara_coefficient(risk_aversion: float, exposure: float,
@@ -201,13 +202,32 @@ def _pro_rata(weights: dict[str, float]) -> dict[str, float]:
     return {k: v / total for k, v in weights.items()} if total > 0 else {}
 
 
+def _crossed(settings: Settings, anchor: float, volume_mw: float,
+             buyer: str) -> tuple[float, float]:
+    """Price and volume from a bid-curve crossing rather than from the anchor.
+
+    Both sides step away from the same anchor, so this is the mirror-image case: the
+    price comes back at the anchor and the volume at roughly half of what was
+    offered. That is not a bug and it is worth understanding before reading anything
+    into a run made this way. The anchor path assumes the two sides agree and trades
+    the whole volume; this one makes them find each other and trades only what both
+    wanted. The difference between the two runs is the cost of that assumption.
+    """
+    steps = int(settings.contracts["crossing_steps"])
+    spread = float(settings.contracts["crossing_spread"])
+    writers = ladder("producers", anchor, volume_mw, steps, spread, ascending=True)
+    holders = ladder(buyer, anchor, volume_mw, steps, spread, ascending=False)
+    result = cross(writers, holders, anchor)
+    return (result.price_per_mwh, result.volume_mw) if result.cleared else (anchor, 0.0)
+
+
 def clear_bilateral(settings: Settings, roster, fleet, history: list[dict[str, float]],
                     *, year: int, start_year: int, tenor_years: int,
                     average_load_mw: float,
                     peak_load_mw: float, cap_payoffs_per_mw, cap_weights,
                     cap_cost_basis_per_mwh: float,
-                    already_covered_mw: dict[str, float] | None = None
-                    ) -> list[Contract]:
+                    already_covered_mw: dict[str, float] | None = None,
+                    clearing: str = "anchor") -> list[Contract]:
     """One tick's bilateral market, cleared at the lane anchors.
 
     Four swap lanes, one per time-of-day block, and one cap lane. Retailers are
@@ -227,6 +247,10 @@ def clear_bilateral(settings: Settings, roster, fleet, history: list[dict[str, f
     Legs are quarterly on a flat strip from the start, because the duration-curve
     exercise depends on being able to look at one quarter at a time.
     """
+    if clearing not in ("anchor", "crossing"):
+        raise ValueError(
+            f"unknown clearing {clearing!r}: expected 'anchor' or 'crossing'"
+        )
     half_life = float(settings.contracts["anchor_half_life_years"])
     strike = float(settings.contracts["cap_strike_per_mwh"])
     retailers = [a for a in roster if a.kind == RETAILER]
@@ -264,6 +288,10 @@ def clear_bilateral(settings: Settings, roster, fleet, history: list[dict[str, f
         for block in settings.blocks():
             anchor = ewma_block_anchor(history, block, half_life)
             volume = target / max(1, tenor_years)
+            if clearing == "crossing" and volume > 0:
+                anchor, volume = _crossed(settings, anchor, volume, retailer.name)
+                if volume <= 0:
+                    continue
             for writer, share in swap_share.items():
                 if share <= 0 or volume <= 0:
                     continue
