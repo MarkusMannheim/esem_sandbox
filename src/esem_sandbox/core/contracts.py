@@ -115,9 +115,18 @@ def settle_book(settings: Settings, book: list[Contract], price: np.ndarray,
 
 
 def age(book: list[Contract], year: int) -> list[Contract]:
-    """The contracts still in force after ``year`` has settled.
+    """The contracts still to settle after ``year`` has settled.
 
     One owner per object: contracts are dropped from the book when they expire rather
     than being marked expired and kept, so a book that is empty is empty.
+
+    A contract that has not started yet is not an expired contract. Testing only
+    whether it is in force NEXT year deleted every award whose plant was still being
+    built: a scheme contract signed in 2026 for a plant commissioning in 2029
+    survived one ageing pass and then vanished, four years before it was due to pay
+    anybody. That was silent - the book simply got shorter - and it voided exactly
+    the long-dated awards the scheme exists to write, while leaving the short-lead
+    ones in place, so the mechanism half worked, which is the worst way for a thing
+    to fail.
     """
-    return [c for c in book if c.in_force(year + 1)]
+    return [c for c in book if year + 1 < c.start_year + c.tenor_years]

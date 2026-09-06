@@ -36,6 +36,7 @@ from .agents import (
 )
 from .clearing import (
     cap_cost_basis, clear_bilateral, energy_margin_per_mw_year,
+    ewma_block_anchor,
 )
 from .contracts import Contract, age, settle_book
 from .dispatch import DispatchResult, dispatch_year
@@ -43,15 +44,28 @@ from .forward import (
     Cell, EntryState, ForwardView, cell_plan, forward_view, peak_banded,
     update_projected_entry,
 )
+from .esem import (
+    ADMINISTRATOR, Administrator, Bid, AwardLine, award_contract,
+    award_strike_per_mwh, blended_wacc, clear_pay_as_bid, eligible_technologies,
+    firm_contribution_mw, lane_volume_mw, levy_per_mwh,
+    long_run_cost_per_mw_year, recycle, reserve_margin_gap_mw, screen,
+)
 from .investment import (
-    ExitLedger, achieved_swap_cover, build_ceiling_mw, cara_coefficient,
-    exit_notices, rank_candidates,
+    ExitLedger, achieved_swap_cover, build_ceiling_mw, build_size_mw,
+    cara_coefficient, exit_notices, rank_candidates, residual_exposure,
 )
 from .report import block_prices
 from .weather import generate_bundle
 from .clearing import cara_certainty_equivalent
 
 BOOTSTRAP_YEARS = 3
+
+# The two legs. Merchant is the policy-free counterfactual: the market on its own,
+# with no scheme and no underwrite. ESEM is the same market with the procurement
+# scheme switched on. Nothing is on by default, because a mechanism this
+# consequential running unasked would make every result an argument for itself.
+MERCHANT = "merchant"
+ESEM = "esem"
 
 # tech_costs.csv names storage by duration, because a two-hour and an eight-hour
 # battery are different investments. The dispatcher cares only that a thing is a
@@ -113,6 +127,19 @@ class Build:
 
 
 @dataclass(frozen=True)
+class Award:
+    """One line of one year's auction."""
+
+    bidder: str
+    technology: str
+    capacity_mw: float
+    firm_mw: float
+    price_per_mw_year: float
+    strike_per_mwh: float
+    commissioning_year: int
+
+
+@dataclass(frozen=True)
 class TickResult:
     """One year, reduced to what a chart or a slide would want from it."""
 
@@ -132,6 +159,13 @@ class TickResult:
     swap_cover: dict[str, float]      # each producer's contracted share of output
     cashflows: dict[str, float]
     peaker_missing_money_per_mw_year: float
+    lane_volume_mw: float = 0.0
+    reserve_margin_gap_mw: float = 0.0
+    awards: tuple[Award, ...] = ()
+    scheme_cost: float = 0.0
+    levy_per_mwh: float = 0.0
+    administrator_net: float = 0.0
+    warehoused_mw: float = 0.0
 
 
 @dataclass
@@ -144,6 +178,8 @@ class RunState:
     cap_payoffs: list[float] = field(default_factory=list)
     entry: EntryState = field(default_factory=EntryState)
     exit_ledger: ExitLedger = field(default_factory=ExitLedger)
+    admin: Administrator = field(default_factory=Administrator)
+    awarded_share: dict[str, float] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -153,6 +189,7 @@ class RunResult:
     fleet: tuple[Unit, ...]
     roster: tuple[Agent, ...]
     book: tuple[Contract, ...]
+    leg: str = MERCHANT
 
     @property
     def total_unserved_gwh(self) -> float:
@@ -161,6 +198,14 @@ class RunResult:
     @property
     def total_built_mw(self) -> float:
         return sum(b.capacity_mw for t in self.ticks for b in t.builds)
+
+    @property
+    def total_levy(self) -> float:
+        return sum(t.levy_per_mwh * 0.0 for t in self.ticks)
+
+    @property
+    def total_awarded_mw(self) -> float:
+        return sum(a.capacity_mw for t in self.ticks for a in t.awards)
 
     def built_by_technology(self) -> dict[str, float]:
         out: dict[str, float] = {}
@@ -217,9 +262,16 @@ def _merchant_entry_loading(settings: Settings, view: ForwardView,
 
 def run(settings: Settings, *, ticks: int = 20, start_year: int = 2026,
         peak_mw: float = 12_500.0, seed: int | None = None,
-        cells: tuple[Cell, ...] | None = None,
+        cells: tuple[Cell, ...] | None = None, leg: str = MERCHANT,
         bundle: dict | None = None) -> RunResult:
-    """One leg of a run: dispatch, contract, invest, twenty times over."""
+    """One leg of a run: dispatch, contract, invest, twenty times over.
+
+    ``leg`` selects the counterfactual. Both legs draw the same weather from the same
+    seed, so a comparison between them is a comparison of the mechanism and of
+    nothing else.
+    """
+    if leg not in (MERCHANT, ESEM):
+        raise ValueError(f"unknown leg {leg!r}: expected {MERCHANT!r} or {ESEM!r}")
     seed = int(settings.weather["seed"]) if seed is None else seed
     bundle = bundle if bundle is not None else generate_bundle(
         seed, int(settings.weather["shape_years"]))
@@ -286,12 +338,50 @@ def run(settings: Settings, *, ticks: int = 20, start_year: int = 2026,
             threshold_loading_per_mw_year=_merchant_entry_loading(
                 settings, view, state.roster))
 
-        # 6. The bilateral market.
+        # 6. The administrator offers its position back first, then the bilateral
+        #    market covers whatever is left. That order matters: a retailer that
+        #    bought a recycled strip does not also need to buy the same cover from a
+        #    producer, and running the bilateral market first would have it hedge
+        #    the same load twice and look twice as covered as it is.
+        recycled_mw: dict[str, float] = {}
+        if leg == ESEM:
+            average_load = float(res.operational_demand_mw.mean())
+            buyers = [(a.name, a.swap_cover * a.load_share * average_load)
+                      for a in state.roster if a.kind == RETAILER]
+            anchor_price = ewma_block_anchor(
+                state.history, "overnight",
+                float(settings.contracts["anchor_half_life_years"]))
+            strips = recycle(state.admin, settings, year=year,
+                             anchor_per_mwh=anchor_price, buyers=buyers)
+            state.book.extend(strips)
+            for c in strips:
+                if c.start_year == year + 1:
+                    recycled_mw[c.holder] = recycled_mw.get(c.holder, 0.0) + c.volume_mw
+
         state.book.extend(_clear(settings, state, res, year=year,
                                  start_year=year + 1, tenor_years=tenor,
-                                 peak_mw=level, ocgt=ocgt))
+                                 peak_mw=level, ocgt=ocgt,
+                                 already_covered_mw=recycled_mw))
 
-        # 7. Exit, then entry.
+        # 7. The auction, when the scheme is on. New entrants only, sized on the
+        #    near anchor's shortfall, cleared pay-as-bid, awarded at final
+        #    investment decision so the plant is committed now and arrives after
+        #    its lead time.
+        awards: list[Award] = []
+        built_this_year: dict[str, float] = {}
+        lane_mw = 0.0
+        margin_gap = 0.0
+        if leg == ESEM:
+            near = view.nearest
+            lane_mw = lane_volume_mw(near, settings)
+            margin_gap = reserve_margin_gap_mw(
+                near, res.firm_capacity_mw, level,
+                float(settings.esem["reserve_margin"]))
+            awards = _auction(settings, state, view, res, year=year,
+                              peak_mw=level, lane_mw=lane_mw, built=built_this_year,
+                              tick=t)
+
+        # 8. Exit, then entry.
         notices = exit_notices(state.fleet, view, settings, year, state.exit_ledger)
         noticed = {u.unit for u, _ in notices}
         if noticed:
@@ -303,12 +393,21 @@ def run(settings: Settings, *, ticks: int = 20, start_year: int = 2026,
 
         cover = _cover(settings, state, res, year=year)
         builds = _invest(settings, state, view, res, year=year, peak_mw=level,
-                         cover=cover, tick=t)
+                         cover=cover, tick=t, leg=leg, built=built_this_year)
         for b, unit in builds:
             state.fleet = state.fleet + (unit,)
             state.roster = tuple(
                 replace(a, units=a.units + (unit.unit,)) if a.name == b.owner else a
                 for a in state.roster)
+
+        levy = 0.0
+        admin_net = cashflows.get(ADMINISTRATOR, 0.0) if leg == ESEM else 0.0
+        warehoused = 0.0
+        if leg == ESEM:
+            consumed = float(res.operational_demand_mw.sum())
+            levy = levy_per_mwh(admin_net, settings, consumed)
+            state.admin.levy_paid.append(levy * consumed)
+            warehoused = state.admin.warehoused_mw.get(year, 0.0)
 
         in_service = [u for u in state.fleet if u.in_service(year)]
         capacity: dict[str, float] = {}
@@ -331,14 +430,22 @@ def run(settings: Settings, *, ticks: int = 20, start_year: int = 2026,
             swap_cover=cover,
             cashflows=cashflows,
             peaker_missing_money_per_mw_year=peaker_rent - ocgt.fixed_cost_per_mw_year,
+            lane_volume_mw=lane_mw,
+            reserve_margin_gap_mw=margin_gap,
+            awards=tuple(awards),
+            scheme_cost=sum(a.firm_mw * a.price_per_mw_year for a in awards),
+            levy_per_mwh=levy,
+            administrator_net=admin_net,
+            warehoused_mw=warehoused,
         ))
     return RunResult(ticks=tuple(results), draw=draw, fleet=state.fleet,
-                     roster=state.roster, book=tuple(state.book))
+                     roster=state.roster, book=tuple(state.book), leg=leg)
 
 
 def _clear(settings: Settings, state: RunState, res: DispatchResult, *,
            year: int, start_year: int, tenor_years: int, peak_mw: float,
-           ocgt: TechCost) -> list[Contract]:
+           ocgt: TechCost,
+           already_covered_mw: dict[str, float] | None = None) -> list[Contract]:
     """Price and write this tick's bilateral contracts.
 
     The cap's cost basis nets the energy margin the peaker earned in the pool. That
@@ -356,7 +463,120 @@ def _clear(settings: Settings, state: RunState, res: DispatchResult, *,
         average_load_mw=float(res.operational_demand_mw.mean()),
         peak_load_mw=float(res.operational_demand_mw.max()),
         cap_payoffs_per_mw=payoffs, cap_weights=weights,
-        cap_cost_basis_per_mwh=basis)
+        cap_cost_basis_per_mwh=basis,
+        already_covered_mw=already_covered_mw or {})
+
+
+def _auction(settings: Settings, state: RunState, view: ForwardView,
+             res: DispatchResult, *, year: int, peak_mw: float, lane_mw: float,
+             built: dict[str, float], tick: int) -> list[Award]:
+    """One year's lane: eligible new entrants bid, are screened, and clear pay-as-bid.
+
+    Bids are the long-run cost of the plant at a cost of capital blended for the
+    share of its life the award covers, net of what it expects to earn in the pool,
+    restated per FIRM megawatt because that is the product the lane is buying. A
+    peaker and an eight-hour battery offering the same capacity are not offering the
+    same thing, and the lane pays for what it gets.
+
+    An award is a final investment decision. The plant is committed in this year and
+    arrives after its lead time, which is the whole reason a long-dated contract
+    moves anything: it is not a subsidy paid to plant that would have been built, it
+    is what lets a plant be built at all.
+    """
+    if lane_mw <= 0:
+        return []
+    near = view.nearest
+    tenor = int(settings.esem["contract_tenor_years"])
+    producers = [a for a in state.roster if a.kind == PRODUCER]
+    if not producers:
+        return []
+    rotation = tick % len(producers)
+    ordered = producers[rotation:] + producers[:rotation]
+    representative_aversion = max(a.risk_aversion for a in producers)
+
+    bids: list[Bid] = []
+    priced: dict[str, tuple[TechCost, float, float]] = {}
+    for tech in eligible_technologies(settings):
+        capacity = build_size_mw(peak_mw, tech, settings)
+        room = build_ceiling_mw(peak_mw, tech, settings) - built.get(tech.technology, 0.0)
+        capacity = min(capacity, room)
+        if capacity < tech.unit_size_mw:
+            continue
+        capacity = (capacity // tech.unit_size_mw) * tech.unit_size_mw
+        firm = firm_contribution_mw(tech, capacity, near)
+        if firm <= 0:
+            continue
+        share = min(1.0, tenor / max(1, tech.life_years))
+        # What the plant can bank on earning in the pool, on ITS OWN basis and on
+        # the SAME basis the investment rule uses: the certainty equivalent of
+        # lifetime rent to an investor who will hold this award.
+        #
+        # Two things had to be got right here and one of them was wrong twice.
+        #
+        # The basis has to be the technology's own. Pricing every candidate's pool
+        # earnings with the dispatchable formula credited an eight-hour battery with
+        # $438,060 per MW-year against the $194,791 its own scheduler delivers,
+        # because a store does not run 8,760 hours at full power. That exceeded its
+        # entire fixed cost, so it bid zero and won every megawatt of the lane.
+        #
+        # And it has to be a certainty equivalent, not an expectation. At the
+        # free-entry fixed point expected rent equals fixed cost by construction, so
+        # a risk-neutral bid is zero and the scheme appears to buy capacity for
+        # nothing. That is not a finding, it is the wrong question: what stops this
+        # plant being built is not that the market is expected to underpay it, it is
+        # that the market might, and the certainty equivalent is where that lives.
+        # A scheme priced on expectations would report itself as free.
+        exposure = residual_exposure(settings, tech.life_years,
+                                     award_years=tenor, award_cover=1.0)
+        rents = view.lifetime_rent(tech)
+        a = cara_coefficient(representative_aversion, exposure, settings)
+        bankable = cara_certainty_equivalent(rents, view.weights, a)
+        cost = long_run_cost_per_mw_year(
+            tech, blended_wacc(tech, settings, share), bankable)
+        price = cost * capacity / firm
+        priced[tech.technology] = (tech, capacity, firm)
+        for agent in ordered:
+            bids.append(Bid(bidder=agent.name, technology=tech.technology,
+                            capacity_mw=capacity, firm_mw=firm,
+                            price_per_mw_year=price, lead_years=tech.lead_years))
+
+    kept = screen(bids, float(res.price.mean()), settings)
+    expected_price = view.nearest.expected_block_prices["overnight"]
+    out: list[Award] = []
+    for line in clear_pay_as_bid(kept, lane_mw):
+        tech, _cap, _firm = priced[line.bid.technology]
+        # The ceiling binds on what is AWARDED, not only on what may be offered.
+        # Every producer bids the same size, so clearing four of them awarded four
+        # times the ceiling: 2,400 MW of eight-hour batteries against a limit of
+        # 1,200. A supply chain does not get bigger because more firms asked.
+        room = build_ceiling_mw(peak_mw, tech, settings) \
+            - built.get(tech.technology, 0.0)
+        units = int(min(line.capacity_mw, room) // tech.unit_size_mw)
+        if units < 1:
+            continue
+        capacity = units * tech.unit_size_mw
+        line = AwardLine(bid=line.bid, firm_mw=line.firm_mw, capacity_mw=capacity,
+                         price_per_mw_year=line.price_per_mw_year)
+        strike = award_strike_per_mwh(expected_price, line)
+        commissioning = year + tech.lead_years
+        contract = award_contract(line, strike, generator=line.bid.bidder,
+                                  commissioning_year=commissioning,
+                                  tenor_years=tenor)
+        state.admin.awards.append(contract)
+        state.book.append(contract)
+        built[tech.technology] = built.get(tech.technology, 0.0) + capacity
+        name = f"{tech.technology}_{year}_{line.bid.bidder}_awarded"
+        unit = _new_unit(tech, capacity, name, year)
+        state.fleet = state.fleet + (unit,)
+        state.roster = tuple(
+            replace(a, units=a.units + (name,)) if a.name == line.bid.bidder else a
+            for a in state.roster)
+        state.awarded_share[line.bid.bidder] = 1.0
+        out.append(Award(bidder=line.bid.bidder, technology=tech.technology,
+                         capacity_mw=capacity, firm_mw=line.firm_mw,
+                         price_per_mw_year=line.price_per_mw_year,
+                         strike_per_mwh=strike, commissioning_year=commissioning))
+    return out
 
 
 def _cover(settings: Settings, state: RunState, res: DispatchResult, *,
@@ -381,7 +601,8 @@ def _cover(settings: Settings, state: RunState, res: DispatchResult, *,
 
 def _invest(settings: Settings, state: RunState, view: ForwardView,
             res: DispatchResult, *, year: int, peak_mw: float,
-            cover: dict[str, float], tick: int) -> list[tuple[Build, Unit]]:
+            cover: dict[str, float], tick: int, leg: str = MERCHANT,
+            built: dict[str, float] | None = None) -> list[tuple[Build, Unit]]:
     """Every producer's decisions for one tick, against the annual build ceiling.
 
     The ceiling is shared across producers rather than held per producer. Two firms
@@ -397,14 +618,19 @@ def _invest(settings: Settings, state: RunState, view: ForwardView,
     in a tuple. Rotating does not decide who should win, which is not a question this
     model has an answer to; it stops the tuple deciding.
     """
-    built: dict[str, float] = {}
+    built = {} if built is None else built
     out: list[tuple[Build, Unit]] = []
     producers = [a for a in state.roster if a.kind == PRODUCER]
     order = producers[tick % len(producers):] + producers[:tick % len(producers)] \
         if producers else []
     for agent in order:
+        award_years = int(settings.esem["contract_tenor_years"]) \
+            if leg == ESEM else 0
+        award_cover = state.awarded_share.get(agent.name, 0.0) if leg == ESEM else 0.0
         for verdict in rank_candidates(view, agent, settings, peak_mw=peak_mw,
-                                       swap_cover=cover.get(agent.name, 0.0)):
+                                       swap_cover=cover.get(agent.name, 0.0),
+                                       award_years=award_years,
+                                       award_cover=award_cover):
             if not verdict.builds:
                 continue
             tech = settings.tech(verdict.technology)

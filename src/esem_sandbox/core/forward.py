@@ -211,6 +211,8 @@ class CellOutcome:
     unserved_mwh: float
     unserved_fraction: float
     peak_shortfall_mw: float
+    shortfall_mw: np.ndarray = field(default_factory=lambda: np.zeros(0))
+    operational_demand_mwh: float = 0.0
 
 
 @dataclass(frozen=True)
@@ -307,6 +309,12 @@ def dispatch_anchor(settings: Settings, fleet: tuple[Unit, ...], bundle: dict,
             unserved_mwh=float(res.unserved_mwh.sum()),
             unserved_fraction=res.unserved_fraction,
             peak_shortfall_mw=float(res.unserved_mwh.max()),
+            # Kept hour by hour, not as a total. How much firm capacity closes a
+            # reliability gap depends on how the shortfall is shaped: a gap that is
+            # one deep hour and a gap that is fifty shallow ones need very different
+            # amounts of plant to close, and a total cannot tell them apart.
+            shortfall_mw=res.unserved_mwh.copy(),
+            operational_demand_mwh=float(res.operational_demand_mw.sum()),
         ))
     return Anchor(offset=offset, year=year, outcomes=tuple(outcomes),
                   entry_mw=entry_mw)

@@ -153,3 +153,42 @@ swap_tenor_years = 3
 # It is what makes the boom-and-bust exercise work, so it is a setting rather than
 # a number buried in a function.
 anchor_half_life_years = 2.0
+
+[esem]
+# The procurement scheme. Nothing here is on by default: the scheme is a leg you
+# choose to run, and the merchant leg is what it is compared against. A mechanism
+# this consequential switched on quietly would make every result an argument for
+# itself.
+#
+# Award tenor. Long enough to cover a meaningful share of a plant's life, which is
+# the whole reason the instrument moves an investment decision at all: a three-year
+# bilateral book cannot underwrite a twenty-five year asset however much of the
+# output it covers.
+contract_tenor_years = 12
+# The cost of capital a fully contracted megawatt is financed at. A contracted
+# megawatt is financed as debt would be and an uncontracted one as equity is, so
+# this is the channel through which a long-dated contract lowers the COST of a plant
+# rather than only the RISK of its investor.
+contracted_wacc = 0.055
+# The sanity screen, as the larger of a multiple of spot and a floor, so it scales
+# with a genuinely expensive market without collapsing to nothing in a cheap year.
+# It is a screen against nonsense, not a price cap: a scheme that quietly capped its
+# own clearing price would report a cost it did not pay.
+screen_multiple_of_spot = 5.0
+screen_floor_per_mwh = 500.0
+# Recycling. Each delivery year from now to this many years ahead is offered back to
+# retailers as a one-year strip at the lane anchor.
+recycling_window_years = 3
+# What the administrator does with volume nobody buys. "warehouse" holds it,
+# "fire_sale" clears it at a fraction of the anchor. Warehousing is the default
+# because it is the conduct that does not require the administrator to have a view.
+recycling_conduct = "warehouse"
+fire_sale_fraction = 0.5
+# Administrator running costs, in dollars a year. A stylised figure for a small
+# statutory body: it is here so the levy is not silently understated by the cost of
+# the thing collecting it.
+overhead_per_year = 25000000.0
+# Reserve margin, for reporting only, never for sizing the lane. A margin is a rule
+# of thumb about how much capacity a peak needs; the lane is sized on the shortfall
+# itself, and showing both is how an audience sees the difference.
+reserve_margin = 0.15

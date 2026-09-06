@@ -143,3 +143,28 @@ def test_retailer_cover_is_sized_off_its_own_load_not_the_system(settings, years
     ratio = volumes["retailer_a"] / volumes["retailer_b"]
     assert ratio == pytest.approx(0.60 / 0.40, rel=1e-9)
     assert sum(volumes.values()) == pytest.approx(0.75 * average_load, rel=1e-9)
+
+
+def test_ageing_does_not_delete_a_contract_that_has_not_started(settings):
+    """A contract that has not started yet is not an expired one.
+
+    Testing only whether a contract is in force NEXT year deleted every scheme award
+    whose plant was still being built: one signed in 2026 for a plant commissioning
+    in 2029 survived a single ageing pass and then vanished, four years before it was
+    due to pay anybody. Silently, and only for the long-lead technologies, so the
+    mechanism half worked.
+    """
+    from esem_sandbox.core.contracts import age
+
+    forward = Contract(kind=SWAP, holder="administrator", writer="m",
+                       strike_per_mwh=60.0, volume_mw=200.0, start_year=2029,
+                       tenor_years=12, block="overnight")
+    book = [forward]
+    for year in range(2026, 2029):
+        book = age(book, year)
+        assert book == [forward], f"dropped at {year}, before it ever delivered"
+    settled = sum(1 for year in range(2029, 2060) if forward.in_force(year))
+    assert settled == 12
+    for year in range(2029, 2045):
+        book = age(book, year)
+    assert book == []

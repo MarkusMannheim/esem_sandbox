@@ -56,6 +56,15 @@ CONSUMED = {
     "cap_strike_per_mwh": "simulate, the strike every cap in the model is written at",
     "swap_tenor_years": "simulate.run, the length of each rung of the hedge ladder",
     "anchor_half_life_years": "clearing.clear_bilateral, the lane anchor's memory",
+    "contract_tenor_years": "simulate._auction, the tenor an award is written for",
+    "contracted_wacc": "esem.blended_wacc, what a contracted megawatt is financed at",
+    "screen_multiple_of_spot": "esem.screen, the sanity ceiling",
+    "screen_floor_per_mwh": "esem.screen, its floor in a cheap year",
+    "recycling_window_years": "esem.recycle, how many delivery years are offered",
+    "recycling_conduct": "esem.recycle, what happens to volume nobody buys",
+    "fire_sale_fraction": "esem.recycle, the price under fire-sale conduct",
+    "overhead_per_year": "esem.levy_per_mwh, what the administrator costs to run",
+    "reserve_margin": "simulate.run, the reported margin gap (never the volume)",
 }
 
 # Keys committed ahead of the code that will read them. Each needs a reason, and

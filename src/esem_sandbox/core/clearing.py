@@ -205,7 +205,9 @@ def clear_bilateral(settings: Settings, roster, fleet, history: list[dict[str, f
                     *, year: int, start_year: int, tenor_years: int,
                     average_load_mw: float,
                     peak_load_mw: float, cap_payoffs_per_mw, cap_weights,
-                    cap_cost_basis_per_mwh: float) -> list[Contract]:
+                    cap_cost_basis_per_mwh: float,
+                    already_covered_mw: dict[str, float] | None = None
+                    ) -> list[Contract]:
     """One tick's bilateral market, cleared at the lane anchors.
 
     Four swap lanes, one per time-of-day block, and one cap lane. Retailers are
@@ -251,11 +253,17 @@ def clear_bilateral(settings: Settings, roster, fleet, history: list[dict[str, f
                             max(a.risk_aversion for a in producers), settings)
 
     out: list[Contract] = []
+    covered = already_covered_mw or {}
     for retailer in retailers:
+        target = retailer.swap_cover * retailer.load_share * average_load_mw
+        # Cover bought elsewhere is cover. A retailer that took a recycled strip
+        # from the administrator this year does not need the same megawatts from a
+        # producer as well, and letting it buy both would have it hedge one load
+        # twice and report itself twice as covered as it is.
+        target = max(0.0, target - covered.get(retailer.name, 0.0))
         for block in settings.blocks():
             anchor = ewma_block_anchor(history, block, half_life)
-            volume = (retailer.swap_cover * retailer.load_share * average_load_mw
-                      / max(1, tenor_years))
+            volume = target / max(1, tenor_years)
             for writer, share in swap_share.items():
                 if share <= 0 or volume <= 0:
                     continue
