@@ -1,0 +1,17 @@
+# A state capacity target running beside the market.
+#
+# One scheme row buying nameplate wind and solar against a milestone in a policy,
+# with a price ceiling, an annual budget and a fifteen-year contract, into a
+# counterparty that holds what it buys.
+#
+# Watch two things. The milestone is missed, and the reason it is missed is named:
+# on this fleet nobody could build it that fast, because the scheme shares the annual
+# build ceiling with everybody else. And the capacity it does buy changes unserved
+# energy by nothing at all, because wind and solar carry firm factors of a tenth and
+# a twentieth. A capacity target buys capacity. The reliability lane in
+# scenarios/scheme.toml buys reliability. They are different instruments and the
+# model will not let them be added together.
+[run]
+leg = "merchant"
+ticks = 20
+scheme = true

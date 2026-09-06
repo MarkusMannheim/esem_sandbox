@@ -63,7 +63,8 @@ from .esem import (
     long_run_cost_per_mw_year, recycle, reserve_margin_gap_mw, screen,
 )
 from .scheme import (
-    SCHEME_COUNTERPARTY, SchemeYear, clear_scheme, load_scheme, scheme_contracts,
+    BUILD_CEILING, MET, SCHEME_COUNTERPARTY, SchemeYear, clear_scheme, load_scheme,
+    scheme_contracts, summarise, truncate_to_ceiling,
 )
 from .investment import (
     ExitLedger, achieved_swap_cover, build_ceiling_mw, build_size_mw,
@@ -512,7 +513,8 @@ def run(settings: Settings, *, ticks: int = 20, start_year: int = 2026,
             expected = view.nearest.expected_block_prices["overnight"]
             for line in scheme_lines:
                 _commit_scheme_award(settings, state, line, scheme_row, year=year,
-                                     expected_price=expected)
+                                     expected_price=expected,
+                                     built=built_this_year, peak_mw=level)
 
         # 8. Exit, then entry.
         notices = exit_notices(state.fleet, view, settings, year, state.exit_ledger)
@@ -793,17 +795,51 @@ def _scheme_round(settings: Settings, state: RunState, view: ForwardView,
             bids.append(Bid(bidder=agent.name, technology=name,
                             capacity_mw=capacity, firm_mw=capacity,
                             price_per_mw_year=price, lead_years=tech.lead_years))
-    return clear_scheme(row, bids, year)
+    year_record, lines = clear_scheme(row, bids, year)
+    # The ceiling binds on what is AWARDED, not only on what may be offered: every
+    # producer bids the same size, so clearing several of them can total more than
+    # a year can build.
+    room = {name: build_ceiling_mw(peak_mw, settings.tech(name), settings)
+                  - built.get(name, 0.0)
+            for name in row.technologies if _has_tech(settings, name)}
+    sizes = {name: settings.tech(name).unit_size_mw for name in room}
+    lines, ceiling_bound = truncate_to_ceiling(lines, room, sizes)
+    if ceiling_bound and year_record.binding == MET:
+        year_record = summarise(row, year, year_record.sought_mw, lines,
+                                BUILD_CEILING)
+    else:
+        year_record = summarise(row, year, year_record.sought_mw, lines,
+                                year_record.binding)
+    return year_record, lines
+
+
+def _has_tech(settings: Settings, name: str) -> bool:
+    try:
+        settings.tech(name)
+    except KeyError:
+        return False
+    return True
 
 
 def _commit_scheme_award(settings: Settings, state: RunState, line, row, *,
-                         year: int, expected_price: float) -> None:
-    """Build what the scheme contracted, and hold the contract to maturity."""
+                         year: int, expected_price: float,
+                         built: dict[str, float], peak_mw: float) -> None:
+    """Build what the scheme contracted, and hold the contract to maturity.
+
+    The scheme draws on the SAME annual build ceiling as everything else. One supply
+    chain builds a scheme's wind farm and a merchant's, and letting a scheme build on
+    top of the ceiling rather than inside it would make a policy look like it added
+    capacity when what it added was permission the model had not granted anybody
+    else.
+    """
     tech = settings.tech(line.bid.technology)
-    units = int(line.capacity_mw // tech.unit_size_mw)
+    room = build_ceiling_mw(peak_mw, tech, settings) \
+        - built.get(tech.technology, 0.0)
+    units = int(min(line.capacity_mw, room) // tech.unit_size_mw)
     if units < 1:
         return
     capacity = units * tech.unit_size_mw
+    built[tech.technology] = built.get(tech.technology, 0.0) + capacity
     name = f"{tech.technology}_{year}_{line.bid.bidder}_scheme"
     unit = _new_unit(tech, capacity, name, year)
     state.new_capital.append((unit.commissioned_year, unit.retirement_year,

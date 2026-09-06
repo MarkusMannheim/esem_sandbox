@@ -34,7 +34,7 @@ transact in (`core/clearing.py`, `core/agents.py`), a mechanism switched on top
 | `core/forward.py` | Forty-five futures, three anchors, the rent each technology would earn, and the free-entry belief |
 | `core/investment.py` | Exposure, the certainty-equivalent hurdle, pacing, and exit |
 | `core/esem.py` | The reliability scheme: how much to buy, what it is worth, when it is committed, who pays |
-| `core/scheme.py` | A state scheme: a milestone a year, a ceiling, a budget, and why it was missed |
+| `core/scheme.py` | A state scheme: a milestone a year, a ceiling, a budget, and why it was missed. Note the units: it buys NAMEPLATE megawatts where the reliability lane buys DELIVERED FIRM ones, and the two are not addable |
 | `core/simulate.py` | The tick loop, and the order the eight steps run in |
 | `plots.py`, `cli.py` | The dashboard, the worst-week chart, and three commands |
 

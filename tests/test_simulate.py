@@ -465,3 +465,81 @@ def test_the_scheme_never_records_more_firm_capacity_than_it_built(settings, sma
             f"{ceiling:,.1f}"
         )
         assert award.capacity_mw % tech.unit_size_mw == 0
+
+
+def test_the_scheme_builds_inside_the_same_ceiling_as_everybody_else(settings, small):
+    """One supply chain builds a scheme's wind farm and a merchant's. Letting the
+    scheme build on top of the annual ceiling rather than inside it made a policy
+    look like it added capacity when what it added was permission the model had not
+    granted anybody else."""
+    from esem_sandbox.core.investment import build_ceiling_mw
+
+    result = run(settings, ticks=8, seed=SEED, cells=small, scheme=True)
+    for tick in result.ticks:
+        totals: dict[str, float] = {}
+        for b in tick.builds:
+            totals[b.technology] = totals.get(b.technology, 0.0) + b.capacity_mw
+        awarded = (tick.scheme_year.awarded_by_technology
+                   if tick.scheme_year else None) or {}
+        for tech, mw in awarded.items():
+            totals[tech] = totals.get(tech, 0.0) + mw
+        for tech, mw in totals.items():
+            ceiling = build_ceiling_mw(tick.peak_mw, settings.tech(tech), settings)
+            assert mw <= ceiling + 1e-9, (
+                f"{tick.year}: {mw:,.0f} MW of {tech} against a ceiling of "
+                f"{ceiling:,.0f}, counting the scheme's awards"
+            )
+
+
+def test_a_capacity_target_buys_capacity_and_not_reliability(settings, small):
+    """The distinction the two instruments exist to show, measured rather than
+    argued.
+
+    The reliability lane buys DELIVERED FIRM megawatts, sized on the shortfall, and
+    the reliability outcome moves. A capacity target buys NAMEPLATE megawatts against
+    a number in a policy. On this fleet it adds 2,350 MW of wind and solar, displaces
+    1,600 MW of merchant wind through the shared build ceiling, spends five million
+    dollars, and changes unserved energy by nothing at all.
+
+    That is not a criticism of capacity targets. It is what a firm factor of a tenth
+    means, and a model that could not show it would be a model in which any megawatt
+    was as good as any other.
+    """
+    without = run(settings, ticks=8, seed=SEED, cells=small)
+    with_scheme = run(settings, ticks=8, seed=SEED, cells=small, scheme=True)
+
+    awarded = 0.0
+    for tick in with_scheme.ticks:
+        if tick.scheme_year:
+            awarded += sum((tick.scheme_year.awarded_by_technology or {}).values())
+    assert awarded > 1_000.0, "the scheme awarded almost nothing, so this proves little"
+
+    built = lambda r: sum(r.built_by_technology().values())
+    assert built(with_scheme) + awarded > built(without), (
+        "the scheme has to add capacity, or there is nothing to compare"
+    )
+    assert with_scheme.total_unserved_gwh == pytest.approx(
+        without.total_unserved_gwh), (
+        f"{awarded:,.0f} MW of nameplate wind and solar moved unserved energy from "
+        f"{without.total_unserved_gwh:.3f} to {with_scheme.total_unserved_gwh:.3f} "
+        "GWh, which on these firm factors it should not"
+    )
+
+
+def test_a_milestone_can_be_missed_because_nobody_could_build_it_that_fast(
+        settings, small):
+    """A real reason a target is missed, and one that was invisible until the scheme
+    was made to share the annual build ceiling. Recording it as a supply failure
+    would say nobody wanted to sell, which is the opposite of what happened."""
+    from esem_sandbox.core.scheme import BUILD_CEILING
+
+    result = run(settings, ticks=8, seed=SEED, cells=small, scheme=True)
+    reasons = [t.scheme_year.binding for t in result.ticks
+               if t.scheme_year and t.scheme_year.sought_mw > 0]
+    assert reasons, "no milestone fell inside this horizon"
+    assert BUILD_CEILING in reasons, reasons
+    for tick in result.ticks:
+        year = tick.scheme_year
+        if year and year.binding == BUILD_CEILING:
+            assert year.awarded_mw < year.sought_mw
+            assert year.shortfall_mw > 0

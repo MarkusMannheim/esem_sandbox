@@ -57,7 +57,7 @@ def _scenario(path: str | None) -> tuple[dict, dict]:
 
 def _check_run(options: dict) -> None:
     unknown = set(options) - {"leg", "ticks", "peak", "seed", "year", "retire",
-                              "clearing"}
+                              "clearing", "scheme"}
     if unknown:
         raise ValueError(f"unknown key(s) in [run]: {', '.join(sorted(unknown))}")
 
@@ -168,7 +168,8 @@ def simulate(args: argparse.Namespace) -> int:
                             peak_mw=args.peak, seed=args.seed,
                             leg=getattr(args, "leg", MERCHANT),
                             retire=getattr(args, "retire", None),
-                            clearing=getattr(args, "clearing", "anchor"))
+                            clearing=getattr(args, "clearing", "anchor"),
+                            scheme=bool(getattr(args, "scheme", False)))
     standard = settings.reliability["standard_use_fraction"]
 
     rows = []

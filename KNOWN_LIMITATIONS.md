@@ -182,6 +182,29 @@ crosses with its mirror, and with an even count none does. The two fifths quoted
 elsewhere is five slices, and five is a setting rather than a finding. A magnitude
 that turns on the parity of a parameter is not a magnitude to quote at a room.
 
+## A capacity target buys capacity, and the model will not let it buy reliability
+
+This is a result rather than a limitation, and it is here because it is the easiest
+thing in the model to misread.
+
+The reliability lane buys delivered firm megawatts, sized on the projected shortfall,
+and the reliability outcome moves. The state scheme buys nameplate megawatts against
+a number in a policy. On the packaged fleet it adds 2,350 MW of wind and solar,
+displaces 1,600 MW of merchant wind through the shared annual build ceiling, spends
+about five million dollars, and changes unserved energy by nothing at all.
+
+That is what firm factors of a tenth and a twentieth mean, and a model that could not
+show it would be one in which any megawatt was as good as any other. The two
+instruments are not comparable in the units they are written in, and adding their
+megawatts together is the mistake this arrangement exists to make impossible.
+
+Two things follow that are worth stating. The scheme's milestone is missed on this
+fleet, and the reason is named: nobody could build it that fast. And most of what it
+buys costs nothing, because wind already clears its own hurdle here, so the scheme is
+paying for plant the market was building anyway. Both are findings rather than
+defects, and both would be invisible in a model that reported only megawatts
+procured.
+
 ## What the simplification costs elsewhere
 
 One region, so nothing locational: no interconnectors, no transmission build, no

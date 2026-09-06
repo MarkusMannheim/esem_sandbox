@@ -45,6 +45,7 @@ NO_ELIGIBLE_BIDS = "no eligible bids"
 PRICE_CEILING = "the price ceiling"
 BUDGET = "the budget"
 SUPPLY = "nobody had any more to sell"
+BUILD_CEILING = "nobody could build it that fast"
 
 
 @dataclass(frozen=True)
@@ -72,6 +73,7 @@ class SchemeYear:
     awarded_mw: float
     spend: float
     binding: str
+    awarded_by_technology: dict[str, float] | None = None
 
     @property
     def shortfall_mw(self) -> float:
@@ -114,6 +116,58 @@ def _affordable(lines: list[AwardLine], budget: float) -> tuple[list[AwardLine],
     return kept, bound
 
 
+def truncate_to_ceiling(lines: list[AwardLine], room: dict[str, float],
+                        unit_size: dict[str, float]) -> tuple[list[AwardLine], bool]:
+    """Cut the awards back to what the supply chain can actually deliver this year.
+
+    A scheme draws on the same annual build ceiling as everything else: one supply
+    chain builds a scheme's wind farm and a merchant's. Letting a scheme build on top
+    of the ceiling rather than inside it makes a policy look like it added capacity
+    when what it added was permission the model had not granted anybody else.
+
+    A milestone missed this way is missed for a real reason and gets its own binding
+    channel. Recording it as "supply" would say nobody wanted to sell, which is the
+    opposite of what happened: they did, and the year was not long enough.
+    """
+    left = dict(room)
+    kept: list[AwardLine] = []
+    bound = False
+    for line in lines:
+        tech = line.bid.technology
+        size = unit_size.get(tech, 0.0)
+        available = left.get(tech, 0.0)
+        if size <= 0 or available < size:
+            bound = bound or line.capacity_mw > 0
+            continue
+        units = int(min(line.capacity_mw, available) // size)
+        capacity = units * size
+        if capacity <= 0:
+            bound = True
+            continue
+        if capacity < line.capacity_mw - 1e-9:
+            bound = True
+        share = capacity / line.capacity_mw if line.capacity_mw > 0 else 0.0
+        kept.append(AwardLine(bid=line.bid, firm_mw=line.firm_mw * share,
+                              capacity_mw=capacity,
+                              price_per_mw_year=line.price_per_mw_year))
+        left[tech] = available - capacity
+    return kept, bound
+
+
+def summarise(row: SchemeRow, year: int, sought: float, lines: list[AwardLine],
+              binding: str) -> SchemeYear:
+    """Build the year's record from the awards that actually stood."""
+    by_tech: dict[str, float] = {}
+    for line in lines:
+        by_tech[line.bid.technology] = by_tech.get(line.bid.technology, 0.0) \
+            + line.firm_mw
+    awarded = sum(line.firm_mw for line in lines)
+    spend = sum(line.cost for line in lines)
+    if awarded >= sought - 1e-9:
+        binding = MET
+    return SchemeYear(year, row.service, sought, awarded, spend, binding, by_tech)
+
+
 def clear_scheme(row: SchemeRow, bids: list[Bid], year: int
                  ) -> tuple[SchemeYear, list[AwardLine]]:
     """One year of one scheme, through the same clearing the auction uses.
@@ -149,7 +203,12 @@ def clear_scheme(row: SchemeRow, bids: list[Bid], year: int
         binding = PRICE_CEILING
     else:
         binding = SUPPLY
-    return SchemeYear(year, row.service, sought, awarded, spend, binding), lines
+    by_tech: dict[str, float] = {}
+    for line in lines:
+        by_tech[line.bid.technology] = by_tech.get(line.bid.technology, 0.0) \
+            + line.firm_mw
+    return (SchemeYear(year, row.service, sought, awarded, spend, binding, by_tech),
+            lines)
 
 
 def scheme_contracts(lines: list[AwardLine], row: SchemeRow, *,
