@@ -89,3 +89,30 @@ def envelope(path: str) -> dict:
         "robust_on_reliability": improved == len(rows),
         "robust_on_resource_cost": cheaper in (0, len(rows)),
     }
+
+
+def decompose(path: str, voll_per_mwh: float = 20_300.0) -> list[dict]:
+    """Split each seed's resource-cost difference into the outage it avoided and
+    everything else.
+
+    Needs no extra runs: unserved energy priced at the value of lost load is one of
+    the four terms in the resource cost, so subtracting it leaves fuel, fixed costs
+    and capital together. That is the split that explains the sign change, and it is
+    the difference between reporting that a result is unstable and saying why.
+    """
+    with open(path, newline="", encoding="utf-8") as fh:
+        rows = list(csv.DictReader(fh))
+    out = []
+    for r in rows:
+        moved = float(r["merchant_resource_cost"]) - float(r["esem_resource_cost"])
+        outage = (float(r["merchant_unserved_gwh"])
+                  - float(r["esem_unserved_gwh"])) * 1000.0 * voll_per_mwh
+        out.append({
+            "seed": r["seed"],
+            "growth_path": r["growth_path"],
+            "resource_cost_moved": moved,
+            "outage_avoided": outage,
+            "everything_else": moved - outage,
+            "awarded_mw": float(r["awarded_mw"]),
+        })
+    return out

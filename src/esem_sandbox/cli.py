@@ -297,6 +297,8 @@ def compare(args: argparse.Namespace) -> int:
     bill = m.consumer_cost(settings) - e.consumer_cost(settings)
     real = m.resource_cost(settings) - e.resource_cost(settings)
     transfer = bill - real
+    outage = m.unserved_valued_at_the_cap(settings) - \
+        e.unserved_valued_at_the_cap(settings)
     print(f"\nthe scheme moves the BILL by ${abs(bill)/1e9:,.2f}bn "
           f"({'down' if bill > 0 else 'up'}) and the RESOURCE COST by "
           f"${abs(real)/1e9:,.2f}bn ({'down' if real > 0 else 'up'}).")
@@ -304,15 +306,18 @@ def compare(args: argparse.Namespace) -> int:
           f"lowers the pool\nprice, which moves money from generators to consumers "
           "without saving any of it.\nA comparison that showed only the bill would "
           "report the transfer as a benefit.")
+    print(f"of that resource-cost move, ${abs(outage)/1e9:,.2f}bn is outage the "
+          f"scheme avoided\nand ${abs(real - outage)/1e9:,.2f}bn is fuel, fixed "
+          "costs and capital: what got built\ninstead of what would have been.")
     print(f"unserved energy is valued at the market price cap of ${voll:,.0f}/MWh. "
           "That is\na regulatory figure standing in for what an outage costs, not a "
           "measurement of one.")
-    print("\nONE SEED. This is one weather sequence and one growth path, and the "
-          "sign of the\nresource-cost line is not stable across them: on the "
-          "packaged fleet the scheme\nlowers resource cost on some draws and raises "
-          "it on others. Run tools/ten_seeds.py,\nor read the envelope committed "
-          "under outputs/canonical/, before treating the\nnumber above as the "
-          "model's answer rather than this draw's.")
+    print("\nONE SEED, AND ONLY HALF OF IT TRAVELS. Across ten weather sequences the "
+          "outage line\nis small, positive and steady; the fuel, fixed and capital "
+          "line swings by billions\neither way and decides the sign of the total. "
+          "Quote the outage avoided. Do not quote\nthe total. tools/ten_seeds.py "
+          "writes and decomposes the envelope, and a copy sits\nunder "
+          "outputs/canonical/.")
     print("\nA stylised fleet. Illustrative, and not a forecast of anything.")
     picture = plots.dashboard(legs, settings,
                               os.path.join(args.out, "dashboard.png"))

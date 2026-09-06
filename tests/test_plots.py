@@ -105,3 +105,76 @@ def test_the_cost_panel_carries_the_one_seed_caveat():
         "the caveat must be an instruction, not a claim about what the seeds show: "
         "a claim goes stale the moment anybody recalibrates the fleet"
     )
+
+
+def test_the_envelope_refuses_to_call_a_sign_change_a_result(tmp_path):
+    """What ten seeds are for. A number that changes sign across the draws is not
+    the model's answer, and the reducer's job is to say so rather than to average
+    it into one."""
+    import csv
+    import sys
+
+    sys.path.insert(0, str(__import__("pathlib").Path(__file__).resolve().parents[1]
+                           / "tools"))
+    from ten_seeds import FIELDS, envelope
+
+    path = tmp_path / "seeds.csv"
+    rows = [
+        # merchant better off on cost in one, worse in the other: a sign change.
+        dict(seed=1, growth_path="high", annual_growth=0.033,
+             merchant_unserved_gwh=50, esem_unserved_gwh=30,
+             merchant_bill=100, esem_bill=90,
+             merchant_resource_cost=100, esem_resource_cost=99,
+             awarded_mw=1000, levy_total=5, transfer=9),
+        dict(seed=2, growth_path="low", annual_growth=0.005,
+             merchant_unserved_gwh=10, esem_unserved_gwh=5,
+             merchant_bill=100, esem_bill=90,
+             merchant_resource_cost=100, esem_resource_cost=104,
+             awarded_mw=1000, levy_total=5, transfer=14),
+    ]
+    with open(path, "w", newline="", encoding="utf-8") as fh:
+        writer = csv.DictWriter(fh, fieldnames=FIELDS)
+        writer.writeheader()
+        writer.writerows(rows)
+
+    result = envelope(str(path))
+    assert result["seeds"] == 2
+    assert result["unserved_improved"] == 2
+    assert result["robust_on_reliability"] is True
+    assert result["resource_cost_lower"] == 1
+    assert result["robust_on_resource_cost"] is False, (
+        "one seed cheaper and one dearer is a sign change, not an answer"
+    )
+    assert result["resource_cost_min"] < 0 < result["resource_cost_max"]
+
+
+def test_the_decomposition_separates_the_outage_from_everything_else(tmp_path):
+    """The split that explains why a resource-cost total changes sign across seeds.
+
+    Unserved energy priced at the value of lost load is one of the four terms in the
+    resource cost, so subtracting it leaves fuel, fixed costs and capital together.
+    It needs no extra runs, and it is the difference between reporting that a result
+    is unstable and saying why.
+    """
+    import csv
+    import sys
+
+    sys.path.insert(0, str(__import__("pathlib").Path(__file__).resolve().parents[1]
+                           / "tools"))
+    from ten_seeds import FIELDS, decompose
+
+    path = tmp_path / "seeds.csv"
+    with open(path, "w", newline="", encoding="utf-8") as fh:
+        writer = csv.DictWriter(fh, fieldnames=FIELDS)
+        writer.writeheader()
+        writer.writerow(dict(
+            seed=1, growth_path="high", annual_growth=0.033,
+            merchant_unserved_gwh=50.0, esem_unserved_gwh=30.0,
+            merchant_bill=0, esem_bill=0,
+            merchant_resource_cost=1_000_000_000.0, esem_resource_cost=0.0,
+            awarded_mw=1000, levy_total=0, transfer=0))
+    row = decompose(str(path))[0]
+    assert row["outage_avoided"] == pytest.approx(20.0 * 1000.0 * 20_300.0)
+    assert row["resource_cost_moved"] == pytest.approx(1e9)
+    assert row["everything_else"] == pytest.approx(
+        row["resource_cost_moved"] - row["outage_avoided"])

@@ -205,20 +205,43 @@ paying for plant the market was building anyway. Both are findings rather than
 defects, and both would be invisible in a model that reported only megawatts
 procured.
 
-## One seed is one weather sequence, and the cost answer is not stable across them
+## The scheme's worth depends on which future the market turned out to be in
 
-The paired comparison is run on a single drawn weather and growth sequence. The
-reliability improvement is fairly robust to that draw. **The resource-cost line is
-not: it changes sign.** On the packaged fleet the scheme lowers resource cost on some
-seeds and raises it on others, and the seed the canonical outputs were generated with
-is among the ones where it lowers it.
+Ten seeds, twenty years each, both legs on each seed's own shared weather. The
+scheme improves reliability in eight of the ten and lowers the total resource cost
+in four.
 
-That is not a defect in the model, it is what a twenty-year run of a system with one
-drought weather-year in five looks like. It is recorded here because a single-seed
-cost figure reads exactly like a finding, and this one is not one. `tools/ten_seeds.py`
-writes the envelope and the committed copy sits beside the canonical outputs; the
-`compare` command now says so in its own output rather than leaving a reader to
-discover it.
+Splitting each seed's resource-cost difference into the outage the scheme avoided
+and everything else - unserved energy priced at the value of lost load is one of the
+four terms, so subtracting it leaves fuel, fixed costs and capital together:
+
+| | across ten seeds |
+|---|---|
+| outage avoided | -$0.02bn to +$0.73bn, positive in eight |
+| fuel, fixed and capital | -$4.35bn to +$2.19bn, positive in three |
+
+The outage line is small, positive and steady. The other line is four times larger,
+swings both ways, and decides the sign of the total. **Quote the outage avoided. Do
+not quote the total.**
+
+**And the swing is not random.** Sorted by the demand growth path each run drew:
+
+- **low growth** (three seeds): resource cost worse by $2.0bn to $4.4bn every time,
+  and the outage avoided is nil, between minus $0.02bn and plus $0.01bn;
+- **high growth** (two seeds): resource cost better both times, and the two largest
+  outage savings in the set;
+- **central growth** (five seeds): two better, three worse.
+
+So on a slow-growing system the scheme procures capacity that has nothing to do, and
+on a fast-growing one it earns its keep. That is a result about the instrument rather
+than about the weather, and it is the one worth taking away.
+
+A plausible mechanism, stated as plausible because ten seeds cannot confirm it: the
+lane is sized from a forward view that weights all three growth paths at the priors
+it started with, whatever the realised path has been doing (see below). A scheme that
+cannot learn which future it is in will keep buying for the average of them. Testing
+that properly means letting the forward update its priors, which is a design change
+rather than a calibration, and it is not made here.
 
 ## What the simplification costs elsewhere
 

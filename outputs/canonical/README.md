@@ -14,12 +14,17 @@ scheme moves the bill by $10.37bn and the resource cost by $0.51bn, and the
 $9.86bn between them is a transfer from generators to consumers rather than a
 saving by anybody. The bill alone would overstate the scheme by twenty times.
 
-**And read that $0.51bn as this draw's, not the model's.** Across ten seeds the
-resource-cost line changes sign: the scheme lowers resource cost on some weather
-sequences and raises it on others, and this one is among the favourable ones.
-`ten_seeds.csv` beside this file is the envelope. A result that changes sign across
-the seeds is not a result, and the reliability improvement, which is the more robust
-of the two, is the one to lead with.
+**And read that $0.51bn as this draw's, not the model's.** `ten_seeds.csv` beside
+this file is ten seeds of the same comparison. The scheme improves reliability in
+eight of them and lowers the total resource cost in four, and the outage it avoids
+is small, positive and steady while fuel, fixed costs and capital swing four times
+as far and decide the sign.
+
+Sorted by the demand growth path each run drew, the swing is not random: on the
+three low-growth draws the scheme is worse by $2.0bn to $4.4bn and avoids no outage
+at all, and on both high-growth draws it is better and avoids the most. A scheme's
+worth depends on which future the market turned out to be in, and this seed is a
+high-growth one.
 
 `dashboard.png` is the same paired run as eight panels: the fleet at the end, the
 reliability outcome against the standard, price duration, every build against the
