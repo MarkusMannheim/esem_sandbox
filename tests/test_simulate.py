@@ -306,10 +306,19 @@ def test_the_risk_channel_now_reaches_the_projection_as_well(settings, small):
     decides WHICH plant the forecast assumes gets built as well as how much. That
     reaches the prices every investor reads, and the fleet moves.
 
+    The direction is not fixed, and the claim here is deliberately about movement
+    rather than about sign. The premium pulls two ways: it raises every investor's
+    own hurdle, which builds less, and it raises the threshold the projection uses
+    for entry by others, which projects a tighter market and builds more. Over six
+    weather draws the fleet moved in five, and the market built more without the
+    premium in one of them and less in four. On one draw - a low growth one - it
+    moved nothing at all, so this assertion is about this seed and this tick count
+    and not about every run.
+
     What the decomposition exercise actually refutes survives and is the narrower
     claim: the effect of a long contract cannot be ATTRIBUTED to the exposure it
-    removes, because that channel is small beside the capital it cheapens and the
-    plant it procures. It is no longer true that the channel changes nothing.
+    removes. It cannot, because the channel does not even hold its sign across
+    weather draws, while the capital it cheapens and the plant it procures do.
     """
     risk_free = load_settings({"investment": {"risk_premium": 0.0}})
     base = run(settings, ticks=TICKS, seed=SEED, cells=small)

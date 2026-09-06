@@ -56,6 +56,10 @@ Three of those orderings carry weight, and `core/simulate.py` says which and why
 **Everything is per megawatt-year.** Rent and fixed cost are on the same basis, so no
 capacity-factor assumption enters the build decision. A peaker running two per cent of
 the year and a wind farm running thirty-five are each tested against their own costs.
+It is also what lets the forward view leave the entry it assumes open to technology
+rather than naming one in advance: a test that divided a fixed cost by a duty cycle
+would have to know the duty cycle first, and so would end up pinned to whichever
+technology somebody had measured.
 
 **Risk is priced once.** One function builds every CARA coefficient, and both the cap
 lane and the investment rule go through it. A firm that priced the same tail one way

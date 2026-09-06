@@ -117,6 +117,32 @@ The ceiling is shared, so whoever is asked first gets it. Producers are taken in
 order that rotates with the year, which stops the same firm capturing it every time.
 Rotating is not an answer to who should win; it stops the order of a tuple being one.
 
+## The free-entry belief is a fixed point that a run never sits at
+
+The forward view carries a belief about how much plant somebody else builds, and
+that belief is the solution to a fixed point: entry grows until no technology has a
+surplus left. Reaching it takes iteration. A run does not iterate. It takes one step
+a tick, and the fleet moves underneath it every tick, so what the investment step
+reads is a partly converged belief chasing a target that has already moved.
+
+Measured, against a frozen fleet and with the risk loading off, all three anchors do
+settle exactly: the four year anchor at 6,496 MW, the eight at 11,519 and the twelve
+at 15,510, unmoved for the last fifteen of forty passes. But the twelve year anchor
+is the slow one, still shedding six per cent of itself between the fourteenth pass
+and the nineteenth, and a twenty year run gives each anchor twenty steps in total
+while the thing it is chasing changes at every one of them.
+
+The projection is also not held to the annual build ceiling that holds the market,
+so in principle it can assume plant that could not physically arrive in time. On the
+packaged fleet it does not: the ceiling allows 8,200 MW a year across all seven
+technologies, and the four year anchor assumes 6,496 MW in total. Worth re-checking
+if either the ceiling or the cost table moves.
+
+So read the belief as a signal and not as an equilibrium. It is enough to make the
+market respond to scarcity with the right sign and the right rough size, which is
+what the exercise needs. It is not a statement about where free entry would land,
+and the megawatt figures above should not be quoted as one.
+
 ## Investors never learn which future they are in
 
 The forward view weights its three demand growth paths at the priors it started
