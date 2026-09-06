@@ -14,6 +14,13 @@ scheme moves the bill by $10.37bn and the resource cost by $0.51bn, and the
 $9.86bn between them is a transfer from generators to consumers rather than a
 saving by anybody. The bill alone would overstate the scheme by twenty times.
 
+**And read that $0.51bn as this draw's, not the model's.** Across ten seeds the
+resource-cost line changes sign: the scheme lowers resource cost on some weather
+sequences and raises it on others, and this one is among the favourable ones.
+`ten_seeds.csv` beside this file is the envelope. A result that changes sign across
+the seeds is not a result, and the reliability improvement, which is the more robust
+of the two, is the one to lead with.
+
 `dashboard.png` is the same paired run as eight panels: the fleet at the end, the
 reliability outcome against the standard, price duration, every build against the
 test it passed, the two cost views with the transfer between them named, what the

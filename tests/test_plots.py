@@ -89,3 +89,19 @@ def test_the_worst_week_chart_still_draws(tmp_path, settings, legs):
     path = plots.worst_week(res, window, res.firm_capacity_mw,
                             str(tmp_path / "worst.png"))
     assert (tmp_path / "worst.png").stat().st_size > 20_000
+
+
+def test_the_cost_panel_carries_the_one_seed_caveat():
+    """The picture is what a room sees. Across ten seeds the resource-cost line
+    changes sign while the reliability line does not, and a chart that showed the
+    pair without saying so would hand an audience a number the model does not
+    support."""
+    import inspect
+
+    source = inspect.getsource(plots._panel_costs)
+    assert "One weather sequence" in source
+    assert "ten-seed envelope" in source
+    assert "changes sign" not in source.split("ax.text")[1], (
+        "the caveat must be an instruction, not a claim about what the seeds show: "
+        "a claim goes stale the moment anybody recalibrates the fleet"
+    )

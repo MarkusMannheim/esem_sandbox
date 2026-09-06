@@ -54,9 +54,10 @@ esem-sandbox simulate --scenario my_own_file.toml
 ```
 
 A scenario can close a plant early, shorten the scheme's contracts, change what the
-administrator does with volume nobody buys, or make the contract market clear by
-crossing curves instead of at an anchor. Anything it names wrongly fails loudly
-rather than falling back to a default.
+administrator does with volume nobody buys, run a state capacity target beside the
+market, or make the contract market clear by crossing curves instead of at an
+anchor. Anything it names wrongly fails loudly rather than falling back to a
+default.
 
 ## What it is not
 
@@ -69,9 +70,10 @@ size of any number.
 ## Status
 
 Everything the design describes is built: dispatch and pricing, contracts and
-settlement, the forward view, the investment and exit rules, and the procurement
-scheme with its auction, its recycling and its levy. What is not built is the
-state scheme lane, seasonal contract volumes, and the notebook of exercises.
+settlement, the forward view, the investment and exit rules, the procurement scheme
+with its auction, recycling and levy, a state scheme beside it, and the bid-curve
+market as an alternative to clearing at an anchor. What is not built is seasonal
+contract volumes and a browser build.
 
 ## How it works
 
@@ -81,8 +83,10 @@ looks like, and where to start reading.
 ## Known limitations
 
 [KNOWN_LIMITATIONS.md](KNOWN_LIMITATIONS.md) lists what this model gets wrong, with
-measurements. The largest is that storage is scheduled against a price its own
-schedule then moves.
+measurements rather than assertions, and records what it used to get wrong and no
+longer does. The one most easily misread is not a limitation at all: a capacity
+target buys capacity and does not buy reliability, and the model will not let the
+two be added together.
 
 ## Licence
 

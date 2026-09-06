@@ -314,7 +314,7 @@ def _panel_costs(ax, legs, settings) -> None:
     ax.set_xticks(x)
     ax.set_xticklabels(["the bill", "the resource cost"])
     ax.set_ylabel("\\$bn over the horizon")
-    ax.set_title("What it costs, two ways", pad=28)
+    ax.set_title("What it costs, two ways", pad=38)
     ax.legend(frameon=False, fontsize=8, labelcolor=INK_2, loc="upper right",
               handletextpad=0.4)
     moved = bills[0] - bills[1]
@@ -324,10 +324,18 @@ def _panel_costs(ax, legs, settings) -> None:
     # between, which turned this note into "bill moves 2.9bn, resourcecost1.2bn".
     # Above the axes rather than inside them. Inside, it competed with the legend
     # for the only empty corner, and the loser was whichever was drawn first.
+    # The caveat goes on the picture, not in a footnote somebody reads afterwards:
+    # a room shown the left-hand pair without it takes away a number this is one
+    # draw of. It is written as an INSTRUCTION rather than as a claim about what the
+    # seeds show, because a claim about what the seeds show goes stale the moment
+    # anybody recalibrates the fleet, and a chart carrying a sentence that used to be
+    # true is worse than one carrying none.
     ax.text(0.0, 1.01,
             f"the bill moves \\${abs(moved):,.1f}bn and the resource cost "
             f"\\${abs(saved):,.1f}bn.\nThe \\${abs(moved - saved):,.1f}bn "
-            "between them is a transfer.",
+            "between them is a transfer.\n"
+            "One weather sequence. Read the ten-seed envelope before quoting the "
+            "resource-cost line.",
             transform=ax.transAxes, fontsize=7.5, color=INK_2, va="bottom")
     ax.set_ylim(0, top * 1.28)
 

@@ -167,3 +167,34 @@ def test_the_architecture_note_names_every_module():
                      if p.name != "__init__.py")
     missing = [m for m in modules if m not in doc]
     assert not missing, f"ARCHITECTURE.md does not mention {missing}"
+
+
+def test_the_readme_does_not_call_a_built_thing_unbuilt():
+    """A status section is the first thing a reader believes and the last thing
+    anybody updates. This one has been wrong twice: it said the notebook was not
+    built while linking to it two sections above, and it named a storage defect as
+    the largest limitation long after it was fixed.
+
+    The check is deliberately blunt. Take the sentence that says what is missing,
+    and require that nothing it names actually exists.
+    """
+    import pathlib
+    import re
+
+    root = pathlib.Path(__file__).resolve().parents[1]
+    readme = (root / "README.md").read_text()
+    match = re.search(r"What is not built is ([^.]+)\.", readme)
+    assert match, "the status section no longer says what is missing"
+    missing = match.group(1).lower()
+
+    built = {
+        "notebook": "notebooks/exercises.ipynb",
+        "state scheme": "src/esem_sandbox/core/scheme.py",
+        "bid-curve": "src/esem_sandbox/core/crossing.py",
+        "auction": "src/esem_sandbox/core/esem.py",
+    }
+    for phrase, path in built.items():
+        assert (root / path).exists(), f"{path} is gone but the README expects it"
+        assert phrase not in missing, (
+            f"the README says {phrase!r} is not built, and {path} exists"
+        )

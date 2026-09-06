@@ -307,8 +307,13 @@ def compare(args: argparse.Namespace) -> int:
     print(f"unserved energy is valued at the market price cap of ${voll:,.0f}/MWh. "
           "That is\na regulatory figure standing in for what an outage costs, not a "
           "measurement of one.")
-    print("\nOne seed, one growth path, a stylised fleet. Illustrative, and not a "
-          "forecast\nof anything.")
+    print("\nONE SEED. This is one weather sequence and one growth path, and the "
+          "sign of the\nresource-cost line is not stable across them: on the "
+          "packaged fleet the scheme\nlowers resource cost on some draws and raises "
+          "it on others. Run tools/ten_seeds.py,\nor read the envelope committed "
+          "under outputs/canonical/, before treating the\nnumber above as the "
+          "model's answer rather than this draw's.")
+    print("\nA stylised fleet. Illustrative, and not a forecast of anything.")
     picture = plots.dashboard(legs, settings,
                               os.path.join(args.out, "dashboard.png"))
     print(f"wrote {path}\n      {picture}")

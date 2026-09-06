@@ -205,6 +205,21 @@ paying for plant the market was building anyway. Both are findings rather than
 defects, and both would be invisible in a model that reported only megawatts
 procured.
 
+## One seed is one weather sequence, and the cost answer is not stable across them
+
+The paired comparison is run on a single drawn weather and growth sequence. The
+reliability improvement is fairly robust to that draw. **The resource-cost line is
+not: it changes sign.** On the packaged fleet the scheme lowers resource cost on some
+seeds and raises it on others, and the seed the canonical outputs were generated with
+is among the ones where it lowers it.
+
+That is not a defect in the model, it is what a twenty-year run of a system with one
+drought weather-year in five looks like. It is recorded here because a single-seed
+cost figure reads exactly like a finding, and this one is not one. `tools/ten_seeds.py`
+writes the envelope and the committed copy sits beside the canonical outputs; the
+`compare` command now says so in its own output rather than leaving a reader to
+discover it.
+
 ## What the simplification costs elsewhere
 
 One region, so nothing locational: no interconnectors, no transmission build, no
