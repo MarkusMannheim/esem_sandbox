@@ -1,0 +1,29 @@
+cff-version: 1.2.0
+title: ESEM sandbox
+message: >-
+  If you use this model or its figures, please cite it, and please say that every
+  number it produces is illustrative rather than a forecast.
+type: software
+authors:
+  - family-names: Mannheim
+    given-names: Markus
+abstract: >-
+  A small agent-based model of one electricity market region, built to be read in an
+  afternoon. It simulates the region hour by hour: plant is dispatched and the price
+  is set by the last unit needed to meet demand. Over 20 annual steps, contracts
+  move risk between the firms in it, investors decide what to build against a view
+  of the future they extrapolate rather than forecast, and a procurement scheme can
+  be switched on and compared against the same weather. It is a simplification of a
+  larger research model, keeping that model's scarcity pricing, contract settlement
+  and investment rule, and dropping everything locational. The fleet is stylised and
+  the weather is synthetic.
+keywords:
+  - electricity market
+  - reliability
+  - capacity procurement
+  - agent-based model
+  - investment under uncertainty
+license: MIT
+repository-code: https://github.com/MarkusMannheim/esem_sandbox
+version: 0.1.0
+date-released: '2026-09-06'
