@@ -1,0 +1,65 @@
+running the merchant leg, 20 years (1 of 2, several minutes each)...
+running the esem leg, 20 years (2 of 2, several minutes each)...
+esem-sandbox: 20 years from 2026, one weather sequence shared by both legs (high growth, 3.3% a year)
+
+  year           merchant               ESEM   lane MW  levy $/MWh
+  2026        0.30 GWh   0.2x      0.30 GWh   0.2x      3711        0.53
+  2027        7.69 GWh   5.2x      7.69 GWh   5.2x         0        0.50
+  2028        2.82 GWh   1.8x      0.00 GWh   0.0x         0       -0.08
+  2029        0.00 GWh   0.0x      0.00 GWh   0.0x      1611       -1.23
+  2030        0.00 GWh   0.0x      0.00 GWh   0.0x         0       -1.20
+  2031        0.90 GWh   0.5x      0.00 GWh   0.0x      2567       -1.16
+  2032        0.13 GWh   0.1x      0.00 GWh   0.0x         0        0.74
+  2033        4.48 GWh   2.4x      0.00 GWh   0.0x         0        1.73
+  2034        6.57 GWh   3.5x      2.34 GWh   1.2x       779        2.45
+  2035        9.42 GWh   4.8x      3.07 GWh   1.6x       603        4.97
+  2036        0.40 GWh   0.2x      1.28 GWh   0.6x         0        4.37
+  2037       30.40 GWh  14.5x      0.00 GWh   0.0x         0        3.27
+  2038       30.92 GWh  14.2x      0.00 GWh   0.0x         0        1.49
+  2039      125.49 GWh  53.1x      0.00 GWh   0.0x       959        0.58
+  2040        1.16 GWh   0.5x      0.00 GWh   0.0x      1619        0.40
+  2041        0.00 GWh   0.0x      0.00 GWh   0.0x      1466        0.12
+  2042       98.30 GWh  37.2x     22.92 GWh   8.7x       888        1.22
+  2043        0.26 GWh   0.1x      0.00 GWh   0.0x       499        2.49
+  2044       28.18 GWh   9.9x      0.12 GWh   0.0x       754        1.79
+  2045       66.64 GWh  22.6x      1.81 GWh   0.6x         0       -0.87
+
+                                          merchant            ESEM
+unserved energy                            414.1G           39.5G
+  valued at the price cap                   8.41bn          0.80bn
+wholesale energy cost                     184.75bn        148.11bn
+scheme levy                                 0.00bn          1.62bn
+  the bill, all in                        193.16bn        150.54bn
+
+fuel and variable cost                     46.67bn         48.35bn
+fixed cost of the fleet                    17.90bn         18.25bn
+capital of new build                       67.30bn         67.70bn
+  the resource cost, all in               140.27bn        135.60bn
+
+unsubsidised build, nameplate MW              53,000          36,850
+awarded by the scheme, nameplate                   0          17,550
+  new plant in total                          53,000          54,400
+the same plant as firm MW                     21,930          20,837
+
+the scheme moves the bill by $42.62bn (down) and the resource cost by $4.67bn (down).
+the difference, $37.96bn, is a transfer: more capacity lowers the pool
+price, which moves money from generators to consumers without saving any of it.
+A comparison that showed only the bill would report the transfer as a benefit.
+of that resource-cost move, $7.60bn is outage the scheme avoided
+and -$2.94bn is fuel, fixed costs and capital: what got built
+instead of what would have been. The two add to the move above, and a negative
+figure ran against it.
+unserved energy is valued at the market price cap of $20,300/MWh. That is
+a regulatory figure standing in for what an outage costs, not a measurement of one.
+
+One seed, and not much of it travels. Run the same comparison on another weather
+sequence and both the outage line and the cost line can change sign. Neither this
+run's outage nor its total is therefore a property of the scheme, and neither should
+be quoted as one. What travels better is the sort: the outage avoided is largest on
+the fast-growing draws and smallest on the slow ones, where the scheme buys capacity
+that has little to do. tools/ten_seeds.py runs the envelope and decomposes it, and a
+copy sits under outputs/canonical/ten_seeds.csv.
+
+A stylised fleet. Illustrative, and not a forecast of anything.
+wrote outputs/canonical/comparison.csv
+      outputs/canonical/dashboard.png
