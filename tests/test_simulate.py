@@ -193,10 +193,11 @@ def test_longer_cover_never_leaves_the_system_less_reliable(settings, small, see
     get worse for it.
 
     Reliability rather than firm megawatts, because a lower hurdle changes what gets
-    built as well as how much. On these four draws cover reduces firm capacity three
-    times, by up to 795 MW, while unserved energy falls or holds every time: the
-    cheaper hurdle buys storage and solar in place of gas, and the fleet delivers
-    more from less firm plant. Pinning firm capacity would pin the mix.
+    built as well as how much, and firm megawatts on the table do not say when the
+    plant arrives. On the full lattice cover raises firm capacity on three of these
+    four draws and lowers it on the fourth, while unserved energy falls or holds on
+    every one, and on two of them it holds exactly whichever way the megawatts went.
+    Pinning firm capacity would pin the mix.
     """
     underwritten = load_settings({"investment": {"merchant_underwrite_years": 10}})
     plain = run(settings, ticks=TICKS, seed=seed, cells=small)
@@ -295,7 +296,7 @@ def test_an_award_commits_a_plant_the_merchant_rule_had_not_committed(settings, 
 
 
 def test_the_legs_coincide_exactly_when_the_lane_never_opens(settings, small):
-    """The coincidence the decomposition exercise rests on.
+    """The coincidence the decomposition probe rests on.
 
     The scheme's effect reaches the market through three channels: the exposure a
     long contract removes, the cost of capital it lowers, and the capacity it
@@ -316,15 +317,14 @@ def test_the_legs_coincide_exactly_when_the_lane_never_opens(settings, small):
     assert _fingerprint(scheme) == _fingerprint(merchant)
 
 
-def test_the_risk_channel_now_reaches_the_projection_as_well(settings, small):
-    """This test used to assert the opposite, and the change is deliberate.
+def test_the_risk_channel_reaches_the_projection_as_well(settings, small):
+    """Switching the risk premium off moves the fleet.
 
-    While the projection assumed one technology, the risk premium only scaled one
-    threshold and moved nothing: switching it off left the fleet identical over
-    four ticks, and the decomposition exercise leaned on that. Now the projection
-    chooses among technologies, and the premium is applied per technology, so it
-    decides WHICH plant the forecast assumes gets built as well as how much. That
-    reaches the prices every investor reads, and the fleet moves.
+    The projection chooses among technologies, and the premium is applied per
+    technology, so it decides which plant the forecast assumes gets built as well
+    as how much. That reaches the prices every investor reads, and the fleet moves.
+    A projection that assumed one technology would let the premium scale one
+    threshold and move nothing.
 
     The direction is not fixed, and the claim here is deliberately about movement
     rather than about sign. The premium pulls two ways: it raises every investor's
@@ -335,7 +335,7 @@ def test_the_risk_channel_now_reaches_the_projection_as_well(settings, small):
     moved nothing at all, so this assertion is about this seed and this tick count
     and not about every run.
 
-    What the decomposition exercise actually refutes survives and is the narrower
+    What the decomposition probe actually refutes survives and is the narrower
     claim: the effect of a long contract cannot be ATTRIBUTED to the exposure it
     removes. It cannot, because the channel does not even hold its sign across
     weather draws, while the capital it cheapens and the plant it procures do.
@@ -521,10 +521,10 @@ def test_an_unknown_clearing_rule_fails_rather_than_falling_back(settings, small
 
 def test_the_scheme_never_records_more_firm_capacity_than_it_built(settings, small):
     """Clearing hands back a part-filled bid and the award rounds it down to whole
-    generating units. Carrying the pre-rounding firm figure across that made the
-    scheme report contracting capacity it had not built, and pay for it: the strike
-    spreads the bid over the contracted volume, and the bid was sized on firm
-    megawatts that no longer existed."""
+    generating units. Carrying the pre-rounding firm figure across that would have
+    the scheme report contracting capacity it has not built, and pay for it: the
+    strike spreads the bid over the contracted volume, and the bid would be sized on
+    firm megawatts that do not exist."""
     from esem_sandbox.core.esem import firm_contribution_mw
     from esem_sandbox.core.simulate import ESEM
 
@@ -691,12 +691,11 @@ def test_a_short_run_is_a_prefix_of_a_long_one(settings):
     """One seed, two horizons: the shorter run's weather must be the longer run's
     opening years.
 
-    The peak band used to be drawn from the same generator as the shape year, after
-    it, so how many bands came out depended on how many shapes had been drawn first.
-    A four-year run and a 20-year run on one seed therefore saw different peak
-    bands in the same calendar years. The shape years were a prefix and the bands were
-    not, which is the tell: it was the order of two calls and not a decision. The
-    exercises run at reduced horizons, so this is where it mattered.
+    The peak band has its own random stream. Drawn from the shape year's generator,
+    after it, how many bands came out would depend on how many shapes had been drawn
+    first, and a four-year run and a 20-year run on one seed would see different
+    peak bands in the same calendar years. The scenarios run at reduced horizons, so
+    this is where it matters.
     """
     for seed in (SEED, 111, 7):
         short, long = draw_sequence(settings, seed, 4), draw_sequence(settings, seed, 20)
@@ -712,10 +711,10 @@ def test_a_short_run_is_a_prefix_of_a_long_one(settings):
 def test_an_award_does_not_hedge_a_producers_unrelated_merchant_plant(settings, small):
     """Winning an auction hedges the plant that won it, and nothing else.
 
-    The award flag used to be set to 1.0 on any win and never cleared or scoped to
-    the awarded unit, so from a producer's first award to the end of the run every
-    merchant project it priced carried a 12-year hedge it did not have. It biased
-    only the ESEM leg, which is one half of the comparison the model exists to make.
+    An award flag set on any win and never cleared or scoped to the awarded unit
+    would give every merchant project the producer prices, from its first award to
+    the end of the run, a 12-year hedge it does not have, and would bias only the
+    ESEM leg, which is one half of the comparison the model exists to make.
     """
     from esem_sandbox.core.simulate import ESEM
 
@@ -746,10 +745,9 @@ def test_an_award_does_not_hedge_a_producers_unrelated_merchant_plant(settings, 
 def test_a_tenor_of_zero_is_an_auction_with_no_contract(settings, small):
     """A documented setting: the notebook invites a reader to try 6, then 0.
 
-    Zero used to raise "tenor must be at least one year" partway through the run, so
-    the exercise could not be run at all. Zero means no contract, which is what the
-    scenario file always said it meant: the lane still buys, and the cost of capital
-    it would otherwise have bought down is left alone.
+    Zero means no contract, which is what the scenario file says it means: the lane
+    still buys, and the cost of capital it would otherwise have bought down is left
+    alone. A run that refused a zero tenor would leave that scenario unrunnable.
     """
     from esem_sandbox.core.simulate import ESEM
 
@@ -812,11 +810,12 @@ def test_sequential_repricing_changes_only_the_plant_just_decided(settings, smal
     was decided and by nothing else.
 
     Step 5 builds the forward view on one belief about how much everybody else
-    builds, and then advances that belief by a step. The repricing closure used to
-    read the advanced one, so the second producer in a tick faced a market containing
-    the first producer's plant AND a whole extra step of assumed entry. That is not
-    the mechanism the sequential rule exists to isolate, and the rule is one end of
-    the bracket this model reports on how much a market builds.
+    builds, and then advances that belief by a step. The repricing closure reads the
+    belief behind the view; reading the advanced one would have the second producer
+    in a tick face a market containing the first producer's plant and a whole extra
+    step of assumed entry, which is not the mechanism the sequential rule exists to
+    isolate, and the rule is one end of the bracket this model reports on how much a
+    market builds.
 
     Checked by running the rule and confirming it still differs from the default:
     the guard is the assertion below plus the comment at simulate.py step 5, because
@@ -841,10 +840,10 @@ def test_sequential_repricing_changes_only_the_plant_just_decided(settings, smal
 def test_a_recycled_strip_nets_the_bilateral_rung_one_for_one(settings):
     """A strip is one year's volume and so is a rung. A strip for a year inside the
     rung about to be written has to net that rung by its own volume, weighted by
-    its block's share of the year's hours; the netting used to divide by the tenor
-    a second time, on top of the rung's own division, so most of the strip's year
-    stayed hedged twice. A cap is not cover, and a strip outside the rung's years
-    does not count."""
+    its block's share of the year's hours. Dividing by the tenor a second time, on
+    top of the rung's own division, would leave most of the strip's year hedged
+    twice. A cap is not cover, and a strip outside the rung's years does not
+    count."""
     from esem_sandbox.core.contracts import CAP, SWAP, Contract
     from esem_sandbox.core.esem import ADMINISTRATOR
     from esem_sandbox.core.report import block_mask
@@ -902,11 +901,11 @@ def test_a_recycled_cap_nets_the_bilateral_cap_rung(settings):
 def test_a_built_plant_offers_on_the_same_basis_as_the_plant_already_there(settings):
     """The packaged wind and solar farms offer below zero in a surplus hour, a
     curtailment offer standing for certificate revenue the model does not carry.
-    A plant the model builds used to offer at the cost row's zero, so two vintages
-    of one technology sat in the merit order on two bases, the new one was
-    curtailed first, and from mid-run it set the surplus price at zero where the
-    packaged plant set it at minus 25 or minus 45. One offer per technology,
-    whatever the vintage; a peaker still offers its running cost."""
+    A plant the model builds offers on the same basis. Offering at the cost row's
+    zero would put two vintages of one technology in the merit order on two bases:
+    the new one curtailed first, and from mid-run setting the surplus price at zero
+    where the packaged plant sets it at minus 25 or minus 45. One offer per
+    technology, whatever the vintage; a peaker still offers its running cost."""
     from esem_sandbox.core.forward import anchor_fleet
     from esem_sandbox.core.simulate import _new_unit
     fleet_offer = {u.technology: u.srmc_per_mwh for u in settings.fleet

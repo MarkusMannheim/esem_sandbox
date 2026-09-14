@@ -66,7 +66,9 @@ dependencies are numpy and matplotlib.
 
 ## What the model does
 
-**Scarcity pricing.** In most hours the price is the running cost of the last plant
+### Scarcity pricing
+
+In most hours the price is the running cost of the last plant
 needed, which is tens of dollars. When there is not enough, the price climbs through
 customers who agree to be interrupted and on to the market price cap of $20,300/MWh.
 Almost all of a peaking plant's income arrives in those few hours, so it is modelled
@@ -75,12 +77,16 @@ administered cap that follow it in the real market. Plant and interruptible dema
 sit in one merit order, so a customer who will stop at $300/MWh is called before a
 generator offering at $480.
 
-**Contract settlement.** Swaps and caps settle against every one of those 8,760
+### Contract settlement
+
+Swaps and caps settle against every one of those 8,760
 hours, never against an average. A cap written at $300/MWh pays on the hours above
 $300 and on no others, so its value comes almost entirely from a handful of
 intervals. Averaging first would price it at nearly nothing.
 
-**The forward view, rebuilt every year.** Nobody here forecasts a price. Every year
+### The forward view, rebuilt every year
+
+Nobody here forecasts a price. Every year
 of the run the model writes down 45 possible futures, five weather patterns by three
 demand growth paths by three peak severities, each with fixed odds, and dispatches
 every one of them in full at 4, 8 and 12 years ahead. That is 135 whole years of
@@ -95,13 +101,17 @@ run.
 What comes out is a spread rather than a number: what a megawatt of each technology
 would earn in each of those futures. The investment rule works on the spread.
 
-**The investment rule.** A plant is built when what it expects to earn, per megawatt
+### The investment rule
+
+A plant is built when what it expects to earn, per megawatt
 per year, covers what it costs to own, per megawatt per year. Both sides are on that
 same basis, so no assumption about how often a plant runs enters the comparison. The
 investor is cautious rather than neutral: it values an uncertain income at less than
 its average, by an amount that shrinks as more of the plant's output is sold forward.
 
-**What the scheme writes.** An award is the contract the plant could actually back.
+### What the scheme writes
+
+An award is the contract the plant could actually back.
 Plant that can stand behind a scarcity hour writes a cap on its firm megawatts;
 wind, solar and storage write swaps on the blocks they generate in. The administrator
 holds those positions and offers them back to retailers at the market price for each
@@ -143,6 +153,15 @@ Take a few per cent of firm plant away and blackouts multiply, so a small
 disagreement about what to build becomes a large one about whether the lights stay
 on.
 
+What one weather draw shows is that draw's. Ten draws of the same comparison show
+the scheme buying reliability on seven and paying for it in real resources on most
+of them, and on three draws the market alone sheds less:
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="outputs/canonical/ten_seeds_dark.png">
+  <img alt="Outage avoided and plant and fuel spent, per seed, grouped by growth path" src="outputs/canonical/ten_seeds.png">
+</picture>
+
 A second bracket sits underneath every reliability figure here. The model paces
 construction with an annual limit on how many projects of one technology can start at
 once, and that limit is a choice rather than a measurement. Doubling it removes the
@@ -154,7 +173,7 @@ Read the chain of cause and effect rather than the size of any number. Every fig
 here is illustrative.
 
 Every number and chart on this page is produced by something you can run.
-`tools/doc_figures.py` draws the charts, and
+`tools/doc_figures.py` and `tools/ten_seeds_figure.py` draw the charts, and
 [outputs/canonical/README.md](outputs/canonical/README.md) lists the commands behind
 the rest.
 

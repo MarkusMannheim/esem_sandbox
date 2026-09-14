@@ -416,8 +416,8 @@ def test_the_five_series_chart_has_no_red_beside_a_green(settings):
     """The one chart that draws five series at once.
 
     matplotlib's default cycle puts green at index 2 and red at index 3, so drawing
-    five series from it in order puts the pair nobody can tell apart side by side. A
-    comment here used to say the chart avoided that; the code had stopped doing so.
+    five series from it in order puts the pair nobody can tell apart side by side,
+    so the chart draws them from a sequential scale instead.
     """
     import matplotlib.colors as mcolours
     from esem_sandbox.core.dispatch import dispatch_year
@@ -486,3 +486,41 @@ def test_the_pale_technologies_are_always_labelled():
             assert _contrast(fill, 0.0 if ink != "#ffffff" else 1.0) >= 3.0, (
                 f"the label written on {name} is not readable against it"
             )
+
+
+def test_the_ten_seed_figure_draws_from_the_committed_envelope(tmp_path, settings):
+    """The envelope's picture is drawn from the committed csv and nothing else, so it
+    regenerates in a second and cannot disagree with the table beside it."""
+    import csv
+    import pathlib
+    import sys
+    sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1] / "tools"))
+    import ten_seeds_figure as tsf
+
+    root = pathlib.Path(__file__).resolve().parents[1] / "outputs" / "canonical"
+    data = tsf.rows(str(root / "ten_seeds.csv"), settings.market["market_price_cap_per_mwh"])
+    assert len(data) == len(list(csv.DictReader(open(root / "ten_seeds.csv"))))
+    for r in data:
+        assert abs(r["outage"] + r["rest"] - r["total"]) < 1e-9
+    for name in ("light", "dark"):
+        with plots.theme(name):
+            path = tsf.ten_seeds_figure(data, str(tmp_path / f"ten_seeds_{name}.png"))
+        assert (tmp_path / f"ten_seeds_{name}.png").stat().st_size > 30_000
+
+
+def test_the_arrival_figure_draws_on_a_short_pair(tmp_path, settings, legs):
+    """Firm capacity commissioned so far is a running sum over builds and awards at
+    the table factor, and it ends at the compare command's own firm line."""
+    import pathlib
+    import sys
+    sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1] / "tools"))
+    import arrival_figure as af
+    from esem_sandbox.cli import firm_on_the_table
+
+    for leg in (MERCHANT, ESEM):
+        assert abs(sum(af.arrivals(settings, legs[leg]).values())
+                   - firm_on_the_table(settings, legs[leg])) < 1e-6
+    for name in ("light", "dark"):
+        with plots.theme(name):
+            path = af.arrival_figure(settings, legs, str(tmp_path / f"arrival_{name}.png"))
+        assert (tmp_path / f"arrival_{name}.png").stat().st_size > 30_000
