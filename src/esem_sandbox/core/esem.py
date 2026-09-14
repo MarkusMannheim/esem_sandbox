@@ -407,8 +407,10 @@ def recycle(admin: Administrator, settings: Settings, *, year: int,
             buyers: list[tuple[str, float]]) -> list[Contract]:
     """Offer each delivery year's position back to retailers, in the shape it is held.
 
-    Per tranche, from this year out to the recycling window, so a retailer can buy
-    cover for a year it can actually see. A cap is offered back as a cap and a block
+    Per tranche, from next year out to the recycling window, so a retailer can buy
+    cover for a year it can actually see. This year has already settled and aged off
+    the book by the time the administrator offers, so a strip dated this year would
+    settle nothing and be counted as sold. A cap is offered back as a cap and a block
     swap as a swap on the same block: they are different products and a retailer
     buying one is not covered for the other.
 
@@ -440,7 +442,7 @@ def recycle(admin: Administrator, settings: Settings, *, year: int,
     market = market_per_mwh or {}
     wanted = sum(mw for _name, mw in buyers)
     written: list[Contract] = []
-    for delivery in range(year, year + window + 1):
+    for delivery in range(year + 1, year + 1 + window):
         held = admin.positions(delivery)
         already = admin.sold_by_position(delivery)
         unsold = 0.0

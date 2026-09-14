@@ -335,7 +335,7 @@ def test_every_contract_the_scheme_writes_nets_to_zero(settings):
     admin = Administrator(awards=[award])
     strips = recycle(admin, settings, year=2030, buyers=[("retailer_a", 120.0), ("retailer_b", 80.0)])
     price = np.linspace(10.0, 300.0, 8760)
-    flows = settle_book(settings, [award] + strips, price, 2030)
+    flows = settle_book(settings, [award] + strips, price, 2031)
     assert sum(flows.values()) == pytest.approx(0.0, abs=1e-6), (
         "a contract moves money; it does not make any"
     )
@@ -366,8 +366,21 @@ def _held(volume_mw=1_000.0, strike=90.0, block="peak"):
 def test_unsold_volume_is_warehoused_rather_than_vanishing(settings):
     admin = Administrator(awards=[_held()])
     recycle(admin, settings, year=2030, buyers=[("retailer_a", 300.0)])
-    assert admin.warehoused_mw[2030] == pytest.approx(700.0)
-    assert admin.sold_mw(2030) == pytest.approx(300.0)
+    assert admin.warehoused_mw[2031] == pytest.approx(700.0)
+    assert admin.sold_mw(2031) == pytest.approx(300.0)
+
+
+def test_the_year_that_has_settled_is_not_offered(settings):
+    """The tick settles and ages the book before the administrator offers, so a
+    strip dated the current year would settle nothing, be dropped at the next
+    ageing, and still be counted as sold. Every strip is for a year still ahead,
+    and the warehoused figure for next year is exactly the position less what
+    sold."""
+    admin = Administrator(awards=[_held(volume_mw=1_000.0)])
+    strips = recycle(admin, settings, year=2030, buyers=[("retailer_a", 250.0)])
+    assert strips and all(c.start_year > 2030 for c in strips)
+    assert 2030 not in admin.warehoused_mw
+    assert admin.warehoused_mw[2031] == pytest.approx(1_000.0 - admin.sold_mw(2031))
 
 
 def test_a_position_is_offered_back_at_the_market_price_for_that_delivery(settings):
@@ -397,7 +410,7 @@ def test_what_the_administrator_does_not_recover_is_the_bid(settings):
     strips = recycle(admin, settings, year=2030, buyers=[("retailer_a", 100.0)],
                      market_per_mwh={"peak": market})
     price = np.full(8760, market)
-    flows = settle_book(settings, admin.awards + strips, price, 2030)
+    flows = settle_book(settings, admin.awards + strips, price, 2031)
     hours = float(block_mask(settings, "peak", 8760).sum())
     assert flows[ADMINISTRATOR] == pytest.approx(-uplift * 100.0 * hours, rel=1e-9), (
         "the administrator has to be out of pocket by the bid and by nothing else"
@@ -423,4 +436,4 @@ def test_a_recycled_strip_lasts_one_year(settings):
     strips = recycle(admin, settings, year=2030, buyers=[("retailer_a", 100.0)])
     assert all(c.tenor_years == 1 for c in strips)
     window = int(settings.esem["recycling_window_years"])
-    assert {c.start_year for c in strips} == set(range(2030, 2030 + window + 1))
+    assert {c.start_year for c in strips} == set(range(2031, 2031 + window))

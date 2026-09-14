@@ -630,6 +630,8 @@ def run(settings: Settings, *, ticks: int = 20, start_year: int = 2026,
             consumed = float(res.operational_demand_mw.sum())
             levy = levy_per_mwh(admin_net, settings, consumed)
             state.admin.levy_paid.append(levy * consumed)
+            # The position for the year just delivered, as it stood after its last
+            # offer: what nobody bought when this year was still ahead.
             warehoused = state.admin.warehoused_mw.get(year, 0.0)
 
         in_service = [u for u in state.fleet if u.in_service(year)]

@@ -198,8 +198,8 @@ contracted_wacc = 0.055
 # so nothing here has been changed to make it bind.
 screen_multiple_of_spot = 5.0
 screen_floor_per_mwh = 500.0
-# Recycling. Each delivery year from now to this many years ahead is offered back to
-# retailers as a one-year strip, in the shape the position is held and at the market
+# Recycling. Each delivery year from next year to this many years ahead is offered
+# back to retailers as a one-year strip, in the shape the position is held and at the market
 # price for that delivery.
 recycling_window_years = 3
 # What the administrator does with volume nobody buys. "warehouse" holds it,
