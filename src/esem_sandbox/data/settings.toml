@@ -190,8 +190,9 @@ contract_tenor_years = 12
 # The cost of capital a fully contracted megawatt is financed at. A contracted
 # megawatt is financed as debt would be and an uncontracted one as equity is, so
 # this is the channel through which a long-dated contract lowers what a plant needs
-# from the lane rather than only the risk of its investor. It prices the bid; the
-# resource cost books every plant's capital at the merchant rate on both legs.
+# from the lane rather than only the risk of its investor. It prices the bid, and
+# the resource cost books a contracted plant's capital at the same blended rate,
+# since the cheaper capital is a real saving to the economy.
 contracted_wacc = 0.055
 # The sanity screen, as the larger of a multiple of spot and a floor, so it scales
 # with a genuinely expensive market without collapsing to nothing in a cheap year.

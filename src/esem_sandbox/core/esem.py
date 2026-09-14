@@ -131,9 +131,10 @@ def blended_wacc(tech: TechCost, settings: Settings, contracted_share: float) ->
     equity is, so a project that is mostly contracted borrows more cheaply. This is
     the channel through which a long-dated contract lowers what the plant needs
     from the lane rather than only the risk of the investor, and it is why the
-    scheme can be worth more than the risk premium it removes. It changes the bid,
-    not the resource cost: the ledger books every plant's capital at the merchant
-    rate on both legs.
+    scheme can be worth more than the risk premium it removes. The ledger books
+    the plant's capital at this same rate, because a cheaper cost of capital is a
+    real saving to the economy: the price risk has moved to consumers, who carry
+    it more cheaply than the plant's financiers did.
     """
     floor = float(settings.esem["contracted_wacc"])
     share = float(np.clip(contracted_share, 0.0, 1.0))

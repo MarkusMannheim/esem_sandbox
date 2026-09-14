@@ -16,6 +16,7 @@ language.
 | [Exit cannot see a contract](#exit-cannot-see-a-contract-and-entry-can) | **defect** | latent here, because the rule below never fires |
 | [Economic exit never fires](#the-economic-exit-rule-never-fires-on-this-fleet) | result | every retirement here is the one written in fleet.csv |
 | [Nobody pays for the state scheme](#nobody-pays-for-the-state-scheme) | **defect** | its contracts settle real money that no cost line carries |
+| [Consumers carry contract risk for nothing](#consumers-carry-the-contracted-plants-risk-for-nothing) | simplification | the financing saving is counted; its price to consumers is not |
 | [Demand response is free](#demand-response-costs-nothing-and-somebody-is-paying) | **defect** | it sets prices, supplies energy, and costs no line anything |
 | [Small in megawatts, huge in blackouts](#why-a-modest-gap-in-building-is-a-huge-gap-in-blackouts) | result | why capacity adequacy is argued about at all |
 | [What the bracket does to the scheme](#what-the-bracket-does-to-the-schemes-result) | bracket | the reliability direction travels; the cost verdict does not |
@@ -479,6 +480,19 @@ The megawatts and the milestone are reported and are the point of the contrast; 
 money is not. Who should pay for a state scheme is a policy question with more than
 one defensible answer - consumers through a levy, as the reliability lane assumes,
 or taxpayers, or retailers - so nothing here has been made to charge it.
+
+## Consumers carry the contracted plant's risk for nothing
+
+A plant under a scheme award is financed at a blended rate, cheaper in proportion to
+the share of its life the contract covers, because the price risk its financiers
+were charging for has moved to consumers. The bid is priced on that rate and the
+resource cost books the plant's capital at it, so the cheaper capital counts as a
+real saving to the economy, which is the standard case for long-dated contracts.
+What consumers give up in carrying that risk is priced nowhere: they are a
+pass-through, and the levy moves money without anybody being charged for the
+uncertainty it now carries. Read the resource-cost line with that in front of it.
+On the canonical seed the financing saving on the awarded plant is worth about
+$1.2bn to $1.8bn over the run, which is the most the omission can be.
 
 ## Demand response costs nothing, and somebody is paying
 

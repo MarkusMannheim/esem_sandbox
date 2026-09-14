@@ -179,7 +179,12 @@ class TechCost:
     @property
     def crf(self) -> float:
         """Capital recovery factor: the annuity that repays one dollar over the life."""
-        r, n = self.wacc, self.life_years
+        return self.crf_at(self.wacc)
+
+    def crf_at(self, wacc: float) -> float:
+        """The same annuity at another cost of capital, for plant financed under a
+        contract at the blended rate the contract earns it."""
+        r, n = wacc, self.life_years
         if r <= 0:
             return 1.0 / n
         return r / (1.0 - (1.0 + r) ** -n)

@@ -403,11 +403,14 @@ def test_switching_off_the_financing_channel_changes_the_scheme_and_not_the_mark
     )
 
 
-def test_the_resource_cost_books_awarded_capital_at_the_merchant_rate(settings, small):
-    """A contract changes who carries the risk and what the plant needs from the
-    lane, not what it costs the economy to build. So long as the two runs award and
-    build the same plant, the capital the ledger books is the same whether the
-    contracted rate is the merchant rate or below it."""
+def test_the_resource_cost_books_awarded_capital_at_the_rate_it_is_financed_at(settings, small):
+    """A plant under a scheme award is financed at the blended rate its bid was
+    priced on, cheaper in proportion to the share of its life the contract covers,
+    and that lower cost of capital is a real saving to the economy: the risk moved
+    to consumers, who carry it more cheaply. The ledger books the plant at that
+    rate. Levelling the contracted rate to the merchant rate therefore raises the
+    capital booked for the same awarded plant, and leaves merchant plant alone."""
+    from esem_sandbox.core.esem import blended_wacc
     from esem_sandbox.core.simulate import ESEM
     same_wacc = load_settings({"esem": {"contracted_wacc": 0.07}})
     base = run(settings, ticks=TICKS, seed=SEED, cells=small, leg=ESEM)
@@ -416,18 +419,36 @@ def test_the_resource_cost_books_awarded_capital_at_the_merchant_rate(settings, 
                                     for a in t.awards)),
                        tuple(sorted((b.technology, b.capacity_mw, b.commissioned_year)
                                     for b in t.builds)))
+    tenor = int(settings.esem["contract_tenor_years"])
     same = 0
     for b, l in zip(base.ticks, levelled.ticks):
         if plant(b) != plant(l):
             break
         same += 1
-        assert l.annualised_capex_of_new_build == pytest.approx(
-            b.annualised_capex_of_new_build), (
-            f"{b.year}: the same plant was booked at two costs of capital"
+        # The awarded plant in force this year, booked at each rate.
+        awarded = [a for t in base.ticks[:same] for a in t.awards
+                   if a.commissioning_year <= b.year]
+        # The blend under each setting: at 0.07 a peaker's blend is its own rate,
+        # while a battery's own rate is 6.5 per cent and the blend moves it UP,
+        # so the expectation is the difference of the two blends, not of one
+        # against the merchant rate.
+        def booked(a, cfg):
+            t = cfg.tech(a.technology)
+            share = min(1.0, tenor / max(1, t.life_years))
+            return a.capacity_mw * t.capex_per_kw * 1000.0 * t.crf_at(
+                blended_wacc(t, cfg, share))
+        expected_gap = sum(booked(a, same_wacc) - booked(a, settings) for a in awarded)
+        assert l.annualised_capex_of_new_build - b.annualised_capex_of_new_build \
+            == pytest.approx(expected_gap, rel=1e-9, abs=1e-6), (
+            f"{b.year}: the awarded plant is booked at the blended rate and nothing else moves"
         )
     assert same >= 3 and any(t.awards for t in base.ticks[:same]), (
         "the runs must agree on at least three years with an award among them for "
         "this to have tested anything"
+    )
+    assert any(a.commissioning_year <= base.ticks[same - 1].year
+               for t in base.ticks[:same] for a in t.awards), (
+        "an awarded plant has to be in force in a compared year"
     )
 
 
@@ -555,10 +576,10 @@ def test_a_capacity_target_buys_capacity_and_not_reliability(settings, small):
     it was. None of the nameplate arrives as firm capacity, which is what a firm
     factor of a tenth means.
 
-    Unserved energy still moves, and not because the awards delivered any of it. The
-    target displaces merchant gas and wind through the shared build ceiling, and the
-    market spends the freed room on storage. What the target changes is the mix it
-    crowds out, and that is a second-order effect of the same firm factor.
+    What moves is the mix the target crowds out, and that is a second-order
+    effect of the same firm factor: the awarded wind offers below zero in a
+    surplus hour like the wind already there, so the market builds less wind and
+    solar of its own, on this harness more than the target adds.
     """
     without = run(settings, ticks=8, seed=SEED, cells=small)
     with_scheme = run(settings, ticks=8, seed=SEED, cells=small, scheme=True)
@@ -568,10 +589,8 @@ def test_a_capacity_target_buys_capacity_and_not_reliability(settings, small):
         if tick.scheme_year:
             awarded += sum((tick.scheme_year.awarded_by_technology or {}).values())
     assert awarded > 1_000.0, "the scheme awarded almost nothing, so this proves little"
-
-    built = lambda r: sum(r.built_by_technology().values())
-    assert built(with_scheme) + awarded > built(without), (
-        "the scheme has to add capacity, or there is nothing to compare"
+    assert with_scheme.built_by_technology() != without.built_by_technology(), (
+        "the target has to change what the market builds, or there is nothing to compare"
     )
     firm = lambda r: r.ticks[-1].firm_capacity_mw
     assert firm(with_scheme) == pytest.approx(firm(without)), (

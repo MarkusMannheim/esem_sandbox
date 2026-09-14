@@ -294,12 +294,14 @@ class RunResult:
         money spent before it started would compare two legs on cashflows neither of
         them moved.
 
-        New capital is annualised at the merchant cost of capital on both legs,
-        whether or not the plant holds a contract. A contract moves price risk from
-        the investor to consumers and lowers what the plant needs from the lane;
-        it does not change what the plant costs the economy to build, and booking
-        a cheaper rate on contracted plant would make this figure depend on the
-        contract's design rather than on the plant.
+        New capital is annualised at the rate each plant is actually financed at:
+        the merchant cost of capital for merchant plant, and for plant under a
+        scheme award or a state-target contract the blended rate its bid was
+        priced on, cheaper in proportion to the share of its life the contract
+        covers. A contract moves price risk from the plant's financiers to
+        consumers, who carry it more cheaply, and the lower cost of capital that
+        follows is a real saving to the economy and is counted here. What
+        consumers' side of that risk costs is not priced anywhere in the model.
 
         What it costs to run the administrator IS counted. Consumers pay it through
         the levy, and staffing a statutory body consumes real resources whoever
@@ -905,9 +907,16 @@ def _auction(settings: Settings, state: RunState, view: ForwardView,
         built[tech.technology] = built.get(tech.technology, 0.0) + capacity
         name = f"{tech.technology}_{year}_{line.bid.bidder}_awarded"
         unit = _new_unit(tech, capacity, name, year)
+        # Booked at the rate the plant is actually financed at: the blend the bid
+        # was priced on, since a contracted megawatt borrows as debt does. A
+        # cheaper cost of capital under a contract is a real saving to the
+        # economy, the risk having moved to consumers who carry it more cheaply;
+        # what consumers' side of that risk costs is not priced here.
+        covered = min(1.0, tenor / max(1, tech.life_years))
         state.new_capital.append((
             unit.commissioned_year, unit.retirement_year,
-            capacity * tech.capex_per_kw * 1000.0 * tech.crf))
+            capacity * tech.capex_per_kw * 1000.0
+            * tech.crf_at(blended_wacc(tech, settings, covered))))
         state.fleet = state.fleet + (unit,)
         state.roster = tuple(
             replace(a, units=a.units + (name,)) if a.name == line.bid.bidder else a
@@ -1017,8 +1026,11 @@ def _commit_scheme_award(settings: Settings, state: RunState, line, row, *,
     built[tech.technology] = built.get(tech.technology, 0.0) + capacity
     name = f"{tech.technology}_{year}_{line.bid.bidder}_scheme"
     unit = _new_unit(tech, capacity, name, year)
+    # At the blended rate the bid was priced on, as for a lane award.
+    share = min(1.0, row.tenor_years / max(1, tech.life_years))
     state.new_capital.append((unit.commissioned_year, unit.retirement_year,
-                              capacity * tech.capex_per_kw * 1000.0 * tech.crf))
+                              capacity * tech.capex_per_kw * 1000.0
+                              * tech.crf_at(blended_wacc(tech, settings, share))))
     state.fleet = state.fleet + (unit,)
     state.roster = tuple(
         replace(a, units=a.units + (name,)) if a.name == line.bid.bidder else a
