@@ -63,7 +63,9 @@ def achieved_swap_cover(agent: Agent, book: list[Contract], settings: Settings,
 
     Swaps only. A written cap does not fix the writer's price on its output below
     the strike, so it is not price-certain cover in the sense that matters to a
-    financier; its income enters the decision as income, not as certainty.
+    financier, and it enters no build decision here: the candidate is judged on
+    its energy rent, and the cap lane's premium is priced beside it by the same
+    caution, never added to it.
 
     A peak-only swap covers six hours in 24, so it is weighted at a quarter. Counting
     it as though it covered the day would overstate cover fourfold.

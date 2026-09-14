@@ -403,6 +403,34 @@ def test_switching_off_the_financing_channel_changes_the_scheme_and_not_the_mark
     )
 
 
+def test_the_resource_cost_books_awarded_capital_at_the_merchant_rate(settings, small):
+    """A contract changes who carries the risk and what the plant needs from the
+    lane, not what it costs the economy to build. So long as the two runs award and
+    build the same plant, the capital the ledger books is the same whether the
+    contracted rate is the merchant rate or below it."""
+    from esem_sandbox.core.simulate import ESEM
+    same_wacc = load_settings({"esem": {"contracted_wacc": 0.07}})
+    base = run(settings, ticks=TICKS, seed=SEED, cells=small, leg=ESEM)
+    levelled = run(same_wacc, ticks=TICKS, seed=SEED, cells=small, leg=ESEM)
+    plant = lambda t: (tuple(sorted((a.technology, a.capacity_mw, a.commissioning_year)
+                                    for a in t.awards)),
+                       tuple(sorted((b.technology, b.capacity_mw, b.commissioned_year)
+                                    for b in t.builds)))
+    same = 0
+    for b, l in zip(base.ticks, levelled.ticks):
+        if plant(b) != plant(l):
+            break
+        same += 1
+        assert l.annualised_capex_of_new_build == pytest.approx(
+            b.annualised_capex_of_new_build), (
+            f"{b.year}: the same plant was booked at two costs of capital"
+        )
+    assert same >= 3 and any(t.awards for t in base.ticks[:same]), (
+        "the runs must agree on at least three years with an award among them for "
+        "this to have tested anything"
+    )
+
+
 def test_a_plant_can_be_closed_by_policy_rather_than_economics(settings, small):
     """Forced closure is separate from the economic exit rule and deliberately so.
     Exit is a decision a firm takes when its going-forward position turns negative

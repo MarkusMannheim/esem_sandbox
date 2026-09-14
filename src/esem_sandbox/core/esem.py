@@ -129,9 +129,11 @@ def blended_wacc(tech: TechCost, settings: Settings, contracted_share: float) ->
 
     A contracted megawatt is financed as debt would be and an uncontracted one as
     equity is, so a project that is mostly contracted borrows more cheaply. This is
-    the channel through which a long-dated contract lowers the cost of the plant
-    rather than only the risk of the investor, and it is why the scheme can be worth
-    more than the risk premium it removes.
+    the channel through which a long-dated contract lowers what the plant needs
+    from the lane rather than only the risk of the investor, and it is why the
+    scheme can be worth more than the risk premium it removes. It changes the bid,
+    not the resource cost: the ledger books every plant's capital at the merchant
+    rate on both legs.
     """
     floor = float(settings.esem["contracted_wacc"])
     share = float(np.clip(contracted_share, 0.0, 1.0))

@@ -289,6 +289,13 @@ class RunResult:
         money spent before it started would compare two legs on cashflows neither of
         them moved.
 
+        New capital is annualised at the merchant cost of capital on both legs,
+        whether or not the plant holds a contract. A contract moves price risk from
+        the investor to consumers and lowers what the plant needs from the lane;
+        it does not change what the plant costs the economy to build, and booking
+        a cheaper rate on contracted plant would make this figure depend on the
+        contract's design rather than on the plant.
+
         What it costs to run the administrator IS counted. Consumers pay it through
         the levy, and staffing a statutory body consumes real resources whoever
         writes the cheque, so leaving it out here would class it as a transfer and

@@ -214,7 +214,11 @@ def simulate(args: argparse.Namespace) -> int:
             "unserved_gwh": round(tick.unserved_gwh, 4),
             "unserved_fraction": round(tick.unserved_fraction, 8),
             "times_the_standard": round(tick.unserved_fraction / standard, 2),
-            "expected_unserved_fraction_ahead": round(
+            # The forward's expectation at its nearest projection year, four
+            # years past this row, on the view the tick's decisions were taken
+            # against. It is what the investors and the lane saw, and no forecast
+            # of any year in this table.
+            "expected_unserved_fraction_4y_ahead": round(
                 tick.expected_unserved_fraction, 8),
             "firm_capacity_mw": round(tick.firm_capacity_mw),
             "built_mw": round(sum(b.capacity_mw for b in tick.builds)),

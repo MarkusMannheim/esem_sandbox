@@ -104,7 +104,9 @@ Most of the rest is money moving from consumers to generators.
 
 **The resource cost.** What the whole thing costs the economy: fuel, the fixed
 cost of keeping plant open, the capital spent on new plant, and the value of the
-energy nobody got. This is the real cost.
+energy nobody got. This is the real cost. New plant's capital is counted at the
+same cost of capital on both legs, contract or no contract, because a contract
+changes who carries the risk and not what the plant costs to build.
 
 **Transfer.** Money moving between two parties without anything being consumed or
 saved. Most of the difference between the two lines above is transfer. **A policy
