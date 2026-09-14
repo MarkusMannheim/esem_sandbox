@@ -615,9 +615,9 @@ Two firm figures appear for the scheme leg and they are not addable. The table
 figure counts every megawatt either leg added at the factor its technology carries
 in `tech_costs.csv`, awarded plant included, which is the only basis on which the two
 columns can be read against each other. The lane's own figure is what it contracted,
-measured against the shortfall it was buying for (a gas turbine at its availability
-and factor, a store for as long as its energy lasts against the gap), and it runs at
-about half the table figure for the same plant.
+measured against the shortfall it was buying for (a gas turbine at its availability,
+a store for as long as its energy lasts against the gap), and the two are not
+addable.
 
 What the scheme buys, then, is a fleet a little larger in megawatts and a tenth as
 short in energy: plant contracted to stand behind a scarcity hour, arriving in the

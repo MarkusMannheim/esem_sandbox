@@ -827,28 +827,20 @@ def _auction(settings: Settings, state: RunState, view: ForwardView,
 
     kept = screen(bids, float(res.price.mean()), settings)
     out: list[Award] = []
-    for line in clear_pay_as_bid(kept, lane_mw):
+    # The ceiling binds on what is AWARDED, not only on what may be offered.
+    # Every producer bids the same size, so clearing four of them awarded four
+    # times the ceiling: 2,400 MW of eight-hour batteries against a limit of
+    # 1,200. A supply chain does not get bigger because more firms asked. The
+    # ceiling binds inside the clearing, each line cut to whole generating units
+    # within its technology's room and the firm megawatts scaled with the cut, so
+    # a bid the ceiling cuts hands its lane back to the next bidder instead of
+    # consuming it and then being dropped.
+    room = {name: build_ceiling_mw(peak_mw, t, settings) - built.get(name, 0.0)
+            for name, (t, _c, _f) in priced.items()}
+    sizes = {name: t.unit_size_mw for name, (t, _c, _f) in priced.items()}
+    for line in clear_pay_as_bid(kept, lane_mw, room_mw=room, unit_size_mw=sizes):
         tech, _cap, _firm = priced[line.bid.technology]
-        # The ceiling binds on what is AWARDED, not only on what may be offered.
-        # Every producer bids the same size, so clearing four of them awarded four
-        # times the ceiling: 2,400 MW of eight-hour batteries against a limit of
-        # 1,200. A supply chain does not get bigger because more firms asked.
-        room = build_ceiling_mw(peak_mw, tech, settings) \
-            - built.get(tech.technology, 0.0)
-        units = int(min(line.capacity_mw, room) // tech.unit_size_mw)
-        if units < 1:
-            continue
-        capacity = units * tech.unit_size_mw
-        # The firm megawatts are scaled with the truncation, not carried across it.
-        # Clearing hands back a part-filled bid, and rounding that down to whole
-        # generating units shrinks the plant; keeping the pre-rounding firm figure
-        # made the scheme report contracting more capacity than it built AND pay for
-        # it, because the strike spreads the bid over the contracted volume and the
-        # bid was sized on firm megawatts that no longer existed.
-        shrink = capacity / line.capacity_mw if line.capacity_mw > 0 else 0.0
-        line = AwardLine(bid=line.bid, firm_mw=line.firm_mw * shrink,
-                         capacity_mw=capacity,
-                         price_per_mw_year=line.price_per_mw_year)
+        capacity = line.capacity_mw
         commissioning = year + tech.lead_years
         # A tenor of zero means no contract at all, so the scheme is an auction and
         # nothing else. That is a documented exercise: it separates what the lane

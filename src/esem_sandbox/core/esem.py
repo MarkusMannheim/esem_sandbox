@@ -189,7 +189,10 @@ class AwardLine:
         return self.firm_mw * self.price_per_mw_year
 
 
-def clear_pay_as_bid(bids: list[Bid], gap_mw: float) -> list[AwardLine]:
+def clear_pay_as_bid(bids: list[Bid], gap_mw: float, *,
+                     room_mw: dict[str, float] | None = None,
+                     unit_size_mw: dict[str, float] | None = None
+                     ) -> list[AwardLine]:
     """Cheapest first until the gap is closed, each paid what it asked.
 
     Pay-as-bid, so the last megawatt in does not lift the price of every megawatt
@@ -197,11 +200,19 @@ def clear_pay_as_bid(bids: list[Bid], gap_mw: float) -> list[AwardLine]:
     out inside it: a lane that rounded up would buy capacity it had not decided it
     needed, and one that rounded down would stop short of the standard it exists to
     meet.
+
+    With ``room_mw`` and ``unit_size_mw`` the year's build room per technology
+    binds inside the clearing: each line is cut to whole generating units within
+    the room its technology has left, and what the cut hands back stays in the
+    gap for the next bid. Cutting after clearing instead consumed the gap with
+    bids that were then dropped at the ceiling, so the bidder behind them was
+    offered less lane than the lane had.
     """
     if gap_mw <= 0:
         return []
     out: list[AwardLine] = []
     left = gap_mw
+    room = dict(room_mw) if room_mw is not None else None
     # Stable sort on price alone. Breaking ties by name would hand every award to
     # whichever firm sorts first, which is the auction's version of the build
     # ceiling being captured by whoever is asked first; the caller offers the bids
@@ -211,8 +222,17 @@ def clear_pay_as_bid(bids: list[Bid], gap_mw: float) -> list[AwardLine]:
             break
         take = min(bid.firm_mw, left)
         share = take / bid.firm_mw
-        out.append(AwardLine(bid=bid, firm_mw=take,
-                             capacity_mw=bid.capacity_mw * share,
+        capacity = bid.capacity_mw * share
+        if room is not None:
+            unit = float((unit_size_mw or {}).get(bid.technology, 0.0)) or 1.0
+            capacity = min(capacity, room.get(bid.technology, capacity))
+            units = int(capacity // unit)
+            if units < 1:
+                continue
+            capacity = units * unit
+            take = bid.firm_mw * capacity / bid.capacity_mw
+            room[bid.technology] = room.get(bid.technology, capacity) - capacity
+        out.append(AwardLine(bid=bid, firm_mw=take, capacity_mw=capacity,
                              price_per_mw_year=bid.price_per_mw_year))
         left -= take
     return out
@@ -529,8 +549,14 @@ def firm_contribution_mw(tech: TechCost, capacity_mw: float,
                          anchor: Anchor) -> float:
     """The firm capacity one plant delivers to the lane.
 
-    Dispatchable plant is credited at its availability times its planner credit: it
-    can run whenever it is called, less the time it is out.
+    Dispatchable plant is credited at its availability: it can run whenever it is
+    called, less the time it is out. That is the basis the requirement was
+    measured on, since the lane is sized from a dispatch that offers every thermal
+    unit at capacity times availability, and it is the basis the next tick nets
+    the plant against once it is in the fleet. A credit that also applied the
+    firm factor from the cost table closed the requirement on one basis and
+    re-measured it on another, so the lane bought more than it had measured it
+    needed and then found the gap smaller than it had closed.
 
     Storage is MEASURED, not credited. A store can only cover a shortfall for as long
     as its energy lasts, so a four-hour battery against a six-hour gap delivers two
@@ -541,10 +567,10 @@ def firm_contribution_mw(tech: TechCost, capacity_mw: float,
     """
     rated = capacity_mw * tech.availability
     if not tech.duration_h:
-        return rated * tech.firm_factor
+        return rated
     gap_hours = shortfall_hours_per_day(anchor)
     if gap_hours <= 0:
-        return rated * tech.firm_factor
+        return rated
     return rated * min(1.0, float(tech.duration_h) / gap_hours)
 
 

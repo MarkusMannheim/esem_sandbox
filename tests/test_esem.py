@@ -130,11 +130,68 @@ def test_storage_firm_credit_is_measured_against_the_gap_it_must_cover(settings)
     assert tight == pytest.approx(100.0 * tech.availability), "8h covers a 4h gap whole"
 
 
-def test_dispatchable_firm_credit_is_availability_times_planner_credit(settings):
+def test_dispatchable_firm_credit_is_the_basis_the_lane_was_measured_on(settings):
+    """The requirement is measured from a dispatch that offers every thermal unit
+    at capacity times availability, and the next tick nets an awarded unit on the
+    same basis. The closing credit has to be that basis and no other: a credit
+    that also applied the table's firm factor closed a gas bid at 0.62 of
+    nameplate and netted it at 0.73 the next tick, so the lane bought more than it
+    measured it needed and found the gap smaller than it had closed."""
     short = np.zeros(8760); short[0:3] = 100.0
+    for name in ("ocgt", "ccgt"):
+        tech = settings.tech(name)
+        assert firm_contribution_mw(tech, 200.0, _anchor([short])) == pytest.approx(
+            200.0 * tech.availability)
+        assert tech.firm_factor < 1.0, "the table factor exists and is not applied"
+
+
+def test_the_lane_nets_an_awarded_unit_by_at_least_what_it_credited(settings):
+    """One basis both ways. Add an awarded gas unit to the fleet, rebuild the
+    projection, and the lane's requirement falls by at least the credit the unit
+    was awarded at. Storage is excluded: its credit is measured against the gap
+    and the dispatch re-places it, so its netting is close but not bounded."""
+    from esem_sandbox.core.forward import EntryState, cell_plan, dispatch_anchor
+    from esem_sandbox.core.simulate import _new_unit
+    from esem_sandbox.core.weather import generate_bundle
+    bundle = generate_bundle(settings.weather["seed"], settings.weather["shape_years"])
+    cells = tuple(c for c in cell_plan(settings) if c.shape_year in (0, 4)
+                  and c.growth_path == "high")
     tech = settings.tech("ocgt")
-    assert firm_contribution_mw(tech, 200.0, _anchor([short])) == pytest.approx(
-        200.0 * tech.availability * tech.firm_factor)
+    before = dispatch_anchor(settings, settings.fleet, bundle, offset=4, year=2030,
+                             peak_mw=12_500.0, cells=cells, entry=EntryState().mix(4))
+    need = lane_volume_mw(before, settings)
+    assert need > 0, "the anchor has to be short for the test to mean anything"
+    credit = firm_contribution_mw(tech, 600.0, before)
+    fleet = settings.fleet + (_new_unit(tech, 600.0, "ocgt_test_awarded", 2026),)
+    after = dispatch_anchor(settings, fleet, bundle, offset=4, year=2030,
+                            peak_mw=12_500.0, cells=cells, entry=EntryState().mix(4))
+    assert need - lane_volume_mw(after, settings) >= credit - 1e-6, (
+        f"credited {credit:,.1f} MW, the requirement fell by "
+        f"{need - lane_volume_mw(after, settings):,.1f}"
+    )
+
+
+def test_a_bid_the_ceiling_cuts_hands_its_lane_back(settings):
+    """Clearing took the third and fourth producers' bids in full and the award
+    loop then dropped them at the two-unit ceiling, so the lane they had consumed
+    was never offered to the bidder behind them. With the ceiling inside the
+    clearing the cut volume stays in the gap for the next bid."""
+    cheap = [_bid(f"p{i}", 100_000.0, tech="ocgt") for i in range(4)]
+    dear = _bid("q", 200_000.0, mw=500.0, firm=250.0, tech="ccgt")
+    # Each ocgt bid is 200 MW nameplate; the year has room for two units of it.
+    room = {"ocgt": 400.0, "ccgt": 1_000.0}
+    sizes = {"ocgt": 200.0, "ccgt": 250.0}
+    gap = sum(b.firm_mw for b in cheap) + dear.firm_mw * 0.5
+    lines = clear_pay_as_bid(cheap + [dear], gap, room_mw=room, unit_size_mw=sizes)
+    by_tech = {}
+    for line in lines:
+        by_tech[line.bid.technology] = by_tech.get(line.bid.technology, 0.0) + line.capacity_mw
+    assert by_tech["ocgt"] == pytest.approx(400.0), "two units, at the ceiling"
+    assert by_tech.get("ccgt", 0.0) > 0.5 * dear.capacity_mw, (
+        "the lane the cut bids handed back went to the dearer bidder"
+    )
+    assert all(line.capacity_mw % sizes[line.bid.technology] == 0 for line in lines)
+    assert sum(line.firm_mw for line in lines) <= gap + 1e-9
 
 
 def test_only_plant_that_can_be_relied_on_may_bid(settings):
