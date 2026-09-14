@@ -243,16 +243,29 @@ def going_forward_npv_per_mw(unit: Unit, view: ForwardView, settings: Settings,
     retirement schedule on the wrong cost.
 
     Between and beyond the anchors the same interpolation applies as for a
-    candidate, with the plant's own fixed operating cost as the terminal. That is
-    the going-forward analogue of the zero-profit terminal: past the horizon the
-    model assumes the plant covers its costs and no more, which is the assumption
-    that neither retires it nor saves it on the strength of years nobody modelled.
+    candidate, and past the last anchor the same terminal: the cost of new entry
+    for the plant's technology, which is the rent a market in long-run balance
+    pays any plant of that kind. One terminal per technology, read by the build
+    test and the exit test alike, so a plant the model built last year and the
+    candidate it was judged as read the same far-year rent. A plant with no cost
+    row (coal, hydro, pumped hydro) has no entrant to price the tail on and reads
+    its own fixed operating cost there, which is the zero-profit terminal for a
+    technology nobody builds.
+
+    Against that rent the plant pays only its own fixed operating cost each year,
+    so a young gas plant in a glut is kept: the far years pay it the entrant's
+    margin over operating cost, and at the market rate those years outweigh a
+    negative near term for any plant with about fifteen years or more left.
 
     Incumbents discount at one market rate rather than at a project WACC. There is
     no project to finance, and inventing a capital structure for a decision that
     has none would be precision without content.
     """
     fom = unit.fixed_cost_per_mw_year
+    try:
+        terminal = settings.tech(unit.technology).fixed_cost_per_mw_year
+    except KeyError:
+        terminal = fom
     anchors = {
         a.offset: a.expected(np.array(
             [o.unit_rent_per_mw_year[unit.unit] for o in a.outcomes]))
@@ -263,7 +276,7 @@ def going_forward_npv_per_mw(unit: Unit, view: ForwardView, settings: Settings,
         return 0.0                          # not measurable: never a reason to exit
     remaining = max(0, unit.retirement_year - year)
     r = float(settings.investment["discount_rate"])
-    return sum((interpolated_rent(anchors, u, fom) - fom) / (1.0 + r) ** u
+    return sum((interpolated_rent(anchors, u, terminal) - fom) / (1.0 + r) ** u
                for u in range(remaining))
 
 

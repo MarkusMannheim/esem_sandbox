@@ -272,6 +272,40 @@ def test_exit_reads_the_plant_s_own_cost_and_not_a_technology_proxy(settings):
     )
 
 
+def test_a_built_plant_and_its_candidate_read_one_far_year_rent(settings):
+    """Past the last projection year the build test values a candidate at its
+    technology's cost of new entry. The exit test used to value the plant the
+    model had just built at its operating cost alone in the same years, so one
+    plant's far years were worth $136,000 per MW-year on the day it was decided and
+    $16,000 the next tick. One terminal per technology, read by both."""
+    from esem_sandbox.core.forward import interpolated_rent
+    ocgt = next(u for u in settings.fleet if u.technology == "ocgt")
+    tech = settings.tech("ocgt")
+    zero = _view({"ocgt": [0.0] * 3}, unit_rents={ocgt.unit: [0.0] * 3})
+    r = float(settings.investment["discount_rate"])
+    remaining = ocgt.retirement_year - 2026
+    expected = sum(
+        (interpolated_rent({4: 0.0, 8: 0.0, 12: 0.0}, u, tech.fixed_cost_per_mw_year)
+         - ocgt.fixed_cost_per_mw_year) / (1.0 + r) ** u
+        for u in range(remaining))
+    assert going_forward_npv_per_mw(ocgt, zero, settings, 2026) == pytest.approx(expected)
+    assert tech.fixed_cost_per_mw_year > ocgt.fixed_cost_per_mw_year
+
+
+def test_a_young_gas_plant_in_a_glut_is_kept(settings):
+    """A plant with most of its life ahead of it earns the entrant's margin in the
+    years past the horizon, and at the market rate those years outweigh a run of
+    empty near years. A plant with only a few years left does not have them and
+    is retired on the same view."""
+    from dataclasses import replace
+    ocgt = next(u for u in settings.fleet if u.technology == "ocgt")
+    young = replace(ocgt, retirement_year=2026 + 25)
+    old = replace(ocgt, retirement_year=2026 + 6)
+    glut = _view({"ocgt": [0.0] * 3}, unit_rents={ocgt.unit: [0.0] * 3})
+    assert going_forward_npv_per_mw(young, glut, settings, 2026) > 0
+    assert going_forward_npv_per_mw(old, glut, settings, 2026) < 0
+
+
 def test_a_plant_with_no_measurable_rent_is_never_retired_for_it(settings):
     """A wind row's offer is a curtailment offer, not a cost, so it gets no rent
     number at all. Absence of a measurement is not evidence of failure."""
@@ -306,7 +340,13 @@ def test_a_good_year_resets_the_count(settings):
 def test_notices_are_staggered_worst_first(settings):
     """Each plant's exit is evaluated against a forward holding the rest of the
     fleet fixed, so a whole cohort can each conclude it should leave against a
-    picture in which the others all stayed."""
+    picture in which the others all stayed.
+
+    On this view the three coal stations fire and the gas rows do not: coal has
+    no cost row and reads its operating cost past the horizon, while the gas
+    plants have most of their life ahead and are kept by the entrant-cost tail,
+    which is the young-plant test above. The cap on notices per tick is what
+    this test is about, and three coal stations are enough to reach it."""
     eligible = [u for u in settings.fleet
                 if u.technology in EXIT_ELIGIBLE and u.in_service(2026)
                 and u.retirement_year > 2029]

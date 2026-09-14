@@ -441,6 +441,17 @@ anyway. It has three consequences:
 - if you change the fleet or the cost table, check this again before believing any
   claim about retirement, because the rule is closer to dormant than to tuned.
 
+Past the last projection year the exit test reads the same terminal the build test
+does: the cost of new entry for the plant's technology, which is what a market in
+long-run balance pays any plant of that kind. One consequence is deliberate.
+Against that rent a plant pays only its own operating cost, so a gas
+plant with about fifteen years or more left is kept whatever the near years say: the
+far years pay it the entrant's margin, and at the market rate they outweigh a run of
+empty ones. A young plant in a glut therefore never gives notice here. Coal, hydro and
+pumped hydro have no cost row and no entrant to price a tail on, so they read their
+own operating cost past the horizon, which is why the three coal stations are the
+plants that can fire on a poor view and the gas plants are not.
+
 ## Nobody pays for the state scheme
 
 The state capacity target writes real contracts. A generator sells, a counterparty
