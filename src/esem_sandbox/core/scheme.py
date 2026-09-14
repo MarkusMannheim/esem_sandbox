@@ -262,10 +262,35 @@ def load_scheme(settings: Settings) -> SchemeRow | None:
         raise ValueError(
             "scheme.csv holds more than one service; this model runs one scheme row"
         )
+    names = settings.scheme["technologies"]
+    if isinstance(names, str) or not all(isinstance(n, str) for n in names):
+        raise ValueError(
+            "[scheme] technologies must be a list of technology names, for example "
+            "[\"wind\", \"solar\"]"
+        )
+    for name in names:
+        try:
+            tech = settings.tech(name)
+        except KeyError:
+            raise ValueError(
+                f"[scheme] technologies names {name!r}, which is not a row of "
+                "tech_costs.csv"
+            ) from None
+        if tech.cap_eligible:
+            # The scheme bids, clears and screens per NAMEPLATE megawatt-year and
+            # writes what it awards as block swaps on expected output. A
+            # cap-eligible plant's award is a cap on firm megawatts at an expected
+            # payout the scheme does not compute, so a scheme naming one would
+            # record nameplate bought and write a contract on a different basis.
+            raise ValueError(
+                f"[scheme] technologies names {name!r}, which is cap-eligible; the "
+                "scheme buys nameplate and writes block swaps, so it cannot hold a "
+                "cap-eligible award"
+            )
     return SchemeRow(
         service=service,
         milestones=milestones,
-        technologies=tuple(settings.scheme["technologies"]),
+        technologies=tuple(names),
         ceiling_per_mw_year=float(settings.scheme["ceiling_per_mw_year"]),
         budget_per_year=float(settings.scheme["budget_per_year"]),
         tenor_years=int(settings.scheme["tenor_years"]),

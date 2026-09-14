@@ -10,7 +10,7 @@ import pytest
 from esem_sandbox.config import load_settings
 from esem_sandbox.core.esem import Bid
 from esem_sandbox.core.scheme import (
-    BUDGET, MET, NOTHING_SOUGHT, NO_ELIGIBLE_BIDS, PRICE_CEILING,
+    BUDGET, BUILD_CEILING, MET, NOTHING_SOUGHT, NO_ELIGIBLE_BIDS, PRICE_CEILING,
     SCHEME_COUNTERPARTY, SUPPLY, SchemeRow, clear_scheme, load_scheme,
     scheme_contracts,
 )
@@ -131,3 +131,51 @@ def test_a_milestone_is_nameplate_and_not_firm(settings):
         "the technologies this scheme buys are not firm, which is the whole reason "
         "its milestone has to be read as nameplate"
     )
+
+
+def test_a_scheme_technology_that_is_not_a_technology_fails_loudly(settings):
+    """The loader promises that a typo cannot leave a default in place. A scheme
+    naming a technology no cost row carries used to load, bid nothing, and report
+    the year as one in which nobody eligible bid; a bare string became four
+    single-letter names the same way."""
+    from esem_sandbox.config import load_settings
+    for bad in (["battery"], "wind", ["wind", "solr"]):
+        with pytest.raises(ValueError, match="technolog"):
+            load_scheme(load_settings({"scheme": {"technologies": bad}}))
+
+
+def test_a_scheme_cannot_name_a_cap_eligible_technology(settings):
+    """The scheme bids and screens per nameplate megawatt-year and writes block
+    swaps on expected output. A cap-eligible plant's award is a cap on firm
+    megawatts at an expected payout the scheme never computes, so naming one would
+    book nameplate bought against a contract on another basis."""
+    capped = [t.technology for t in settings.tech_costs if t.cap_eligible]
+    assert capped, "the packaged table carries cap-eligible rows"
+    with pytest.raises(ValueError, match="cap-eligible"):
+        load_scheme(load_settings({"scheme": {"technologies": [capped[0]]}}))
+
+
+def test_a_year_nobody_could_build_in_is_reported_as_the_ceiling(settings):
+    """When every eligible technology's build room for the year is already spent,
+    the milestone is missed on the ceiling. The round used to report it as a year
+    in which nobody eligible bid, which is a different reason."""
+    from esem_sandbox.core.agents import default_roster
+    from esem_sandbox.core.forward import cell_plan, forward_view
+    from esem_sandbox.core.investment import build_ceiling_mw
+    from esem_sandbox.core.simulate import RunState, _scheme_round
+    from esem_sandbox.core.weather import generate_bundle
+
+    state = RunState(year=2030, fleet=settings.fleet, roster=default_roster())
+    bundle = generate_bundle(int(settings.weather["seed"]),
+                             int(settings.weather["shape_years"]))
+    peak = 12_500.0
+    cells = tuple(c for c in cell_plan(settings) if c.shape_year == 0)
+    view = forward_view(settings, state.fleet, bundle, year=2030, peak_mw=peak,
+                        entry=state.entry, cells=cells)
+    row = _row(milestones={2030: 2_000.0})
+    spent = {name: build_ceiling_mw(peak, settings.tech(name), settings)
+             for name in row.technologies}
+    year, lines = _scheme_round(settings, state, view, row, year=2030,
+                                peak_mw=peak, built=spent, tick=0)
+    assert not lines
+    assert year.binding == BUILD_CEILING

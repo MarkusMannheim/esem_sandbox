@@ -227,6 +227,9 @@ reserve_margin = 0.15
 # reliability it did not buy: nine gigawatts of nameplate wind at a firm factor of a
 # tenth is nine hundred megawatts of firm capacity, and a scheme that reported the
 # first number as though it were the second would be out by a factor of ten.
+# Each name must be a row of tech_costs.csv and none may be cap-eligible: the scheme
+# writes block swaps on expected output, which is not the instrument a peaker or a
+# long-duration store can back. A wrong name fails at load.
 technologies = ["wind", "solar"]
 # The most the scheme will pay, per MW-year of nameplate, net of what the plant
 # expects to earn in the pool. A policy parameter with no published source: it is

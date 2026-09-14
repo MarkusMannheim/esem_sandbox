@@ -66,8 +66,8 @@ from .esem import (
     long_run_cost_per_mw_year, recycle, reserve_margin_gap_mw, screen,
 )
 from .scheme import (
-    BUILD_CEILING, MET, SCHEME_COUNTERPARTY, SchemeYear, clear_scheme, load_scheme,
-    scheme_contracts, summarise, truncate_to_ceiling,
+    BUILD_CEILING, MET, NO_ELIGIBLE_BIDS, SCHEME_COUNTERPARTY, SUPPLY, SchemeYear,
+    clear_scheme, load_scheme, scheme_contracts, summarise, truncate_to_ceiling,
 )
 from .investment import (
     ExitLedger, achieved_swap_cover, build_ceiling_mw, build_size_mw,
@@ -889,15 +889,17 @@ def _scheme_round(settings: Settings, state: RunState, view: ForwardView,
     representative = max(a.risk_aversion for a in producers)
 
     bids: list[Bid] = []
+    no_room: list[str] = []
     for name in row.technologies:
-        try:
-            tech = settings.tech(name)
-        except KeyError:
-            continue
+        tech = settings.tech(name)     # every name was checked when the row loaded
         capacity = build_size_mw(peak_mw, tech, settings)
         room = build_ceiling_mw(peak_mw, tech, settings) - built.get(name, 0.0)
         capacity = min(capacity, room)
         if capacity < tech.unit_size_mw:
+            # The year's build room for this technology is spent before the scheme
+            # asks. That is the ceiling binding, and it is reported as such below
+            # rather than as a year in which nobody eligible bid.
+            no_room.append(name)
             continue
         capacity = (capacity // tech.unit_size_mw) * tech.unit_size_mw
         share = min(1.0, row.tenor_years / max(1, tech.life_years))
@@ -919,24 +921,19 @@ def _scheme_round(settings: Settings, state: RunState, view: ForwardView,
     # a year can build.
     room = {name: build_ceiling_mw(peak_mw, settings.tech(name), settings)
                   - built.get(name, 0.0)
-            for name in row.technologies if _has_tech(settings, name)}
+            for name in row.technologies}
     sizes = {name: settings.tech(name).unit_size_mw for name in room}
     lines, ceiling_bound = truncate_to_ceiling(lines, room, sizes)
-    if ceiling_bound and year_record.binding == MET:
-        year_record = summarise(row, year, year_record.sought_mw, lines,
-                                BUILD_CEILING)
-    else:
-        year_record = summarise(row, year, year_record.sought_mw, lines,
-                                year_record.binding)
+    binding = year_record.binding
+    if ceiling_bound and binding == MET:
+        binding = BUILD_CEILING
+    elif no_room and binding in (NO_ELIGIBLE_BIDS, SUPPLY):
+        # An eligible technology could not bid because the year's room for it was
+        # already built, so the milestone was missed on the ceiling, whether the
+        # other technologies bid and ran out or nobody could bid at all.
+        binding = BUILD_CEILING
+    year_record = summarise(row, year, year_record.sought_mw, lines, binding)
     return year_record, lines
-
-
-def _has_tech(settings: Settings, name: str) -> bool:
-    try:
-        settings.tech(name)
-    except KeyError:
-        return False
-    return True
 
 
 def _commit_scheme_award(settings: Settings, state: RunState, line, row, *,
