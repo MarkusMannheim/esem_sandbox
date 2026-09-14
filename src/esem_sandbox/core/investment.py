@@ -22,8 +22,11 @@ mean-variance penalty is linear in variance and so quadratic in the price spread
 and with an honest distribution that reaches the value of lost load in a scarcity
 year it explodes and prices out the very firm capacity that would have relieved the
 scarcity. The exact certainty equivalent saturates: it can never fall below the
-worst cell, so a risk-averse investor demands a bounded premium and treats a
-scarcity windfall as upside rather than as symmetric risk, which is what it is.
+worst world it is priced over, so a risk-averse investor demands a bounded premium
+and treats a scarcity windfall as upside rather than as symmetric risk, which is
+what it is. The worlds are the three growth paths, each at the mean of its weather
+and peak cells: a run keeps its growth path for life and redraws the other two every
+year, so over a plant's life only the path is one future.
 
 Risk is priced at the same scale everywhere in the model. The coefficient here
 is built from the constant the cap lane loads risk with. That is not tidiness. If a
@@ -131,7 +134,7 @@ def build_size_mw(peak_mw: float, tech: TechCost, settings: Settings) -> float:
 def build_ceiling_mw(peak_mw: float, tech: TechCost, settings: Settings) -> float:
     """The most of one technology that can be delivered in one year.
 
-    A damper, so that the bust in the boom-and-bust exercise comes from lead times,
+    A damper, so that the bust in the boom-and-bust scenario comes from lead times,
     which are real, rather than from the absence of any limit at all, which is an
     oversight rather than a mechanism. It is expressed as a number of producers' worth of
     plant so that it scales with the system: a megawatt ceiling that damps a 12

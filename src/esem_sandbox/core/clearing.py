@@ -8,7 +8,7 @@ because it can be explained in a sentence and checked by hand.
 
 A swap lane's anchor is what the block has been worth lately, on an exponentially
 weighted average of realised block prices. Nobody in this market forecasts; they
-extrapolate, which is what makes the boom-and-bust exercise work.
+extrapolate, which is what makes the boom-and-bust scenario work.
 
 A cap lane's anchor is different in kind. A cap is insurance, so its price is the cost
 of standing ready plus the price of bearing the risk:
@@ -226,8 +226,8 @@ def clear_bilateral(settings: Settings, roster, fleet, history: list[dict[str, f
     exposure measure mean anything: a book that was written all at once and expired
     all at once would swing a producer between fully covered and naked.
 
-    Legs are quarterly on a flat strip from the start, because the duration-curve
-    exercise depends on being able to look at one quarter at a time.
+    Legs are quarterly on a flat strip from the start, because reading a duration
+    curve depends on being able to look at one quarter at a time.
     """
     if clearing not in ("anchor", "crossing"):
         raise ValueError(

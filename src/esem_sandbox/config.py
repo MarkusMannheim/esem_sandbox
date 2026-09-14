@@ -103,7 +103,7 @@ class Unit:
         being enough the moment anything is built: a unit whose construction
         starts this year would otherwise generate from the tick it was decided
         rather than from the tick it was finished, and the lead time that drives
-        the boom-and-bust exercise would have no effect at all.
+        the boom-and-bust scenario would have no effect at all.
         """
         return self.commissioned_year <= year < self.retirement_year
 
@@ -271,7 +271,7 @@ def load_settings(overrides: dict[str, dict[str, Any]] | None = None) -> Setting
     """Load ``settings.toml``, the fleet and the demand-response ladder.
 
     ``overrides`` is a nested mapping of section to key, applied after the file
-    and validated the same way, so an exercise can change one number without
+    and validated the same way, so a run can change one number without
     editing the package.
     """
     with (_data_dir() / "settings.toml").open("rb") as fh:

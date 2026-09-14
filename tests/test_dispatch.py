@@ -53,8 +53,8 @@ def test_must_run_coal_offers_at_its_own_price_not_a_wind_farms(settings):
 
 
 def test_surplus_is_priced_by_the_plant_on_the_margin_of_curtailment(settings, bundle):
-    """The surplus price used to be one constant, so a fifth of the year sat at a
-    single identical negative value. It should now vary with how deep the surplus is."""
+    """The surplus price varies with how deep the surplus is. One constant would
+    leave a fifth of the year at a single identical negative value."""
     res = _year(settings, bundle, 0)
     negative = res.price[res.price < 0]
     assert len(negative) > 100, "this system should have plenty of surplus hours"
@@ -114,11 +114,11 @@ def test_seven_capped_hours_do_not_trigger_it(settings):
 
 
 def test_the_threshold_matches_the_regulators_own_gloss(settings):
-    """A guard against the units error this test file used to enshrine.
+    """A guard against a units error in the cumulative price threshold.
 
-    The threshold was previously divided by two, on the assumption that it was a
-    sum of half-hourly prices. It is a sum of five-minute prices, so the model ran
-    about 45 hours at the cap instead of 7.5 before suspension.
+    The published threshold is a sum of five-minute prices. Dividing it by two, as
+    though it were a sum of half-hourly prices, would run about 45 hours at the cap
+    instead of 7.5 before suspension.
     """
     hours = settings.hourly_price_threshold / settings.market["market_price_cap_per_mwh"]
     assert 7.0 < hours < 8.0, (
@@ -198,26 +198,22 @@ def test_the_drought_year_is_the_one_that_breaches_the_standard(settings, bundle
 
 
 def test_storage_does_not_chase_the_price_it_produces(settings, bundle):
-    """There is no cobweb left to converge, because there is no loop.
+    """There is no cobweb to converge, because there is no loop.
 
-    Storage used to pick its hours by ranking a price its own schedule then moved.
-    That needed an iteration, damping to stop a two-cycle, a pass ceiling and a
-    convergence flag; on a fleet with four gigawatts of batteries added it cycled
-    anyway and reported convergence as false. Shaving quantities off the residual
-    removes the dependency rather than damping it.
+    A store that picked its hours by ranking a price its own schedule then moved
+    would need an iteration, damping to stop a two-cycle, a pass ceiling and a
+    convergence flag, and on a fleet with four gigawatts of batteries added it
+    would cycle anyway. Shaving quantities off the residual removes the dependency
+    rather than damping it.
 
-    THE PROPERTY IS NARROWER THAN THIS TEST USED TO CLAIM. It was called "the
-    schedule does not depend on the price it produces" and it dispatched the same
-    year twice, which is a determinism check: with the price identical both times it
-    could not tell a schedule that reads price from one that does not.
-
-    Probing it properly, by doubling every thermal running cost with hydro removed so
-    the residual storage sees cannot move, the schedule DOES change: 49 hours and up
-    to 490 MW. That is the documented behaviour rather than a defect. Quantities are
-    a function of the residual and the unit, and price decides one thing only, which
-    is whether a day's spread covers the round trip. What matters is that a unit
-    judges that against the residual the units before it left, never against the
-    answer it is about to produce, so nothing has to iterate.
+    The property is narrower than "the schedule does not depend on the price".
+    Doubling every thermal running cost with hydro removed, so the residual storage
+    sees cannot move, changes the schedule in 49 hours and by up to 490 MW, and that
+    is the documented behaviour. Quantities are a function of the residual and the
+    unit, and price decides one thing only, which is whether a day's spread covers
+    the round trip. What matters is that a unit judges that against the residual
+    the units before it left, never against the answer it is about to produce, so
+    nothing has to iterate.
     """
     from dataclasses import replace
 
@@ -278,11 +274,10 @@ def test_a_store_never_delivers_energy_it_did_not_store(settings, bundle):
     This is the storage equivalent of the reverse interconnector flow that created
     energy.
 
-    This test used to allow the store a free half charge at the start of the year,
-    because the scheduler gave it one. The allowance is gone, and with it the cover
-    it was providing: under it a store could deliver up to half its capacity out of
-    nothing, and the day-level state-of-charge accounting was doing exactly that on
-    days whose trough fell after their peak.
+    No allowance for a free charge at the start of the year: under one, a store
+    could deliver up to half its capacity out of nothing, and day-level
+    state-of-charge accounting would do exactly that on days whose trough falls
+    after their peak.
     """
     for year in range(len(bundle["demand_shape"])):
         res = _year(settings, bundle, year)
@@ -301,10 +296,10 @@ def test_a_store_never_delivers_energy_it_did_not_store(settings, bundle):
 def test_hydro_actually_spends_its_energy_budget(settings, bundle):
     """The budget is a declared quantity, so it has to be delivered.
 
-    It used to be a price offer and nothing more: an offer only moves hydro among
-    nine discrete thermal steps, so between two of them the delivered energy did
-    not change. It under-spent by 40 to 50 per cent, and quadrupling the budget
-    changed neither the offer nor the delivery.
+    A price offer alone would not deliver it: an offer only moves hydro among nine
+    discrete thermal steps, so between two of them the delivered energy would not
+    change, the budget would be under-spent by 40 to 50 per cent, and quadrupling it
+    would change neither the offer nor the delivery.
     """
     unit = next(u for u in settings.fleet if u.technology == "hydro")
     for y in range(settings.weather["shape_years"]):
@@ -351,9 +346,9 @@ def test_energy_conserves_every_hour(settings, bundle):
 
     Generation net of curtailment, plus what the demand-response ladder supplied,
     plus what went unserved, must equal the demand the grid was asked to serve, in
-    every hour. Rooftop is excluded because it never reaches the grid. The wind and
-    solar fleet used to be missing from reported generation entirely, so this could
-    not even be evaluated.
+    every hour. Rooftop is excluded because it never reaches the grid. Reported
+    generation has to include the wind and solar fleet for this to be evaluable at
+    all.
     """
     for y in range(settings.weather["shape_years"]):
         res = _year(settings, bundle, y)
@@ -509,13 +504,13 @@ def test_a_long_duration_store_is_not_idle_all_year(settings, bundle):
 def test_administered_pricing_releases_rather_than_latching(settings, bundle):
     """The cumulative price threshold is a rolling window, so it has to fall again.
 
-    The sum used to add each hour at its uncapped price and subtract it, a window
-    later, at its capped one, leaving the difference behind for ever. After a handful
-    of capped hours it could no longer fall back under the threshold and the cap
-    stayed on for the rest of the year: on a fleet 15 per cent smaller, 7,901
-    consecutive administered hours. The packaged fleet never triggers it in a realised
-    year, which is why the suite did not see it, but every forward-view cell is
-    dispatched at four, eight and 12 years of growth and those do trigger it.
+    A sum that added each hour at its uncapped price and subtracted it, a window
+    later, at its capped one would leave the difference behind for ever: after a
+    handful of capped hours it could not fall back under the threshold and the cap
+    would stay on for the rest of the year, 7,901 consecutive administered hours on
+    a fleet 15 per cent smaller. The packaged fleet never triggers it in a realised
+    year, but every forward-view cell is dispatched at four, eight and 12 years of
+    growth and those do trigger it.
     """
     from dataclasses import replace
 

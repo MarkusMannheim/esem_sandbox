@@ -278,10 +278,11 @@ def test_exit_reads_the_plant_s_own_cost_and_not_a_technology_proxy(settings):
 
 def test_a_built_plant_and_its_candidate_read_one_far_year_rent(settings):
     """Past the last projection year the build test values a candidate at its
-    technology's cost of new entry. The exit test used to value the plant the
-    model had just built at its operating cost alone in the same years, so one
-    plant's far years were worth $136,000 per MW-year on the day it was decided and
-    $16,000 the next tick. One terminal per technology, read by both."""
+    technology's cost of new entry plus the market's loading, and so does the exit
+    test for the plant the model has just built. Valuing it at its operating cost
+    alone in the same years would make one plant's far years worth $136,000 per
+    MW-year on the day it was decided and $16,000 the next tick. One terminal per
+    technology, read by both."""
     from esem_sandbox.core.forward import interpolated_rent
     ocgt = next(u for u in settings.fleet if u.technology == "ocgt")
     tech = settings.tech("ocgt")

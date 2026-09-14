@@ -172,7 +172,7 @@ def titled(ax, text, **kw):
 def worst_week(result, window: Window, firm_capacity_mw: float, path: str) -> str:
     """Residual demand against the stack through the located worst window.
 
-    The chart the duration-curve exercise is built on: it shows storage
+    The chart a duration curve is read against: it shows storage
     draining, and the hours where nothing physical is left to dispatch.
     """
     sel = window.hours
@@ -216,14 +216,11 @@ def price_duration(results: dict[str, object], path: str) -> str:
     """Price duration curves, log price axis, top 10 per cent of hours."""
     fig, ax = plt.subplots(figsize=(7.6, 4.8), facecolor=SURFACE)
     _style(ax)
-    # A sequential scale, not the categorical cycle. Two reasons, and the comment
-    # that used to sit here claimed the first while the code did the opposite.
-    #
-    # The shape-years are ORDERED, mild through to the lull-on-heat year, so a scale
+    # A sequential scale rather than the categorical cycle, for two reasons. The
+    # shape-years are ordered, mild through to the lull-on-heat year, so a scale
     # that runs one way says something true about them that five unrelated hues do
-    # not. The default cycle puts its green at index 2 and its red at index 3, so
-    # the one chart in this module that draws five series was drawing a green curve
-    # next to a red one.
+    # not. The default cycle also puts its green at index 2 and its red at index 3,
+    # so a chart drawing five series from it puts a green curve next to a red one.
     shades = plt.get_cmap("viridis")(np.linspace(0.08, 0.92, max(len(results), 2)))
     for i, (label, res) in enumerate(results.items()):
         curve = duration_curve(res.price)
@@ -264,10 +261,10 @@ def _panel_capacity(ax, legs) -> None:
     for name, result in legs.items():
         labels.append(LEG_LABEL[name])
         bottoms.append(_fleet_by_group(result.ticks[-1]))
-    # Measured against the TALLEST STACK, not against the running base. Using the
-    # base meant a band was compared with whatever had been drawn under it so far, so
-    # hydro at 1.9 GW cleared the bar while sitting in a 70 GW column and its label
-    # was written across a sliver too thin to hold it.
+    # Measured against the tallest stack rather than the running base. Against the
+    # base a band is compared with whatever has been drawn under it so far, so hydro
+    # at 1.9 GW clears the bar while sitting in a 70 GW column and its label is
+    # written across a sliver too thin to hold it.
     tallest = max(sum(b[g] for g in TECH_ORDER) / 1000.0 for b in bottoms)
     base = np.zeros(len(labels))
     for group in TECH_ORDER:
@@ -431,10 +428,10 @@ def _panel_costs(ax, legs, settings) -> None:
     # for the only empty corner, and the loser was whichever was drawn first.
     # The caveat goes on the picture, not in a footnote somebody reads afterwards:
     # a room shown the left-hand pair without it takes away a number this is one
-    # draw of. It is written as an INSTRUCTION rather than as a claim about what the
+    # draw of. It is written as an instruction rather than as a claim about what the
     # seeds show, because a claim about what the seeds show goes stale the moment
-    # anybody recalibrates the fleet, and a chart carrying a sentence that used to be
-    # true is worse than one carrying none.
+    # anybody recalibrates the fleet, and a chart carrying a sentence that is no
+    # longer true is worse than one carrying none.
     # INSIDE the axes, under the title. At 1.01 it sat in the same strip the title
     # occupies and the two printed over each other.
     ax.text(0.02, 0.97,

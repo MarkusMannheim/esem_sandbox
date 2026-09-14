@@ -77,7 +77,7 @@ def scenario_names() -> list[str]:
 
 
 def _apply(args: argparse.Namespace, options: dict) -> argparse.Namespace:
-    """Command-line arguments win over the scenario file, so an exercise can change
+    """Command-line arguments win over the scenario file, so a run can change
     one thing without editing it.
 
     Which arguments were given is read off the argv the parser was handed, not off

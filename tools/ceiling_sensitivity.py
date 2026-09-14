@@ -25,12 +25,10 @@ ENVELOPE = "outputs/canonical/ten_seeds.csv"
 def seeds_to_probe(path: str = ENVELOPE) -> tuple[tuple[int, ...], tuple[int, ...]]:
     """The seeds where the scheme made reliability WORSE, plus one where it helped.
 
-    READ from the ten-seed envelope rather than hardcoded. This list used to be four
-    literal seeds with a comment saying they were the ones where the scheme made
-    reliability worse in "the canonical ten-seed pass". That is a measured result
-    baked into source: rerunning the model could never update it, and after the model
-    changed, two of the four had flipped to the scheme making reliability BETTER, so
-    the probe was spending an hour of simulation on the wrong question.
+    Read from the ten-seed envelope rather than written into the source. A list of
+    literal seeds is a measured result baked into code: rerunning the model can never
+    update it, and once the model changes the probe spends an hour of simulation on
+    the wrong question.
     """
     if not os.path.exists(path):
         raise SystemExit(

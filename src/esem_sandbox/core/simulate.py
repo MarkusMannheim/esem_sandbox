@@ -32,7 +32,7 @@ December does not settle the year it was signed in.
 Nothing here forecasts. The anchors are exponentially weighted averages of
 prices that have already happened, and the forward view is an enumeration of
 futures with fixed probabilities. That is the whole mechanism behind the
-boom-and-bust exercise: when scarcity lifts prices, investors extrapolate, all of
+boom-and-bust scenario: when scarcity lifts prices, investors extrapolate, all of
 them build, and the plant arrives together three years later into a market that no
 longer needs it.
 """
@@ -335,7 +335,7 @@ def forced_retirements(fleet: tuple[Unit, ...], retire: dict[str, int] | None,
     closure the world imposes, and the two must not be gated by the same switch or
     a run with economic exit turned off would quietly ignore a policy as well.
 
-    The exercise it exists for is the boom and the bust: pull a coal retirement
+    The scenario it exists for is the boom and the bust: pull a coal retirement
     forward against a two-year gas lead and watch entry cluster, arrive late, and
     overshoot. That is worth being able to do in one line of a scenario file, and it
     is worth failing loudly when the line names a plant that is not there.
@@ -887,10 +887,10 @@ def _auction(settings: Settings, state: RunState, view: ForwardView,
         capacity = line.capacity_mw
         commissioning = year + tech.lead_years
         # A tenor of zero means no contract at all, so the scheme is an auction and
-        # nothing else. That is a documented exercise: it separates what the lane
+        # nothing else. That is a documented scenario: it separates what the lane
         # buys from what a long contract does to the cost of capital, by removing
         # the second. Writing a zero-year contract instead raised "tenor must be at
-        # least one year" partway through the run, so the exercise the notebook and
+        # least one year" partway through the run, so the scenario the notebook and
         # short_tenor.toml both describe could not actually be run.
         written: list[Contract] = []
         if tenor >= 1:

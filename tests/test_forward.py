@@ -588,8 +588,8 @@ def test_a_settled_best_candidate_does_not_freeze_the_second(settings):
 
 def test_a_gated_best_candidate_does_not_skip_the_anchor(settings):
     """No anchor closer than a technology's lead can gain assumed entry of it.
-    When the best-paying candidate is inside its lead the anchor used to be
-    skipped for the tick, which starved a shorter-lead candidate that paid."""
+    When the best-paying candidate is inside its lead the anchor is not skipped
+    for the tick, which would starve a shorter-lead candidate that pays."""
     zero = {t.technology: 0.0 for t in settings.tech_costs}
     long_lead = max(settings.tech_costs, key=lambda t: t.lead_years)
     short_lead = min((t for t in settings.tech_costs if t.lead_years < long_lead.lead_years),
@@ -640,10 +640,10 @@ def test_an_assumed_battery_is_dispatched_as_a_battery(settings):
 def test_plant_assumed_at_four_years_is_still_there_at_eight_and_twelve(settings):
     """Every life on the cost table outlasts the span from the first anchor to the
     last, so a plant the projection assumes built by four years out is in service
-    at eight and at twelve. The far anchors used to be dispatched without it, and
-    the lifetime rent the build test chained from the three anchors valued an 8h
-    battery at three times its fixed cost on a view whose own +4 anchor said the
-    same plant did not pay. A belief at eight years does not reach back to four."""
+    at eight and at twelve. Far anchors dispatched without it would let the lifetime
+    rent the build test chains from the three anchors value an 8h battery at three
+    times its fixed cost on a view whose own +4 anchor says the same plant does not
+    pay. A belief at eight years does not reach back to four."""
     state = EntryState()
     state.by_offset[4] = {"battery_8h": EntryBelief(mw=1_000.0)}
     state.by_offset[8] = {"ocgt": EntryBelief(mw=300.0)}

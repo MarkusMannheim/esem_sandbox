@@ -43,13 +43,12 @@ must_run_offer_per_mwh = -60.0              # a coal band bidding to avoid a shu
 # price in a surplus hour is set by whichever plant is on the margin of curtailment,
 # so they have to be able to differ.
 storage_spread_per_mwh = 8.0                # the round trip a day's spread must cover
-# There is no re-stack loop here any more, and so no pass ceiling and no convergence
-# tolerance. Both existed because storage used to pick its hours by ranking a price
-# that its own schedule then moved, which is a cobweb: the dispatch had to iterate
-# toward a fixed point, damp the iterates to stop a two-cycle, and report whether it
-# had got there. Storage now shaves quantities off the residual, and the residual
-# does not depend on the price, so there is nothing left to iterate. Removing the
-# loop took a dispatched year from about 40 milliseconds to about 22.
+# There is no re-stack loop here, and so no pass ceiling and no convergence
+# tolerance. Storage shaves quantities off the residual, and the residual does not
+# depend on the price, so there is nothing to iterate. A store that picked its hours
+# by ranking a price its own schedule then moved would be a cobweb, and the dispatch
+# would have to iterate toward a fixed point and damp the iterates to stop a
+# two-cycle.
 
 [time]
 # Time-of-day blocks, start hour inclusive to end hour exclusive.
@@ -117,7 +116,7 @@ hedge_fraction_cap = 0.85
 # The tenor a bilateral swap book is taken to cover, in years.
 bilateral_contract_years = 3
 # A capacity underwrite for firm technologies, in years. Zero is the policy-free
-# market-led counterfactual, which is what the merchant leg is for. An exercise
+# market-led counterfactual, which is what the merchant leg is for. A scenario
 # raises it to ask what a ten-year underwrite would have done instead. It is off
 # rather than absent so that the counterfactual is a setting somebody chose, not a
 # mechanism nobody wrote.
@@ -132,7 +131,7 @@ build_fraction_of_peak = 0.05
 candidates_per_producer = 3
 # The annual build ceiling, as the number of producers' worth of one technology that
 # can be delivered in a year. It is a damper, so that the bust in the boom-and-bust
-# exercise comes from lead times, which are real, rather than from the absence of any
+# scenario comes from lead times, which are real, rather than from the absence of any
 # limit, which is an oversight rather than a mechanism.
 #
 # It is stated this way, rather than as megawatts per technology, for two reasons.
@@ -164,7 +163,7 @@ cap_strike_per_mwh = 300.0
 swap_tenor_years = 3
 # The anchor is an exponentially weighted average of realised block prices. Nobody
 # here forecasts; they extrapolate, and the half-life is how long a memory that is.
-# It is what makes the boom-and-bust exercise work, so it is a setting rather than
+# It is what makes the boom-and-bust scenario work, so it is a setting rather than
 # a number buried in a function.
 anchor_half_life_years = 2.0
 # The negotiated market. Instead of both sides accepting the reference price, each

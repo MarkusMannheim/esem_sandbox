@@ -6,13 +6,11 @@
 # arrive together, and overshoot into a market that no longer needs it.
 #
 # coal_b retires in 2033 in fleet.csv, so 2028 is five years early and, from a run
-# starting in 2026, two years' notice. Both numbers matter and they are the ones the
-# paragraph above quotes: this file previously closed it in 2031, which is two years
-# early with FIVE years' notice, and five years is long enough to replace it. The
-# exercise did not show what it said it showed.
+# starting in 2026, two years' notice. Both numbers matter: a closure with five years'
+# notice can be replaced in time and shows no bust.
 #
-# This is a FORCED retirement: the plant closes because something decided it should,
-# not because it stopped covering its costs. It is deliberately separate from the
+# This is a forced retirement: the plant closes because something decided it should,
+# whether or not it still covered its costs. It is deliberately separate from the
 # economic exit rule, so that a run with economic exit doing nothing still honours a
 # policy.
 [run]

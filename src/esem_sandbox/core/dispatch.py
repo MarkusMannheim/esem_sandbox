@@ -311,7 +311,7 @@ def _run_storage(units: list[Unit], price_of, residual_mw: np.ndarray,
     residual left by the ones before it. Two stores shaving the same peak
     independently would each believe it had the whole peak to itself.
 
-    There is no iteration here, and there no longer needs to be. The quantities
+    There is no iteration here, and none is needed. The quantities
     depend on the residual and on the unit, never on the price, so the only thing
     the price decides is whether a day is worth buying into. ``price_of`` turns the
     residual a unit actually faces into the price it would face, so each store judges

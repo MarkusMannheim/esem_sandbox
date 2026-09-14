@@ -42,7 +42,7 @@ transact in (`core/clearing.py`, `core/agents.py`), a mechanism switched on top
 | `core/forward.py` | 45 possible futures, priced at four, eight and 12 years out; what each technology would earn in each; and how much plant investors assume everybody else builds, carried from each projection year into the later ones |
 | `core/investment.py` | How much of a project is still exposed to the spot price, what it therefore has to earn to be built, how fast the fleet may change, and when a plant closes |
 | `core/esem.py` | The reliability scheme: how much to buy, what it is worth, when it is committed, who pays |
-| `core/scheme.py` | A state scheme: a milestone a year, a ceiling, a budget, and why it was missed. Note the units: it buys NAMEPLATE megawatts where the reliability lane buys DELIVERED FIRM ones, and the two are not addable |
+| `core/scheme.py` | A state scheme: a milestone a year, a ceiling, a budget, and why it was missed. Note the units: it buys nameplate megawatts where the reliability lane buys delivered firm ones, and the two are not addable |
 | `core/simulate.py` | The tick loop, and the order the eight steps run in |
 | `plots.py`, `cli.py` | The dashboard, the worst-week and price-duration charts, and three commands |
 | `tools/` | The probes behind every measured claim in the documents, and the charts in them |
@@ -113,8 +113,10 @@ lane and the investment rule go through it. A firm that priced the same tail one
 when writing insurance and another when building the plant that covers it could
 arbitrage the difference between them.
 
-Nothing forecasts. Contract prices are weighted averages of prices that have
-already happened, and the forward view is a list of possible futures at fixed odds.
+Nothing forecasts. The bilateral market's contract prices are weighted averages of
+prices that have already happened, a scheme award's strike is the forward view's
+expectation for its delivery years, and the forward view is a list of possible
+futures at fixed odds.
 That is the whole mechanism behind boom and bust: scarcity lifts prices, investors
 extrapolate, everybody builds, and the plant arrives together into a market that no
 longer needs it.
