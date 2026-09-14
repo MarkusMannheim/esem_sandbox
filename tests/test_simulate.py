@@ -842,3 +842,35 @@ def test_a_recycled_strip_nets_the_bilateral_rung_one_for_one(settings):
     assert covered["retailer_a"] == pytest.approx(300.0 * share)
     assert _recycled_cover_mw(settings, [strip(CAP, 2031)], year=2030, tenor=3) == {}
     assert _recycled_cover_mw(settings, [strip(SWAP, 2034)], year=2030, tenor=3) == {}
+
+
+def test_a_recycled_cap_nets_the_bilateral_cap_rung(settings):
+    """A recycled cap the retailer took this year is cap cover, and the bilateral
+    cap rung it writes next has to be smaller by that volume, as the swap rung is
+    by a recycled swap. Otherwise the retailer holds the same cover twice and its
+    exposure and every early hurdle read off the double."""
+    import numpy as np
+    from esem_sandbox.core.agents import RETAILER, default_roster
+    from esem_sandbox.core.clearing import clear_bilateral
+    from esem_sandbox.core.contracts import CAP
+
+    roster = default_roster()
+    retailer = next(a for a in roster if a.kind == RETAILER)
+    history = [{"overnight": 40.0, "morning": 55.0, "solar": 20.0, "peak": 90.0}]
+    common = dict(
+        year=2026, start_year=2027, tenor_years=3, average_load_mw=6000.0,
+        peak_load_mw=12500.0, cap_payoffs_per_mw=np.array([50_000.0]),
+        cap_weights=np.array([1.0]), cap_cost_basis_per_mwh=12.0,
+    )
+    caps = lambda book: sum(c.volume_mw for c in book
+                            if c.kind == CAP and c.holder == retailer.name)
+    plain = caps(clear_bilateral(settings, roster, settings.fleet, history, **common))
+    held = 300.0
+    netted = caps(clear_bilateral(settings, roster, settings.fleet, history,
+                                  already_capped_mw={retailer.name: held}, **common))
+    assert plain > 0
+    # A rung is four quarterly caps, so the book's cap volume is four times the
+    # rung's, and the rung is the mandate less the recycled cap over the ladder.
+    assert netted == pytest.approx(plain - 4 * held / 3, rel=1e-9), (
+        "the rung is the mandate less the recycled cap, over the ladder length"
+    )

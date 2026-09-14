@@ -208,6 +208,7 @@ def clear_bilateral(settings: Settings, roster, fleet, history: list[dict[str, f
                     peak_load_mw: float, cap_payoffs_per_mw, cap_weights,
                     cap_cost_basis_per_mwh: float,
                     already_covered_mw: dict[str, float] | None = None,
+                    already_capped_mw: dict[str, float] | None = None,
                     clearing: str = "anchor") -> list[Contract]:
     """One tick's bilateral market, cleared at the lane anchors.
 
@@ -291,9 +292,12 @@ def clear_bilateral(settings: Settings, roster, fleet, history: list[dict[str, f
                         block=block, quarter=quarter))
         # The cap lane ladders on the same schedule as the swap lanes and takes the
         # same divisor for the same reason: a rung is the target over the LADDER
-        # LENGTH, not over one contract's remaining life.
-        volume = (retailer.cap_cover * retailer.load_share * peak_load_mw
-                  / max(1, int(settings.contracts["swap_tenor_years"])))
+        # LENGTH, not over one contract's remaining life. A recycled cap the
+        # retailer took from the administrator this year is cap cover, and nets
+        # the rung one for one as a recycled swap nets the swap rung.
+        target = retailer.cap_cover * retailer.load_share * peak_load_mw
+        target = max(0.0, target - (already_capped_mw or {}).get(retailer.name, 0.0))
+        volume = target / max(1, int(settings.contracts["swap_tenor_years"]))
         for writer, share in cap_share.items():
             if share <= 0 or volume <= 0 or anchor_cap <= 0:
                 continue

@@ -516,10 +516,24 @@ def run(settings: Settings, *, ticks: int = 20, start_year: int = 2026,
         #    producer, and running the bilateral market first would have it hedge
         #    the same load twice and look twice as covered as it is.
         recycled_mw: dict[str, float] = {}
+        recycled_caps_mw: dict[str, float] = {}
         if leg == ESEM:
             average_load = float(res.operational_demand_mw.mean())
+            retailers = [a for a in state.roster if a.kind == RETAILER]
             buyers = [(a.name, a.swap_cover * a.load_share * average_load)
-                      for a in state.roster if a.kind == RETAILER]
+                      for a in retailers]
+            # A cap is bought against the cap mandate, on the peak the mandate is
+            # written on, net of the caps the retailer already holds for that
+            # delivery year; a swap against the swap mandate on average load.
+            peak_load = float(res.operational_demand_mw.max())
+            cap_buyers = [(a.name, a.cap_cover * a.load_share * peak_load)
+                          for a in retailers]
+            caps_held = {}
+            for c in state.book:
+                if c.kind == CAP and c.holder in {a.name for a in retailers}:
+                    for d in range(c.start_year, c.start_year + c.tenor_years):
+                        caps_held[(c.holder, d)] = caps_held.get((c.holder, d), 0.0) \
+                            + c.volume_mw
             # The market price for what is being sold, which is a hedge for a
             # delivery year still ahead. That is the forward view's expectation,
             # the same basis the award was struck on. A trailing average of prices
@@ -527,17 +541,20 @@ def run(settings: Settings, *, ticks: int = 20, start_year: int = 2026,
             near = view.nearest
             strips = recycle(
                 state.admin, settings, year=year, buyers=buyers,
+                cap_buyers=cap_buyers, caps_held_mw=caps_held,
                 market_per_mwh=near.expected_block_prices,
                 market_cap_premium_per_mwh=(float(np.mean(state.cap_payoffs[-5:]))
-                                            / 8760.0 if state.cap_payoffs else 0.0))
+                                            / 8760.0 if state.cap_payoffs else None))
             state.book.extend(strips)
             recycled_mw = _recycled_cover_mw(settings, strips, year=year,
                                              tenor=tenor)
+            recycled_caps_mw = _recycled_caps_mw(strips, year=year, tenor=tenor)
 
         written = _clear(settings, state, res, year=year,
                          start_year=year + 1, tenor_years=tenor,
                          peak_mw=level, ocgt=ocgt,
-                         already_covered_mw=recycled_mw, clearing=clearing)
+                         already_covered_mw=recycled_mw,
+                         already_capped_mw=recycled_caps_mw, clearing=clearing)
         state.book.extend(written)
 
         # 7. The auction, when the scheme is on. New entrants only, sized on the
@@ -729,9 +746,24 @@ def _recycled_cover_mw(settings: Settings, strips: list[Contract], *,
     return out
 
 
+def _recycled_caps_mw(strips: list[Contract], *, year: int, tenor: int
+                      ) -> dict[str, float]:
+    """Cap cover a retailer already holds against the cap rung about to be
+    written, on the rung's own basis: one year's volume nets the rung one for
+    one, as a recycled swap strip does for the swap rung."""
+    covered_years = range(year + 1, year + 1 + tenor)
+    out: dict[str, float] = {}
+    for c in strips:
+        if c.kind != CAP or c.start_year not in covered_years:
+            continue
+        out[c.holder] = out.get(c.holder, 0.0) + c.volume_mw
+    return out
+
+
 def _clear(settings: Settings, state: RunState, res: DispatchResult, *,
            year: int, start_year: int, tenor_years: int, peak_mw: float,
            ocgt: TechCost, already_covered_mw: dict[str, float] | None = None,
+           already_capped_mw: dict[str, float] | None = None,
            clearing: str = "anchor") -> list[Contract]:
     """Price and write this tick's bilateral contracts.
 
@@ -751,7 +783,8 @@ def _clear(settings: Settings, state: RunState, res: DispatchResult, *,
         peak_load_mw=float(res.operational_demand_mw.max()),
         cap_payoffs_per_mw=payoffs, cap_weights=weights,
         cap_cost_basis_per_mwh=basis,
-        already_covered_mw=already_covered_mw or {}, clearing=clearing)
+        already_covered_mw=already_covered_mw or {},
+        already_capped_mw=already_capped_mw or {}, clearing=clearing)
 
 
 def _auction(settings: Settings, state: RunState, view: ForwardView,

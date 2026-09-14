@@ -429,9 +429,25 @@ class Administrator:
 
 def recycle(admin: Administrator, settings: Settings, *, year: int,
             market_per_mwh: dict[str, float] | None = None,
-            market_cap_premium_per_mwh: float = 0.0,
-            buyers: list[tuple[str, float]]) -> list[Contract]:
+            market_cap_premium_per_mwh: float | None = None,
+            buyers: list[tuple[str, float]],
+            cap_buyers: list[tuple[str, float]] | None = None,
+            caps_held_mw: dict[tuple[str, int], float] | None = None
+            ) -> list[Contract]:
     """Offer each delivery year's position back to retailers, in the shape it is held.
+
+    ``buyers`` is each retailer's swap mandate and ``cap_buyers`` its cap mandate,
+    net of the caps it already holds for the delivery year (``caps_held_mw``, keyed
+    by retailer and year). A cap is a different product from a swap and is bought
+    against a different mandate; offering caps against the swap mandate had a
+    retailer take about twice the cap cover it wanted, which is why nothing was
+    ever warehoused. With no ``cap_buyers`` the swap buyers stand for both.
+
+    A cap is offered at the market premium. When there is no market premium, or
+    it is zero because no hour in the trailing years cleared the strike, the cap
+    slot is warehoused: nobody buys a cap for nothing and a cap with no premium is
+    not a contract, and pricing it at the award premium instead would have
+    consumers pay the bid back through the strip after paying it through the levy.
 
     Per tranche, from next year out to the recycling window, so a retailer can buy
     cover for a year it can actually see. This year has already settled and aged off
@@ -469,19 +485,30 @@ def recycle(admin: Administrator, settings: Settings, *, year: int,
     discount = float(settings.esem["fire_sale_fraction"]) \
         if conduct == "fire_sale" else 1.0
     market = market_per_mwh or {}
-    wanted = sum(mw for _name, mw in buyers)
+    held_caps = caps_held_mw or {}
     written: list[Contract] = []
     for delivery in range(year + 1, year + 1 + window):
         held = admin.positions(delivery)
         already = admin.sold_by_position(delivery)
         unsold = 0.0
+        demand = {
+            SWAP: list(buyers),
+            CAP: ([(name, max(0.0, mw - held_caps.get((name, delivery), 0.0)))
+                   for name, mw in cap_buyers]
+                  if cap_buyers is not None else list(buyers)),
+        }
         for (kind, block), slot in sorted(held.items(), key=lambda kv: str(kv[0])):
             available = slot["mw"] - already.get((kind, block), 0.0)
             if available <= 0:
                 continue
+            if kind == CAP and not market_cap_premium_per_mwh:
+                unsold += available
+                continue
+            takers = demand[kind]
+            wanted = sum(mw for _name, mw in takers)
             taken = min(available, wanted)
             unsold += available - taken
-            for name, mw in buyers:
+            for name, mw in takers:
                 share = (mw / wanted) if wanted > 0 else 0.0
                 volume = taken * share
                 if volume <= 0:
@@ -491,7 +518,7 @@ def recycle(admin: Administrator, settings: Settings, *, year: int,
                     premium = 0.0
                 else:
                     price = slot["strike"]          # a cap keeps its strike
-                    premium = market_cap_premium_per_mwh or slot["premium"]
+                    premium = float(market_cap_premium_per_mwh)
                 written.append(Contract(
                     kind=kind, holder=name, writer=ADMINISTRATOR,
                     strike_per_mwh=price * (discount if kind == SWAP else 1.0),

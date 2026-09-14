@@ -280,10 +280,14 @@ second, and this model shows them rather than hiding them.
 
 **Recycling.** The administrator selling the cover it has bought back to retailers,
 so consumers get the benefit of what they funded. It sells at the market price for the
-delivery being sold, because nobody buys a hedge above the market. What it does not
-recover is the amount the award added on top of that price, which is the bid.
+delivery being sold, because nobody buys a hedge above the market, and it sells each
+product against the demand for that product: a cap against what a retailer wants in
+caps and does not already hold, a swap against what it wants in swaps. What it does
+not recover is the amount the award added on top of that price, which is the bid.
 
-**Warehousing.** Holding on to cover nobody bought, rather than dumping it.
+**Warehousing.** Holding on to cover nobody bought, rather than dumping it. A cap
+whose market premium is zero, because no recent year priced scarcity, has no buyer
+and is held; what it pays out in a scarce year then lands on the levy.
 
 **Counterparty.** The other side of a contract. Every contract here has exactly two
 parties and moves money between them without creating any, which is a property the

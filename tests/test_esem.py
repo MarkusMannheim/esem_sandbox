@@ -489,6 +489,53 @@ def test_a_store_s_award_swap_carries_its_availability_like_every_other_volume(s
     assert volume["peak"] < 100.0 * min(1.0, tech.duration_h / span)
 
 
+def _held_cap(volume_mw=1_000.0, premium=4.0):
+    return Contract(kind=CAP, holder=ADMINISTRATOR, writer="m", strike_per_mwh=300.0,
+                    premium_per_mwh=premium, volume_mw=volume_mw, start_year=2030,
+                    tenor_years=12)
+
+
+def test_a_cap_with_no_market_premium_is_warehoused_not_sold_at_the_bid(settings):
+    """When no hour in the trailing years cleared the strike the market premium is
+    exactly zero. Reading that zero as absent and charging the award premium
+    instead had consumers pay the bid back through the strip after paying it
+    through the levy; on the low-growth seed that roughly tripled the levy. Nobody
+    buys a cap for nothing, so the position is held."""
+    admin = Administrator(awards=[_held_cap(volume_mw=500.0)])
+    for market in (0.0, None):
+        strips = recycle(admin, settings, year=2030, buyers=[("retailer_a", 100.0)],
+                         cap_buyers=[("retailer_a", 400.0)],
+                         market_cap_premium_per_mwh=market)
+        assert strips == [], f"a cap was written at a market premium of {market}"
+        assert admin.warehoused_mw[2031] == pytest.approx(500.0)
+    strips = recycle(admin, settings, year=2030, buyers=[("retailer_a", 100.0)],
+                     cap_buyers=[("retailer_a", 400.0)],
+                     market_cap_premium_per_mwh=1.5)
+    assert strips and all(c.kind == CAP and c.premium_per_mwh == pytest.approx(1.5)
+                          for c in strips)
+
+
+def test_a_cap_is_bought_against_the_cap_mandate_net_of_caps_held(settings):
+    """A cap is a different product from a swap. Offering the administrator's caps
+    against the swap mandate had a retailer take about twice the cap cover it
+    wanted, which is why no position was ever warehoused on the packaged fleet.
+    The cap buyer's demand is its cap mandate less the caps it already holds for
+    that delivery year, and the swap buyer's demand is untouched."""
+    admin = Administrator(awards=[_held(volume_mw=1_000.0), _held_cap(volume_mw=1_000.0)])
+    strips = recycle(admin, settings, year=2030,
+                     buyers=[("retailer_a", 600.0)],
+                     cap_buyers=[("retailer_a", 300.0)],
+                     caps_held_mw={("retailer_a", 2031): 100.0},
+                     market_per_mwh={"peak": 90.0}, market_cap_premium_per_mwh=2.0)
+    by_kind = {}
+    for c in strips:
+        if c.start_year == 2031:
+            by_kind[c.kind] = by_kind.get(c.kind, 0.0) + c.volume_mw
+    assert by_kind[SWAP] == pytest.approx(600.0)
+    assert by_kind[CAP] == pytest.approx(200.0), "the mandate net of what is held"
+    assert admin.warehoused_mw[2031] == pytest.approx(400.0 + 800.0)
+
+
 def test_the_conduct_lever_changes_the_price_and_is_checked(settings):
     fire = load_settings({"esem": {"recycling_conduct": "fire_sale"}})
     admin = Administrator(awards=[_held(strike=90.0)])
