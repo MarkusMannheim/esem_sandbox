@@ -201,9 +201,17 @@ def rent_per_mw_year(price: np.ndarray, tech: TechCost, settings: Settings,
     return float(np.sum(margin) * tech.availability)
 
 
-def incumbent_rents(price: np.ndarray,
+def incumbent_rents(price: np.ndarray, generation_mwh: dict[str, np.ndarray],
                     units: tuple[Unit, ...]) -> dict[str, float]:
-    """What each existing plant earns above its own running cost, per MW, in a year.
+    """What each existing plant earned above its own running cost, per MW, in the
+    year the cell dispatched.
+
+    Booked on the output the dispatch gave the plant, hour by hour, at the price
+    it settled at: the same basis the tick's ledger charges fuel on. A coal unit
+    keeps its must-run band on through hours priced below its running cost rather
+    than shut down and restart, and those hours are losses the plant carries; a
+    rent that counted only the hours priced above cost would keep such a plant
+    open on money it never earned.
 
     Only plant whose offer IS a running cost gets a number. A wind or solar row
     offers below zero, and that offer is what it will pay to keep running rather
@@ -211,9 +219,15 @@ def incumbent_rents(price: np.ndarray,
     against it would be an invention rather than a measurement, so those rows are
     left out and the exit rule that reads this is confined to plant that has one.
     """
-    return {u.unit: float(np.clip(price - u.srmc_per_mwh, 0.0, None).sum()
-                          * u.availability)
-            for u in units if u.srmc_per_mwh >= 0.0 and u.duration_h is None}
+    out: dict[str, float] = {}
+    for u in units:
+        if u.srmc_per_mwh < 0.0 or u.duration_h is not None or u.capacity_mw <= 0:
+            continue
+        gen = generation_mwh.get(u.unit)
+        if gen is None:
+            continue
+        out[u.unit] = float(np.sum(gen * (price - u.srmc_per_mwh))) / u.capacity_mw
+    return out
 
 
 @dataclass(frozen=True)
@@ -334,7 +348,8 @@ def dispatch_anchor(settings: Settings, fleet: tuple[Unit, ...], bundle: dict,
         outcomes.append(CellOutcome(
             cell=cell,
             rent_per_mw_year=rents,
-            unit_rent_per_mw_year=incumbent_rents(res.price, live),
+            unit_rent_per_mw_year=incumbent_rents(res.price, res.generation_mwh,
+                                                  live),
             block_prices=block_prices(at_anchor, res.price),
             mean_price=float(res.price.mean()),
             unserved_mwh=float(res.unserved_mwh.sum()),

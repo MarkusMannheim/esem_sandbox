@@ -519,20 +519,8 @@ def run(settings: Settings, *, ticks: int = 20, start_year: int = 2026,
                 market_cap_premium_per_mwh=(float(np.mean(state.cap_payoffs[-5:]))
                                             / 8760.0 if state.cap_payoffs else 0.0))
             state.book.extend(strips)
-            # Cover already held, on the same basis the bilateral target is set on:
-            # averaged over the delivery years the rung written below will cover,
-            # and weighted by each strip's share of the year's hours. Counting only
-            # the strip that starts next year leaves the later years of the rung
-            # netting against nothing, so the retailer buys the same cover twice.
-            # A cap is not price-certain cover and does not count here at all.
-            covered_years = range(year + 1, year + 1 + tenor)
-            for c in strips:
-                if c.kind != SWAP or c.start_year not in covered_years:
-                    continue
-                share = float(block_mask(settings, c.block, 8760).sum()) / 8760.0 \
-                    if c.block else 1.0
-                recycled_mw[c.holder] = recycled_mw.get(c.holder, 0.0) + \
-                    c.volume_mw * share / tenor
+            recycled_mw = _recycled_cover_mw(settings, strips, year=year,
+                                             tenor=tenor)
 
         written = _clear(settings, state, res, year=year,
                          start_year=year + 1, tenor_years=tenor,
@@ -699,6 +687,29 @@ def run(settings: Settings, *, ticks: int = 20, start_year: int = 2026,
         ))
     return RunResult(ticks=tuple(results), draw=draw, fleet=state.fleet,
                      roster=state.roster, book=tuple(state.book), leg=leg)
+
+
+def _recycled_cover_mw(settings: Settings, strips: list[Contract], *,
+                       year: int, tenor: int) -> dict[str, float]:
+    """Cover a retailer already holds against the rung about to be written, on
+    the rung's own basis.
+
+    A strip is one year's volume and so is a rung, so a strip for a year inside
+    the rung nets the rung one for one, weighted by its share of the year's hours.
+    A position stays sold once it is in the window, so the other years of the rung
+    were netted by the strips earlier ticks bought; dividing by the tenor here as
+    well left most of a strip's own year hedged twice. A cap is not price-certain
+    cover and does not count here at all.
+    """
+    covered_years = range(year + 1, year + 1 + tenor)
+    out: dict[str, float] = {}
+    for c in strips:
+        if c.kind != SWAP or c.start_year not in covered_years:
+            continue
+        share = float(block_mask(settings, c.block, 8760).sum()) / 8760.0 \
+            if c.block else 1.0
+        out[c.holder] = out.get(c.holder, 0.0) + c.volume_mw * share
+    return out
 
 
 def _clear(settings: Settings, state: RunState, res: DispatchResult, *,

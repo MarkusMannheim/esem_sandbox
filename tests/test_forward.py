@@ -14,8 +14,9 @@ import pytest
 from esem_sandbox.config import load_settings
 from esem_sandbox.core.forward import (
     Anchor, Cell, CellOutcome, EntryState, cell_plan, dispatch_anchor,
-    interpolated_rent, lifetime_rent_by_cell, lifetime_rent_per_mw_year,
-    peak_banded, rent_per_mw_year, update_projected_entry,
+    incumbent_rents, interpolated_rent, lifetime_rent_by_cell,
+    lifetime_rent_per_mw_year, peak_banded, rent_per_mw_year,
+    update_projected_entry,
 )
 from esem_sandbox.core.weather import generate_bundle
 
@@ -104,6 +105,49 @@ def test_thermal_rent_is_the_positive_margin_times_availability(settings):
     tech = settings.tech("ocgt")
     expected = (500.0 - tech.srmc_per_mwh) * 100 * tech.availability
     assert rent_per_mw_year(price, tech, settings) == pytest.approx(expected)
+
+
+def test_an_incumbent_s_rent_is_booked_on_what_it_generated(settings):
+    """A coal unit keeps its must-run band on through hours priced below its
+    running cost. Those hours are losses it carries, and the tick's ledger charges
+    them; the rent the exit test reads has to carry them too, or a plant is kept
+    open on money it never earned. A unit with no must-run band books exactly the
+    positive margin on the hours it ran, and a unit the dispatch never ran is not
+    measurable rather than zero."""
+    from esem_sandbox.core.dispatch import dispatch_year
+    from esem_sandbox.core.weather import generate_bundle
+
+    bundle = generate_bundle(1, 1)
+    shape = bundle["demand_shape"][0]
+    res = dispatch_year(settings, 2026, shape * (12_500.0 / shape.max()),
+                        bundle["wind_cf"][0], bundle["solar_cf"][0])
+    live = tuple(u for u in settings.fleet if u.in_service(2026))
+    rents = incumbent_rents(res.price, res.generation_mwh, live)
+
+    coal = next(u for u in live if u.technology == "coal" and u.must_run_mw > 0)
+    gen = res.generation_mwh[coal.unit]
+    below_cost = (gen > 0) & (res.price < coal.srmc_per_mwh)
+    assert below_cost.sum() > 0, "the must-run band ran through hours below cost"
+    clip = float(np.clip(res.price - coal.srmc_per_mwh, 0.0, None).sum()
+                 * coal.availability)
+    assert rents[coal.unit] < clip, "the below-cost hours have to cost the plant"
+    assert rents[coal.unit] == pytest.approx(
+        float(np.sum(gen * (res.price - coal.srmc_per_mwh))) / coal.capacity_mw)
+
+    gas = next(u for u in live if u.technology in ("ocgt", "ccgt")
+               and u.must_run_mw == 0)
+    ran = res.generation_mwh[gas.unit] > 0
+    assert np.all(res.price[ran] >= gas.srmc_per_mwh - 1e-9), (
+        "a price taker with no must-run band runs only at or above its cost"
+    )
+    assert rents[gas.unit] >= 0.0
+
+    assert gas.unit not in incumbent_rents(res.price, {}, live), (
+        "a unit the dispatch never booked is not measurable"
+    )
+    assert not any(u.srmc_per_mwh < 0 for u in live if u.unit in rents), (
+        "a curtailment offer is not a running cost and gets no rent"
+    )
 
 
 def test_storage_rent_uses_the_scheduler_that_will_govern_it(settings):

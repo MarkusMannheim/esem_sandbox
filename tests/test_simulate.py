@@ -785,3 +785,32 @@ def test_sequential_repricing_changes_only_the_plant_just_decided(settings, smal
         "repricing after each producer should build LESS, not more: each one is "
         "offered a market that already contains what the last one decided"
     )
+
+
+def test_a_recycled_strip_nets_the_bilateral_rung_one_for_one(settings):
+    """A strip is one year's volume and so is a rung. A strip for a year inside the
+    rung about to be written has to net that rung by its own volume, weighted by
+    its block's share of the year's hours; the netting used to divide by the tenor
+    a second time, on top of the rung's own division, so most of the strip's year
+    stayed hedged twice. A cap is not cover, and a strip outside the rung's years
+    does not count."""
+    from esem_sandbox.core.contracts import CAP, SWAP, Contract
+    from esem_sandbox.core.esem import ADMINISTRATOR
+    from esem_sandbox.core.report import block_mask
+    from esem_sandbox.core.simulate import _recycled_cover_mw
+
+    def strip(kind, start, block="peak", mw=100.0):
+        return Contract(kind=kind, holder="retailer_a", writer=ADMINISTRATOR,
+                        strike_per_mwh=90.0, premium_per_mwh=1.0 if kind == CAP else 0.0,
+                        volume_mw=mw, start_year=start, tenor_years=1,
+                        block=block if kind == SWAP else None)
+
+    share = float(block_mask(settings, "peak", 8760).sum()) / 8760.0
+    covered = _recycled_cover_mw(settings, [strip(SWAP, 2031)], year=2030, tenor=3)
+    assert covered["retailer_a"] == pytest.approx(100.0 * share)
+    covered = _recycled_cover_mw(
+        settings, [strip(SWAP, 2031), strip(SWAP, 2032), strip(SWAP, 2033)],
+        year=2030, tenor=3)
+    assert covered["retailer_a"] == pytest.approx(300.0 * share)
+    assert _recycled_cover_mw(settings, [strip(CAP, 2031)], year=2030, tenor=3) == {}
+    assert _recycled_cover_mw(settings, [strip(SWAP, 2034)], year=2030, tenor=3) == {}

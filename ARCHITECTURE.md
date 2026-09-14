@@ -32,7 +32,7 @@ transact in (`core/clearing.py`, `core/agents.py`), a mechanism switched on top
 |---|---|
 | `config.py` | The settings and the packaged tables. Strict: an unknown key raises rather than leaving a default in place |
 | `core/weather.py` | Five synthetic shape-years from one seed, always 8,760 hours |
-| `core/dispatch.py` | The merit order, the scarcity ladder, administered pricing, hydro against its budget, and storage shaving quantities |
+| `core/dispatch.py` | The merit order, with a coal unit's must-run band offered below its running cost and the rest at cost; the scarcity ladder, administered pricing, hydro against its budget, and storage shaving quantities |
 | `core/windows.py` | Finds the worst contiguous run of days, rather than being told where it is |
 | `core/report.py` | Blocks, quarters, duration curves, per-unit revenue, the calibration check |
 | `core/contracts.py` | Swaps and caps, settled over the full hourly series and never a sample |

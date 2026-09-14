@@ -396,18 +396,30 @@ notice is issued. Every retirement in this model is the date written in
 
 Two separate things stop it, and they cover the whole fleet between them.
 
-Nothing is ever close to unviable. The worst going-forward position any plant
-reaches over 10 years:
+Nothing stays unviable. The worst going-forward position any plant reaches over 10
+years, on the merchant leg, from `tools/exit_table.py`:
 
 | plant | worst going-forward value, $/MW | in |
 |---|---|---|
-| open cycle gas | +$482,426 | 2034 |
-| the high-cost peaking tier | +$585,069 | 2034 |
-| combined cycle gas | +$895,485 | 2034 |
-| the youngest coal | +$1,134,086 | 2034 |
+| open cycle gas | +$78,781 | 2032 |
+| combined cycle gas | +$116,039 | 2032 |
+| the high-cost peaking tier | +$117,904 | 2032 |
+| the youngest coal | +$1,092,890 | 2032 |
 
-A notice needs two consecutive negative years. Nothing here is negative even once,
-and the nearest miss is nearly half a million dollars per megawatt clear.
+A notice needs two consecutive negative years. Over 10 years nothing is negative
+even once. Over 20 the older open-cycle unit dips below zero in one year on each leg
+(minus $10,437 per MW in 2039 on the merchant leg, minus $60,336 in 2045 with the
+scheme) and is back above it the next, so the rule does not fire. The scheme leg
+carries the peaking tier below zero in 2045 the same way. The rule is close to
+firing late in a run, and a fleet or a cost table a little different from this one
+would tip it.
+
+The rent the test reads is booked on what each plant generated in the projection's
+dispatch, at the price it settled at. A coal unit keeps its must-run band running
+through hours priced below its running cost, and those hours count against it here
+as they do in the resource cost. On this fleet that lowers a coal station's measured
+rent by $45,000 to $49,000 per MW-year, against a going-forward fixed cost of
+$65,000.
 
 A plant close to retiring cannot be measured at all. The test values a plant
 by looking it up in each projection year. A plant that has already retired by the

@@ -230,23 +230,16 @@ def rank_candidates(view: ForwardView, agent: Agent, settings: Settings, *,
 # Exit
 
 
-def unit_rent_per_mw_year(price: np.ndarray, unit: Unit) -> float:
-    """What an existing plant earns above its own running cost, per MW of capacity.
-
-    Only ever called for plant whose offer IS a running cost. See EXIT_ELIGIBLE.
-    """
-    return float(np.clip(price - unit.srmc_per_mwh, 0.0, None).sum() * unit.availability)
-
-
 def going_forward_npv_per_mw(unit: Unit, view: ForwardView, settings: Settings,
                              year: int) -> float:
     """The plant's remaining life, valued on a going-forward basis.
 
     Capex is sunk for a plant that already exists, so the only question is whether
     the rent covers the cost of keeping it open. Rent per anchor is measured for
-    THIS plant, at its own offer and its own availability, rather than borrowed
-    from a technology row: a coal unit at $47/MWh and a combined cycle at $96 are
-    not interchangeable, and using one as a proxy for the other would decide the
+    THIS plant, on the output each cell's dispatch booked for it at its own offer,
+    the hours its must-run band ran below cost included, rather than borrowed from
+    a technology row: a coal unit at $47/MWh and a combined cycle at $96 are not
+    interchangeable, and using one as a proxy for the other would decide the
     retirement schedule on the wrong cost.
 
     Between and beyond the anchors the same interpolation applies as for a
