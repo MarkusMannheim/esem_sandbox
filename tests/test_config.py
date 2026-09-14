@@ -313,3 +313,20 @@ def test_the_compare_firm_line_counts_both_legs_on_the_table_and_the_lane_apart(
         600.0 * ocgt.firm_factor)
     assert lane_firm_mw(scheme) == pytest.approx(372.0)
     assert lane_firm_mw(scheme) != pytest.approx(firm_on_the_table(settings, scheme))
+
+
+def test_what_is_not_a_plant_has_no_retirement_year():
+    """Rooftop sits behind the meter and the import link is a boundary, and neither
+    leaves the system. Their retirement cells are blank, which the loader reads as
+    never; the stylised plant that does carry a far year (the hydro rows, 2060) is
+    plant, and its derivation says the year is a stylised life."""
+    from esem_sandbox.config import load_settings, read_csv
+    rows = {r["unit"]: r for r in read_csv("fleet.csv")}
+    for name in ("rooftop", "import_link"):
+        assert rows[name]["retirement_year"] in ("", None), name
+    settings = load_settings()
+    never = {u.unit: u.retirement_year for u in settings.fleet
+             if u.unit in ("rooftop", "import_link")}
+    assert all(y >= 9000 for y in never.values()), never
+    for name in ("hydro_a", "phes_a"):
+        assert "stylised life" in rows[name]["derivation"], name

@@ -831,6 +831,17 @@ is stipulated at one in five rather than measured. A stylised fleet of about 15
 rows, so no unit-level commitment, no minimum stable levels and no outage draws. The
 reliability standard is held flat across the whole horizon rather than stepped.
 
+Every cost is constant over the horizon: one running cost per row, so there is no
+fuel price path, and one capital cost per technology, so there is no cost decline.
+Nothing ages, so a plant's availability and operating cost are the same in its last
+year as in its first. Hydro is one annual energy budget dispatched within the year,
+so water carries no value between years and no wet or dry inflow year enters the
+forward's cells. A plant the forward assumes will be built carries its technology's
+cost row, its availability and its weather shape, and nothing else about it. The
+fleet table describes the system to about 2050, when most of the remaining plant
+leaves at once; a run that reaches further, or starts later, prices a fleet the model
+has built for itself.
+
 ## What is deliberately exact
 
 The energy balance closes to the floating-point limit in every hour of every
