@@ -445,33 +445,6 @@ class EntryState:
                 return False
         return True
 
-    def net_out(self, technology: str, mw: float) -> None:
-        """Plant of this technology has joined the fleet: the belief that somebody
-        would build it has come true by that much.
-
-        The belief is about plant beyond the fleet, so real plant of the same
-        technology is netted from it, nearest anchor first, and each bracket
-        shifts down with it: the bracket's edges were measured as increments over
-        the old fleet, and the same totals are that much smaller an increment over
-        the new one. Without this a belief sits beside the plant that fulfilled
-        it, the anchor prices both, and with one mover a tick a stale belief
-        decays only when it is the lowest-surplus holder and nothing pays.
-        """
-        left = float(mw)
-        for offset in sorted(self.by_offset):
-            if left <= 0.0:
-                break
-            b = self.by_offset[offset].get(technology)
-            if b is None or b.mw <= 0.0:
-                continue
-            taken = min(b.mw, left)
-            left -= taken
-            b.mw -= taken
-            if b.lo_mw is not None:
-                b.lo_mw = max(0.0, b.lo_mw - taken)
-            if b.hi_mw is not None:
-                b.hi_mw = max(0.0, b.hi_mw - taken)
-
     def copy(self) -> "EntryState":
         return EntryState({
             offset: {t: EntryBelief(b.mw, b.lo_mw, b.hi_mw, b.step_mw)

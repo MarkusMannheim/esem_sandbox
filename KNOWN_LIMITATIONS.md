@@ -520,8 +520,13 @@ twelve-year projections, since every plant on the cost table outlives that span.
 A run does not take many steps. It takes one a year, and the actual fleet changes
 underneath it every year, so what the investment rule reads is a half-finished
 calculation chasing a target that has already moved. Plant that actually gets built
-is netted from the guess as it is decided, so the guess does not sit beside the plant
-that fulfilled it.
+joins the fleet the projection is dispatched on, and a guess it has overtaken is
+unwound by the step, one move a year. Subtracting real plant from the guess as it is
+decided would leave the projection's total supply the same whatever gets built, so
+the projection would never register the market catching up: measured on a merchant
+market facing certain high growth, that has the market talk itself out of building
+for a decade and shed 13,000 GWh over 20 years, against 215 GWh with the guess left
+to the step.
 
 Measured against a frozen fleet, with the risk loading off, over 40 passes on the
 full lattice (`tools/belief_table.py`); the surplus is the most any candidate at that
@@ -600,16 +605,16 @@ fleet at the end of 20 years on the canonical seed, rather than inferred:
 
 | | merchant | with the scheme |
 |---|---|---|
-| unsubsidised build | 53,000 MW | 36,850 MW |
-| awarded | nil | 17,550 MW |
-| new plant in total | 53,000 MW | 54,400 MW |
-| the same plant as firm MW, on the table | 21,930 MW | 24,090 MW |
-| of which the lane bought, on its own credit | nil | 11,665 MW |
-| unserved energy | 414.1 GWh | 39.5 GWh |
+| unsubsidised build | 62,800 MW | 45,700 MW |
+| awarded | nil | 15,500 MW |
+| new plant in total | 62,800 MW | 61,200 MW |
+| the same plant as firm MW, on the table | 24,455 MW | 25,520 MW |
+| of which the lane bought, on its own credit | nil | 11,351 MW |
+| unserved energy | 22.5 GWh | 8.8 GWh |
 
-So 16,150 MW of unsubsidised build makes way for 17,550 MW of awards, the scheme leg
-ends with 1,400 MW more plant, and on the firm-factor table it ends with 2,160 MW
-more firm capacity than the merchant leg while shedding a tenth as much energy.
+So 17,100 MW of unsubsidised build makes way for 15,500 MW of awards, the scheme leg
+ends with 1,600 MW less plant, and on the firm-factor table it ends with 1,065 MW
+more firm capacity than the merchant leg while shedding two fifths as much energy.
 
 Two firm figures appear for the scheme leg and they are not addable. The table
 figure counts every megawatt either leg added at the factor its technology carries
@@ -619,17 +624,19 @@ measured against the shortfall it was buying for (a gas turbine at its availabil
 a store for as long as its energy lasts against the gap), and the two are not
 addable.
 
-What the scheme buys, then, is a fleet a little larger in megawatts and a tenth as
-short in energy: plant contracted to stand behind a scarcity hour, arriving in the
-years the shortfall falls in. A static firm-capacity count records the first and
-cannot see the second, and the outcome is the one the model dispatches.
+What the scheme buys, then, is a fleet a little smaller in megawatts, a little larger
+on the firm-factor table, and less than half as short in energy: plant contracted to
+stand behind a scarcity hour, arriving in the years the shortfall falls in. A static
+firm-capacity count sees only the second, and the outcome is the one the model
+dispatches.
 
 Read as a limitation, that means the annual build rate is a pacing choice rather than
 an economic force, and it is doing real work in the comparison - measurably so, and
 in both directions: see the ceiling table in the section on which future the market
-turned out to be in. Read as a result, it is the half that matters: a tenth more on
-the table bought a ninety per cent fall in the energy shed, which is a statement
-about where the plant stands in the year rather than how much of it there is.
+turned out to be in. Read as a result, it is the half that matters: four per cent
+more on the table bought a sixty per cent fall in the energy shed, which is a
+statement about where the plant stands in the year rather than how much of it there
+is.
 
 ## A scheme cannot fix a year that arrives before its plant does
 

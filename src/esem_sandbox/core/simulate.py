@@ -635,7 +635,6 @@ def run(settings: Settings, *, ticks: int = 20, start_year: int = 2026,
                 unit.commissioned_year, unit.retirement_year,
                 unit.capacity_mw * tech.capex_per_kw * 1000.0 * tech.crf))
             state.fleet = state.fleet + (unit,)
-            state.entry.net_out(b.technology, unit.capacity_mw)
             state.roster = tuple(
                 replace(a, units=a.units + (unit.unit,)) if a.name == b.owner else a
                 for a in state.roster)
@@ -900,7 +899,6 @@ def _auction(settings: Settings, state: RunState, view: ForwardView,
             unit.commissioned_year, unit.retirement_year,
             capacity * tech.capex_per_kw * 1000.0 * tech.crf))
         state.fleet = state.fleet + (unit,)
-        state.entry.net_out(tech.technology, capacity)
         state.roster = tuple(
             replace(a, units=a.units + (name,)) if a.name == line.bid.bidder else a
             for a in state.roster)
@@ -1012,7 +1010,6 @@ def _commit_scheme_award(settings: Settings, state: RunState, line, row, *,
     state.new_capital.append((unit.commissioned_year, unit.retirement_year,
                               capacity * tech.capex_per_kw * 1000.0 * tech.crf))
     state.fleet = state.fleet + (unit,)
-    state.entry.net_out(tech.technology, capacity)
     state.roster = tuple(
         replace(a, units=a.units + (name,)) if a.name == line.bid.bidder else a
         for a in state.roster)

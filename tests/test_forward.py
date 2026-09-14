@@ -565,24 +565,6 @@ def test_a_gated_best_candidate_does_not_skip_the_anchor(settings):
     assert after.at(offset, short_lead.technology) > 0.0
 
 
-def test_real_plant_nets_the_belief_that_it_would_be_built(settings):
-    """The belief is about plant beyond the fleet. When plant of that technology
-    joins the fleet the belief has come true by that much, so it is netted,
-    nearest anchor first, and each bracket shifts down with it. Otherwise the
-    anchor prices the belief beside the plant that fulfilled it."""
-    state = EntryState()
-    state.by_offset[4] = {"ccgt": EntryBelief(mw=1_000.0, lo_mw=1_000.0, hi_mw=1_250.0)}
-    state.by_offset[8] = {"ccgt": EntryBelief(mw=500.0, lo_mw=250.0, hi_mw=None)}
-    state.net_out("ccgt", 1_200.0)
-    assert state.at(4, "ccgt") == 0.0
-    assert state.belief(4, "ccgt").hi_mw == pytest.approx(250.0)
-    assert state.at(8, "ccgt") == pytest.approx(300.0)
-    assert state.belief(8, "ccgt").lo_mw == pytest.approx(50.0)
-    assert state.mix(12) == {"ccgt": 300.0}
-    state.net_out("ocgt", 600.0)          # nothing believed of it: nothing to net
-    assert state.mix(12) == {"ccgt": 300.0}
-
-
 def test_a_technology_keeps_its_bracket_when_another_becomes_marginal(settings):
     """Assume enough batteries and a combined cycle looks best; assume enough of
     those and batteries do. Discarding what was learned on a switch made the state
