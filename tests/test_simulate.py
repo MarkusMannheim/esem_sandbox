@@ -643,15 +643,18 @@ def test_repricing_between_producers_stops_every_build_landing_on_the_ceiling(
     that is real but far too weak to bind in one year: each 600 MW of wind takes about
     $50,000 per MW-year off the next block and adds about $6,000 to its hurdle,
     against an opening gap of $367,000, so closing it would take around 4,000 MW while
-    the ceiling stops at 1,200. Each producer wants exactly one block, so four of them
-    picking the same winner fill a ceiling that allows two, and the measured result is
-    that ALL of the build lands on the ceiling - which makes the annual build volume a
-    parameter rather than a result.
+    the ceiling stops at 1,200. Each producer commits at most one block of each
+    technology that passes its test, so four of them picking the same winner fill a
+    ceiling that allows two, and the measured result is that ALL of the build lands
+    on the ceiling - which makes the annual build volume a parameter rather than a
+    result.
 
     Rebuilding the forward between producers breaks that. It is not a free
     improvement and this test does not claim it is one: perfect mutual observation is
     as much an idealisation as none at all, and it under-builds badly. What is pinned
-    here is only the mechanism - that the repair reaches the thing it was aimed at.
+    here is only the mechanism - that the repair reaches the thing it was aimed at:
+    a smaller share of the technology-years at the ceiling than the default, on a
+    four-year, nine-cell harness where that share is a count of about a dozen.
     """
     default = run(settings, ticks=TICKS, seed=SEED, cells=small)
     sequential = run(settings, ticks=TICKS, seed=SEED, cells=small,
@@ -660,7 +663,8 @@ def test_repricing_between_producers_stops_every_build_landing_on_the_ceiling(
         "if the default ever stops piling build onto the ceiling, the limitation "
         "this option answers has gone and the option needs re-justifying"
     )
-    assert _share_at_the_ceiling(sequential, settings) < 0.75
+    assert _share_at_the_ceiling(sequential, settings) < \
+        _share_at_the_ceiling(default, settings)
     assert _fingerprint(sequential) != _fingerprint(default)
 
 
