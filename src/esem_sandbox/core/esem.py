@@ -261,11 +261,13 @@ def award_block_mw(settings: Settings, tech: TechCost,
         return {}
     blocks = settings.blocks()
     if tech.duration_h:
-        # A store delivers into the peak, for as long as it can hold. This is the
-        # rule the bilateral market uses for short storage.
+        # A store delivers into the peak, for as long as it can hold, less the
+        # time it is out: the duration rule the lane's own credit applies, on the
+        # peak block's span, and the availability every other volume here carries.
         start, end = blocks["peak"]
         span = (end - start) % 24 or 24
-        return {"peak": capacity_mw * min(1.0, float(tech.duration_h) / span)}
+        return {"peak": capacity_mw * tech.availability
+                * min(1.0, float(tech.duration_h) / span)}
     factors = _block_capacity_factors(
         int(settings.weather["seed"]), int(settings.weather["shape_years"]),
         int(settings.weather["hours_per_year"]),
@@ -368,7 +370,9 @@ class Administrator:
 
         Keyed by kind and block, because a cap and an overnight swap are different
         products and cannot be offered back as one. Each carries the volume-weighted
-        price it was bought at, which is the price it is offered back at.
+        strike and premium it was bought at. A swap is offered back at the market
+        price for its delivery, never at that strike; a cap keeps its strike and is
+        offered at the market premium.
         """
         out: dict[tuple[str, str | None], dict] = {}
         for c in self.awards:

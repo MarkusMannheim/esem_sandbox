@@ -564,25 +564,33 @@ fleet at the end of 20 years on the canonical seed, rather than inferred:
 | unsubsidised build | 53,000 MW | 36,850 MW |
 | awarded | nil | 17,550 MW |
 | new plant in total | 53,000 MW | 54,400 MW |
-| the same plant as firm MW | 21,930 MW | 20,837 MW |
+| the same plant as firm MW, on the table | 21,930 MW | 24,090 MW |
+| of which the lane bought, on its own credit | nil | 11,665 MW |
 | unserved energy | 414.1 GWh | 39.5 GWh |
 
 So 16,150 MW of unsubsidised build makes way for 17,550 MW of awards, the scheme leg
-ends with 1,400 MW more plant, and on the firm-factor table it ends with 1,093 MW
-less firm capacity than the merchant leg while shedding a tenth as much energy.
+ends with 1,400 MW more plant, and on the firm-factor table it ends with 2,160 MW
+more firm capacity than the merchant leg while shedding a tenth as much energy.
 
-That last pair says the static firm-capacity measure does not predict the reliability
-outcome here. What the scheme buys is not more firm
-megawatts on the table. What it buys is plant contracted to stand behind a scarcity
-hour, arriving in the years the shortfall falls in. The measure and the outcome part
-company, and the outcome is the one the model dispatches.
+Two firm figures appear for the scheme leg and they are not addable. The table
+figure counts every megawatt either leg added at the factor its technology carries
+in `tech_costs.csv`, awarded plant included, which is the only basis on which the two
+columns can be read against each other. The lane's own figure is what it contracted,
+measured against the shortfall it was buying for (a gas turbine at its availability
+and factor, a store for as long as its energy lasts against the gap), and it runs at
+about half the table figure for the same plant.
+
+What the scheme buys, then, is a fleet a little larger in megawatts and a tenth as
+short in energy: plant contracted to stand behind a scarcity hour, arriving in the
+years the shortfall falls in. A static firm-capacity count records the first and
+cannot see the second, and the outcome is the one the model dispatches.
 
 Read as a limitation, that means the annual build rate is a pacing choice rather than
 an economic force, and it is doing real work in the comparison - measurably so, and
 in both directions: see the ceiling table in the section on which future the market
-turned out to be in. Read as a result, it is the more interesting half: on this seed
-a fleet barely larger in megawatts, and smaller on the firm-capacity table, shed a
-tenth as much energy, which is a statement about what capacity is for.
+turned out to be in. Read as a result, it is the half that matters: a tenth more on
+the table bought a ninety per cent fall in the energy shed, which is a statement
+about where the plant stands in the year rather than how much of it there is.
 
 ## A scheme cannot fix a year that arrives before its plant does
 
@@ -632,9 +640,9 @@ model the first does not determine the second.
 
 ## The administrator never has a view
 
-It recycles at the lane anchor and warehouses whatever nobody buys. It does not
-withhold volume to hold a price up, does not read the market, and does not trade on
-its own account. The conduct lever offers a fire sale as the alternative, which is
+It offers its position back at the market price for the delivery being sold and
+warehouses whatever nobody buys. It does not withhold volume to hold a price up, does
+not read the market, and does not trade on its own account. The conduct lever offers a fire sale as the alternative, which is
 the other end of the same absence of judgement. A real administrator would sit
 somewhere between, and where it sat would be worth money.
 

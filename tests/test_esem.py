@@ -417,6 +417,21 @@ def test_what_the_administrator_does_not_recover_is_the_bid(settings):
     )
 
 
+def test_a_store_s_award_swap_carries_its_availability_like_every_other_volume(settings):
+    """The lane credits a store at capacity times availability times the share of
+    the gap its duration covers. The swap an award writes on the same store has to
+    be sized on the same basis; a volume with the availability left off would hedge
+    hours the plant is out."""
+    tech = settings.tech("battery_4h")
+    start, end = settings.blocks()["peak"]
+    span = (end - start) % 24 or 24
+    volume = award_block_mw(settings, tech, 100.0)
+    assert set(volume) == {"peak"}
+    assert volume["peak"] == pytest.approx(
+        100.0 * tech.availability * min(1.0, tech.duration_h / span))
+    assert volume["peak"] < 100.0 * min(1.0, tech.duration_h / span)
+
+
 def test_the_conduct_lever_changes_the_price_and_is_checked(settings):
     fire = load_settings({"esem": {"recycling_conduct": "fire_sale"}})
     admin = Administrator(awards=[_held(strike=90.0)])

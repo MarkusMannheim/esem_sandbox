@@ -284,3 +284,32 @@ def test_the_outputs_readme_quotes_the_run_beside_it():
         assert way.upper() in prose or way in prose, (
             f"the {name} moved {way} and the README does not say which way"
         )
+
+
+def test_the_compare_firm_line_counts_both_legs_on_the_table_and_the_lane_apart():
+    """The scheme leg's firm megawatts were the merchant basis (the table) plus the
+    lane's measured credit, two bases in one cell, and the docs concluded the scheme
+    leg ended with less firm capacity. The table figure has to carry the awarded
+    plant at its table factor, and the lane's credit has to stay on its own line."""
+    from types import SimpleNamespace
+    from esem_sandbox.cli import firm_on_the_table, lane_firm_mw
+    from esem_sandbox.config import load_settings
+    from esem_sandbox.core.simulate import Award, Build
+
+    settings = load_settings()
+    ocgt = settings.tech("ocgt")
+    build = Build(unit="u1", technology="ocgt", capacity_mw=1_000.0, owner="p",
+                  decided_year=2026, commissioned_year=2028,
+                  hurdle_per_mw_year=0.0, expected_rent_per_mw_year=0.0,
+                  contracted_share=0.0)
+    award = Award(bidder="p", technology="ocgt", capacity_mw=600.0,
+                  firm_mw=372.0, price_per_mw_year=1.0, strike_per_mwh=300.0,
+                  commissioning_year=2028)
+    merchant = SimpleNamespace(ticks=[SimpleNamespace(builds=[build], awards=[])])
+    scheme = SimpleNamespace(ticks=[SimpleNamespace(builds=[], awards=[award])])
+    assert firm_on_the_table(settings, merchant) == pytest.approx(
+        1_000.0 * ocgt.firm_factor)
+    assert firm_on_the_table(settings, scheme) == pytest.approx(
+        600.0 * ocgt.firm_factor)
+    assert lane_firm_mw(scheme) == pytest.approx(372.0)
+    assert lane_firm_mw(scheme) != pytest.approx(firm_on_the_table(settings, scheme))

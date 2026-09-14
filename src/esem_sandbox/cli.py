@@ -247,6 +247,27 @@ def simulate(args: argparse.Namespace) -> int:
     return 0
 
 
+def firm_on_the_table(settings, result) -> float:
+    """Every megawatt a leg added, unsubsidised or awarded, at the firm factor its
+    technology carries in `tech_costs.csv`.
+
+    One basis for both legs, which is the only way the two columns of the firm
+    line can be read against each other. The lane's own credit for an award is a
+    measured quantity on another basis and is reported by `lane_firm_mw`.
+    """
+    factor = lambda tech: settings.tech(tech).firm_factor
+    return sum(b.capacity_mw * factor(b.technology)
+               for t in result.ticks for b in t.builds) + \
+        sum(a.capacity_mw * factor(a.technology)
+            for t in result.ticks for a in t.awards)
+
+
+def lane_firm_mw(result) -> float:
+    """What the lane contracted, in the firm megawatts it measured against the
+    shortfall it was buying for. Not addable to the table figure."""
+    return sum(a.firm_mw for t in result.ticks for a in t.awards)
+
+
 def compare(args: argparse.Namespace) -> int:
     """Both legs on the same weather, and what the difference costs.
 
@@ -335,20 +356,25 @@ def compare(args: argparse.Namespace) -> int:
     # What each leg built, so the reallocation the scheme causes is reproducible
     # rather than asserted. Nameplate and firm are reported on separate lines: the
     # lane buys firm megawatts and the fleet is counted in nameplate ones, and the
-    # two differ by a factor of ten for wind.
+    # two differ by a factor of ten for wind. The firm line counts BOTH legs on the
+    # firm-factor table, awarded plant included. The lane's own credit, measured
+    # against the shortfall it was bought for, is a different quantity on a
+    # different basis and is printed on its own line, never added to the table
+    # figure: a sum of the two would compare the merchant leg on one basis with
+    # the scheme leg on two.
     print()
     built = lambda r: sum(b.capacity_mw for t in r.ticks for b in t.builds)
-    firm_of = lambda r: sum(b.capacity_mw * settings.tech(b.technology).firm_factor
-                            for t in r.ticks for b in t.builds)
     awarded = sum(a.capacity_mw for t in e.ticks for a in t.awards)
-    awarded_firm = sum(a.firm_mw for t in e.ticks for a in t.awards)
     print(f"{'unsubsidised build, nameplate MW':<38}"
           f"{built(m):>14,.0f}{built(e):>16,.0f}")
     print(f"{'awarded by the scheme, nameplate':<38}{0:>14,.0f}{awarded:>16,.0f}")
     print(f"{'  new plant in total':<38}"
           f"{built(m):>14,.0f}{built(e) + awarded:>16,.0f}")
-    print(f"{'the same plant as firm MW':<38}"
-          f"{firm_of(m):>14,.0f}{firm_of(e) + awarded_firm:>16,.0f}")
+    print(f"{'the same plant as firm MW, on the table':<38}"
+          f"{firm_on_the_table(settings, m):>14,.0f}"
+          f"{firm_on_the_table(settings, e):>16,.0f}")
+    print(f"{'  of which the lane bought, its credit':<38}"
+          f"{0:>14,.0f}{lane_firm_mw(e):>16,.0f}")
 
     bill = m.consumer_cost(settings) - e.consumer_cost(settings)
     real = m.resource_cost(settings) - e.resource_cost(settings)

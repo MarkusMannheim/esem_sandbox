@@ -39,7 +39,8 @@ capital of new build                       67.30bn         67.70bn
 unsubsidised build, nameplate MW              53,000          36,850
 awarded by the scheme, nameplate                   0          17,550
   new plant in total                          53,000          54,400
-the same plant as firm MW                     21,930          20,837
+the same plant as firm MW, on the table        21,930          24,090
+  of which the lane bought, its credit             0          11,665
 
 the scheme moves the bill by $42.62bn (down) and the resource cost by $4.67bn (down).
 the difference, $37.96bn, is a transfer: more capacity lowers the pool
@@ -61,5 +62,3 @@ that has little to do. tools/ten_seeds.py runs the envelope and decomposes it, a
 copy sits under outputs/canonical/ten_seeds.csv.
 
 A stylised fleet. Illustrative, and not a forecast of anything.
-wrote outputs/canonical/comparison.csv
-      outputs/canonical/dashboard.png
