@@ -22,9 +22,10 @@ own, and the firms want $331,000 to $357,000 before building one. About three fi
 of the bar is caution rather than cost, and a least-cost model cannot see that gap
 because it has nobody in it who could be cautious.
 
-That is also why a contract can cause plant to be built. Selling 60 per cent of the
-output forward removes the uncertainty rather than paying for it, and the bar falls by
-about a quarter. The same money handed over as a subsidy would do less.
+That is also why a contract can cause plant to be built. A twelve-year contract on
+all of a plant's output removes uncertainty rather than paying for it, and the bar
+falls by about a sixth; the three-year swaps retailers buy on their own account move
+it by a few per cent. The same money handed over as a subsidy would do less.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="outputs/canonical/hesitancy_dark.png">

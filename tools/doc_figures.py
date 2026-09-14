@@ -124,7 +124,8 @@ def the_forward_view(settings, bundle, path, tech_name="ocgt"):
     """
     from esem_sandbox.core.agents import PRODUCER, default_roster
     from esem_sandbox.core.forward import EntryState, cell_plan, forward_view
-    from esem_sandbox.core.investment import build_size_mw, evaluate
+    from esem_sandbox.core.investment import (build_size_mw, evaluate,
+                                              residual_exposure)
 
     cells = cell_plan(settings)
     offsets = list(settings.forward["anchor_offsets"])
@@ -137,7 +138,13 @@ def the_forward_view(settings, bundle, path, tech_name="ocgt"):
     mean = float(rents @ weights)
     size = build_size_mw(12_500.0, tech, settings)
     bare = evaluate(view, tech, agent, settings, exposure=1.0, capacity_mw=size)
-    hedged = evaluate(view, tech, agent, settings, exposure=0.4, capacity_mw=size)
+    # The contracted firm holds the longest cover the model writes: a scheme award
+    # on all of its output for the award tenor. An exposure no contract in the
+    # model can produce would draw a benefit the run's own contracts never deliver.
+    tenor = int(settings.esem["contract_tenor_years"])
+    awarded = residual_exposure(settings, tech.life_years, award_years=tenor,
+                                award_cover=1.0)
+    hedged = evaluate(view, tech, agent, settings, exposure=awarded, capacity_mw=size)
 
     fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(7.4, 7.6),
                                    facecolor=plots.SURFACE,
@@ -182,7 +189,7 @@ def the_forward_view(settings, bundle, path, tech_name="ocgt"):
              f"what a cautious investor counts on  "
              f"${bare.certainty_equivalent_per_mw_year:,.0f}"),
             (hedged.certainty_equivalent_per_mw_year, plots.SERIES[4],
-             f"the same investor, 60% contracted  "
+             f"the same investor, under a {tenor}-year award  "
              f"${hedged.certainty_equivalent_per_mw_year:,.0f}")):
         ax2.axvline(x / 1e6, color=colour, lw=1.6, zorder=4)
         ax2.plot([], [], color=colour, lw=1.6, label=label)
@@ -207,11 +214,12 @@ def what_hesitancy_costs(settings, bundle, path, tech_name="ocgt"):
     Each producer here has its own tolerance for uncertainty, and that tolerance is
     most of what it demands. The bar is the fixed cost of owning the plant plus what
     the investor charges itself for carrying an uncertain income; the marker is the
-    same investor once most of its output is sold forward.
+    same investor once all of its output is under a scheme award.
     """
     from esem_sandbox.core.agents import PRODUCER, default_roster
     from esem_sandbox.core.forward import EntryState, forward_view
-    from esem_sandbox.core.investment import build_size_mw, evaluate
+    from esem_sandbox.core.investment import (build_size_mw, evaluate,
+                                              residual_exposure)
 
     view = forward_view(settings, settings.fleet, bundle, year=2026,
                         peak_mw=12_500.0, entry=EntryState())
@@ -219,11 +227,16 @@ def what_hesitancy_costs(settings, bundle, path, tech_name="ocgt"):
     size = build_size_mw(12_500.0, tech, settings)
     producers = [a for a in default_roster() if a.kind == PRODUCER]
     producers.sort(key=lambda a: a.risk_aversion)
+    tenor = int(settings.esem["contract_tenor_years"])
+    # The marker is the same firm under the longest cover the model writes, a
+    # scheme award on all of its output for the award tenor.
+    awarded = residual_exposure(settings, tech.life_years, award_years=tenor,
+                                award_cover=1.0)
 
     names, fixed, caution, contracted = [], [], [], []
     for a in producers:
         bare = evaluate(view, tech, a, settings, exposure=1.0, capacity_mw=size)
-        hedged = evaluate(view, tech, a, settings, exposure=0.4, capacity_mw=size)
+        hedged = evaluate(view, tech, a, settings, exposure=awarded, capacity_mw=size)
         names.append(f"{a.name.replace('_', ' ')}\n(caution {a.risk_aversion:.2f})")
         fixed.append(bare.fixed_cost_per_mw_year / 1e3)
         caution.append(bare.risk_discount_per_mw_year / 1e3)
@@ -236,7 +249,7 @@ def what_hesitancy_costs(settings, bundle, path, tech_name="ocgt"):
     ax.barh(y, caution, left=fixed, color=plots.SERIES[1], height=0.55,
             label="what the uncertainty costs")
     ax.scatter(contracted, y, color=plots.INK, zorder=5, s=42, marker="D",
-               label="the same firm, 60% sold forward")
+               label=f"the same firm, all of its output under a {tenor}-year award")
     ax.set_yticks(y); ax.set_yticklabels(names, fontsize=10)
     ax.invert_yaxis()
     ax.set_xlabel("$ thousand per megawatt per year")
