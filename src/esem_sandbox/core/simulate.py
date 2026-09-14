@@ -384,6 +384,15 @@ def _cap_payoff_per_mw_year(price: np.ndarray, strike: float) -> float:
     return float(np.clip(price - strike, 0.0, None).sum())
 
 
+def _with_tail(settings: Settings, view: ForwardView,
+               roster: tuple[Agent, ...]) -> ForwardView:
+    """The view with the market's own loading in the years past the last
+    projection year, so the build test, the exit test and the entry step read one
+    long-run price. The loading is a constant across cells, so the certainty
+    equivalent it is measured from is the same with or without it in the tail."""
+    return replace(view, tail_loading=_merchant_entry_loading(settings, view, roster))
+
+
 def _merchant_entry_loading(settings: Settings, view: ForwardView,
                             roster: tuple[Agent, ...]) -> dict[str, float]:
     """The risk premium a representative merchant would want, per technology.
@@ -503,12 +512,12 @@ def run(settings: Settings, *, ticks: int = 20, start_year: int = 2026,
         # That is not the mechanism the rule exists to isolate, and the rule is one
         # end of the bracket this model reports on how much a market builds.
         belief_behind_view = state.entry
-        view = forward_view(live, state.fleet, bundle, year=year, peak_mw=level,
-                            entry=belief_behind_view, cells=plan)
+        view = _with_tail(settings, forward_view(
+            live, state.fleet, bundle, year=year, peak_mw=level,
+            entry=belief_behind_view, cells=plan), state.roster)
         state.entry = update_projected_entry(
             state.entry, list(view.anchors), settings,
-            threshold_loading_per_mw_year=_merchant_entry_loading(
-                settings, view, state.roster))
+            threshold_loading_per_mw_year=view.tail_loading)
 
         # 6. The administrator offers its position back first, then the bilateral
         #    market covers whatever is left. That order matters: a retailer that
@@ -600,8 +609,9 @@ def run(settings: Settings, *, ticks: int = 20, start_year: int = 2026,
         # difference between the two legs that the mechanism did not create.
         # Rebuilt only in years something was awarded, which is what it costs.
         if awarded_this_year:
-            view = forward_view(live, state.fleet, bundle, year=year, peak_mw=level,
-                                entry=belief_behind_view, cells=plan)
+            view = _with_tail(settings, forward_view(
+                live, state.fleet, bundle, year=year, peak_mw=level,
+                entry=belief_behind_view, cells=plan), state.roster)
 
         # 8. Exit, then entry.
         notices = exit_notices(state.fleet, view, settings, year, state.exit_ledger)
@@ -622,9 +632,9 @@ def run(settings: Settings, *, ticks: int = 20, start_year: int = 2026,
             now is in service at every anchor the decision turns on. It is the
             expensive call in a tick, which is the honest cost of the repair.
             """
-            return forward_view(live, state.fleet + tuple(new_units), bundle,
-                                year=year, peak_mw=level, entry=belief_behind_view,
-                                cells=plan)
+            return _with_tail(settings, forward_view(
+                live, state.fleet + tuple(new_units), bundle, year=year,
+                peak_mw=level, entry=belief_behind_view, cells=plan), state.roster)
 
         builds = _invest(settings, state, view, res, year=year, peak_mw=level,
                          cover=cover, tick=t, leg=leg, built=built_this_year,

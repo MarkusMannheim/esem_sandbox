@@ -296,6 +296,24 @@ def test_a_built_plant_and_its_candidate_read_one_far_year_rent(settings):
     assert tech.fixed_cost_per_mw_year > ocgt.fixed_cost_per_mw_year
 
 
+def test_the_exit_test_reads_the_same_tail_as_the_build_test(settings):
+    """One terminal per technology. When the view carries the market's loading in
+    the tail, an incumbent's far years pay the cost of entry plus that loading,
+    which is what a candidate of the same technology is valued at there."""
+    from dataclasses import replace
+    ocgt = next(u for u in settings.fleet if u.technology == "ocgt")
+    tech = settings.tech("ocgt")
+    zero = _view({"ocgt": [0.0] * 3}, unit_rents={ocgt.unit: [0.0] * 3})
+    loaded = replace(zero, tail_loading={"ocgt": 10_000.0})
+    r = float(settings.investment["discount_rate"])
+    remaining = ocgt.retirement_year - 2026
+    tail_years = [u for u in range(remaining) if u > 12]
+    expected_lift = sum(10_000.0 / (1.0 + r) ** u for u in tail_years)
+    assert going_forward_npv_per_mw(ocgt, loaded, settings, 2026) - \
+        going_forward_npv_per_mw(ocgt, zero, settings, 2026) == pytest.approx(expected_lift)
+    assert loaded.tail_per_mw_year(tech) == tech.fixed_cost_per_mw_year + 10_000.0
+
+
 def test_a_young_gas_plant_in_a_glut_is_kept(settings):
     """A plant with most of its life ahead of it earns the entrant's margin in the
     years past the horizon, and at the market rate those years outweigh a run of

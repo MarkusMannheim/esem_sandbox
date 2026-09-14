@@ -208,7 +208,10 @@ and note that the model treats the answer as a signal rather than a settled numb
 
 **Projection years.** The model prices the future at three distances, four,
 eight and 12 years out, and fills in between them. Four years is far enough
-that a plant decided today is running, and 12 catches most of its life.
+that a plant decided today is running, and 12 catches most of its life. The years
+past 12 are not priced: they pay what a market of these investors pays in the long
+run, the cost of building the plant plus the caution its most cautious investor
+demands, which is also the price at which the guess at everybody else's entry stops.
 
 *(The code and the working notes call these "anchors", and also use "anchor" for a
 contract lane's reference price. They are two different things, and this page

@@ -145,12 +145,11 @@ This third one is not fixed, and it is the most consequential of the three. What
 stops it running away is the annual build ceiling, which is a pacing choice rather
 than an economic force.
 
-Measured on the canonical seed, over 20 years, almost every megawatt of merchant
-build is placed at the ceiling: 48,800 of 53,000 MW, and 29 of the 34 technology-years
-in which anything was built. That is 92 per cent. Doubling the ceiling does not
-relieve it: the market builds more, 69,700 MW, and still at the cap, 97 per cent. The
-scheme leg behaves the same way, 98 per cent at the tight ceiling and 100 at the loose
-one.
+Measured on the canonical seed, over 20 years, every megawatt of merchant build is
+placed at the ceiling: 46,900 of 46,900 MW, in all 29 of the technology-years in
+which anything was built. Doubling the ceiling does not relieve it: the market builds
+more, 74,600 MW, and still at the cap, 97 per cent. The scheme leg behaves the same
+way, 98 per cent at the tight ceiling and 94 at the loose one.
 
 The reason is the failure named above, and the loose version of it is wrong: price
 feedback does exist. Measured on this fleet, adding 600 MW of wind to the forecast
@@ -159,12 +158,12 @@ about $11,000 to the hurdle it has to clear (`tools/marginal_feedback.py`):
 
 | wind already added | hurdle | what it is worth | clears it? | among the few it picks? |
 |---|---|---|---|---|
-| none | $355,577 | $1,123,000 | yes | no |
-| 600 MW | $364,121 | $1,055,669 | yes | no |
-| 1,200 MW | $392,086 | $978,417 | yes | no |
-| 1,800 MW | $407,370 | $905,134 | yes | no |
-| 2,400 MW | $413,231 | $851,305 | yes | no |
-| 3,000 MW | $412,633 | $797,660 | yes | no |
+| none | $354,701 | $1,123,000 | yes | no |
+| 600 MW | $362,996 | $1,055,669 | yes | no |
+| 1,200 MW | $389,653 | $978,417 | yes | no |
+| 1,800 MW | $405,026 | $905,134 | yes | no |
+| 2,400 MW | $410,972 | $851,305 | yes | no |
+| 3,000 MW | $410,713 | $797,660 | yes | no |
 
 The discipline is real and far too weak to bind inside one year: the gap opens at
 $767,000 and closes at roughly $76,000 a block, so shutting wind off would take about
@@ -250,7 +249,7 @@ dispatchable fleet down and dispatch the same weather year
 | 7,633 MW | -6% | 12.30 GWh | 3.7x |
 | 7,390 MW | -9% | 20.76 GWh | 6.2x |
 | 7,227 MW | -11% | 27.41 GWh | 8.2x |
-| 6,903 MW | -15% | 47.51 GWh | 14.2x |
+| 6,903 MW | -15% | 47.06 GWh | 14.0x |
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="outputs/canonical/reliability_curve_dark.png">
@@ -284,18 +283,19 @@ with the 10-seed table above (`tools/bracket_check.py`):
 
 | rule | merchant | with the scheme | unserved moves | resource cost | awarded |
 |---|---|---|---|---|---|
-| simultaneous (default) | 67.4 GWh | 16.3 GWh | -51.1 GWh | scheme costs $7.60bn | 19,600 MW |
-| sequential | 357.6 GWh | 83.5 GWh | -274.1 GWh | scheme costs $0.10bn | 22,950 MW |
+| simultaneous (default) | 388.6 GWh | 29.8 GWh | -358.8 GWh | scheme saves $1.24bn | 18,950 MW |
+| sequential | 2,333.0 GWh | 38.4 GWh | -2,294.5 GWh | scheme saves $36.70bn | 18,700 MW |
 
 The reliability direction survives and is the robust half. The scheme reduces unserved
-energy at both ends, by a factor of four at one and more than four at the other.
+energy at both ends, by a factor of thirteen at one and sixty at the other.
 
-The size of the effect does not survive, and neither does the cost verdict's
-magnitude. At the pessimistic end the merchant market leaves five times as much outage
-on the table, so the same scheme has far more to avoid, and what it costs in net
-resource terms falls from $7.60bn to almost nothing. The sign of the cost holds at
-both ends here, which it did not at earlier settings, but the range is wide enough
-that no single figure should be quoted as the scheme's cost.
+The size of the effect does not survive, and neither does the cost verdict. At the
+pessimistic end the merchant market leaves six times as much outage on the table, so
+the same scheme has far more to avoid, and what it saves in net resource terms rises
+from $1.24bn to $36.70bn. On the full lattice the same seed reads the other way, the
+scheme costing $3.76bn of resources, so the sign of the cost verdict does not survive
+even the choice of lattice, and no single figure should be quoted as the scheme's
+cost.
 
 The verdict on a procurement scheme in this model turns on how badly you think a
 merchant market under-builds, which is a quantity the model brackets rather than
@@ -445,9 +445,11 @@ anyway. It has three consequences:
   claim about retirement, because the rule is closer to dormant than to tuned.
 
 Past the last projection year the exit test reads the same terminal the build test
-does: the cost of new entry for the plant's technology, which is what a market in
-long-run balance pays any plant of that kind. One consequence is deliberate.
-Against that rent a plant pays only its own operating cost, so a gas
+does: the cost of new entry for the plant's technology plus the loading the market's
+own most cautious investor demands before entering, which is the price at which the
+forward's guess at everybody else's entry stops assuming more, and so what a market
+of these investors pays any plant of that kind in the long run. One consequence is
+deliberate. Against that rent a plant pays only its own operating cost, so a gas
 plant with about fifteen years or more left is kept whatever the near years say: the
 far years pay it the entrant's margin, and at the market rate they outweigh a run of
 empty ones. A young plant in a glut therefore never gives notice here. Coal, hydro and
@@ -605,16 +607,16 @@ fleet at the end of 20 years on the canonical seed, rather than inferred:
 
 | | merchant | with the scheme |
 |---|---|---|
-| unsubsidised build | 62,800 MW | 45,700 MW |
+| unsubsidised build | 46,900 MW | 41,650 MW |
 | awarded | nil | 15,500 MW |
-| new plant in total | 62,800 MW | 61,200 MW |
-| the same plant as firm MW, on the table | 24,455 MW | 25,520 MW |
-| of which the lane bought, on its own credit | nil | 11,351 MW |
-| unserved energy | 22.5 GWh | 8.8 GWh |
+| new plant in total | 46,900 MW | 57,150 MW |
+| the same plant as firm MW, on the table | 20,525 MW | 24,798 MW |
+| of which the lane bought, on its own credit | nil | 11,361 MW |
+| unserved energy | 169.3 GWh | 12.8 GWh |
 
-So 17,100 MW of unsubsidised build makes way for 15,500 MW of awards, the scheme leg
-ends with 1,600 MW less plant, and on the firm-factor table it ends with 1,065 MW
-more firm capacity than the merchant leg while shedding two fifths as much energy.
+So 5,250 MW of unsubsidised build makes way for 15,500 MW of awards, the scheme leg
+ends with 10,250 MW more plant, and on the firm-factor table it ends with 4,273 MW
+more firm capacity than the merchant leg while shedding a thirteenth as much energy.
 
 Two firm figures appear for the scheme leg and they are not addable. The table
 figure counts every megawatt either leg added at the factor its technology carries
@@ -624,19 +626,18 @@ measured against the shortfall it was buying for (a gas turbine at its availabil
 a store for as long as its energy lasts against the gap), and the two are not
 addable.
 
-What the scheme buys, then, is a fleet a little smaller in megawatts, a little larger
-on the firm-factor table, and less than half as short in energy: plant contracted to
-stand behind a scarcity hour, arriving in the years the shortfall falls in. A static
-firm-capacity count sees only the second, and the outcome is the one the model
-dispatches.
+What the scheme buys, then, is a fleet a fifth larger in megawatts and on the
+firm-factor table, and a thirteenth as short in energy: plant contracted to stand
+behind a scarcity hour, arriving in the years the shortfall falls in. A static
+firm-capacity count records the first and cannot see the second, and the outcome is
+the one the model dispatches.
 
 Read as a limitation, that means the annual build rate is a pacing choice rather than
 an economic force, and it is doing real work in the comparison - measurably so, and
 in both directions: see the ceiling table in the section on which future the market
-turned out to be in. Read as a result, it is the half that matters: four per cent
-more on the table bought a sixty per cent fall in the energy shed, which is a
-statement about where the plant stands in the year rather than how much of it there
-is.
+turned out to be in. Read as a result, it is the half that matters: a fifth more on
+the table bought a ninety per cent fall in the energy shed, which is a statement
+about where the plant stands in the year rather than how much of it there is.
 
 ## A scheme cannot fix a year that arrives before its plant does
 
@@ -743,7 +744,8 @@ procured.
 ## The scheme's worth depends on which future the market turned out to be in
 
 Ten seeds, 20 years each, both legs on each seed's own shared weather. The scheme
-improves reliability on every one of the 10. It lowers the total resource cost on one.
+improves reliability on eight of the 10, holds it on one and worsens it on one. It
+lowers the total resource cost on one.
 
 Splitting each seed's resource-cost difference into the outage the scheme avoided and
 everything else, since unserved energy priced at the value of lost load is one of the
@@ -751,14 +753,17 @@ four terms and subtracting it leaves fuel, fixed costs and capital together:
 
 | | across 10 seeds |
 |---|---|
-| outage avoided | +$0.05bn to +$7.60bn, positive on all 10 |
-| fuel, fixed and capital | -$0.96bn to -$6.68bn, negative on all 10 |
+| outage avoided | -$0.21bn to +$3.18bn, positive on eight, nil on one, negative on one |
+| fuel, fixed and capital | -$0.82bn to -$8.29bn, negative on all 10 |
 
-Neither line changes sign. The scheme always avoids outage and always spends more on
-plant and fuel to do it, and which of the two is larger decides the total. On nine of
-the 10 seeds the second is larger, so the total goes against the scheme; on the tenth
-the outage avoided is an order of magnitude above anything else in the set and the
-total goes with it.
+The second line never changes sign: the scheme always spends more on plant and fuel.
+The first almost never does, and which of the two is larger decides the total. On
+nine of the 10 seeds the second is larger, so the total goes against the scheme; on
+the tenth, a high-growth draw, the outage avoided is $1.13bn against $0.82bn of extra
+plant and fuel and the total goes with it, by $0.31bn. On the seed where the scheme
+worsens reliability (19990101, 20.2 GWh to 30.3) the two legs are level once the
+build ceiling is doubled, which the sensitivity below shows; what the ceiling does to
+that seed is measured there and not explained here.
 
 That makes the trade explicit rather than ambiguous. What the scheme buys is
 reliability, at a price in real resources, and whether the price is worth paying turns
@@ -769,35 +774,33 @@ each run drew:
 
 | path | seeds | outage avoided | awarded |
 |---|---|---|---|
-| low | 3 | +$0.05bn to +$0.78bn | 4,650 to 6,350 MW |
-| central | 5 | +$0.72bn to +$1.03bn | 8,750 to 15,100 MW |
-| high | 2 | +$0.61bn to +$7.60bn | 10,750 to 17,550 MW |
+| low | 3 | +$0.00bn to +$0.15bn | 4,850 to 6,600 MW |
+| central | 5 | -$0.21bn to +$0.60bn | 5,700 to 12,450 MW |
+| high | 2 | +$1.13bn to +$3.18bn | 12,750 to 15,500 MW |
 
 On a slow-growing system the scheme buys capacity that has almost nothing to do: it
-still keeps some lights on, and it costs billions. On a fast-growing one it can avoid
-an outage bill large enough to cover everything it spent. The megawatts it buys rise
-with the growth path, so it responds to the future it is in, and it responds to a
-future it only half knows.
+still keeps some lights on, and it costs billions. On a fast-growing one it avoids an
+outage bill worth billions and on one of the two draws that bill covers everything it
+spent. The megawatts it buys rise with the growth path, so it responds to the future
+it is in, and it responds to a future it only half knows.
 
 How much of the reliability gain is the pacing parameter? The auction runs before the
 investment step, so an award consumes build room the merchant rule would otherwise
 have used. Run the same comparison at twice the annual ceiling and watch the
 difference between the legs, which is what `tools/ceiling_sensitivity.py` does. It
-takes the four seeds where the scheme helped least, plus the one where it helped most
-as a control:
+takes the seeds where the scheme made reliability worse, plus the one where it helped
+most as a control:
 
 | seed | esem - merchant at ceiling 2 | at ceiling 4 |
 |---|---|---|
-| 111 | -2.5 GWh | 0.0 GWh |
-| 20260101 | -12.1 GWh | 0.0 GWh |
-| 31415926 | -30.1 GWh | +2.0 GWh |
-| 19990101 | -35.4 GWh | +0.4 GWh |
-| 20260904 (control, scheme helped most) | -374.5 GWh | +0.7 GWh |
+| 19990101 (scheme made it worse) | +10.1 GWh | 0.0 GWh |
+| 20260904 (control, scheme helped most) | -156.5 GWh | +2.5 GWh |
 
-Doubling the ceiling removes the whole of the scheme's advantage on all five seeds,
-including the control, where 374.5 GWh becomes 0.7 the other way. The merchant leg
-gains far more from the extra room than the scheme leg does, which is what to expect
-if a large part of what the scheme provides is permission to build sooner.
+Doubling the ceiling removes the whole of the scheme's effect on both: the seed it
+harmed is level, and on the control 156.5 GWh of advantage becomes 2.5 the other way.
+The merchant leg gains far more from the extra room than the scheme leg does, which
+is what to expect if a large part of what the scheme provides is permission to build
+sooner.
 
 The reliability comparison is therefore substantially a statement about a pacing
 parameter, and four is no more correct than two: the finding is the sensitivity, not a
@@ -805,8 +808,8 @@ better value. A reader who takes one number from this file should take that one,
 because it bounds every reliability claim above it.
 
 What the extra room does not do is relieve the ceiling itself. At either value almost
-every megawatt is still built at the cap: 92 per cent of merchant build and 98 per
-cent of the scheme leg's at a ceiling of two, and 97 and 100 per cent at four. Raising
+every megawatt is still built at the cap: all of the merchant build and 98 per cent
+of the scheme leg's at a ceiling of two, and 97 and 94 per cent at four. Raising
 the limit raises what gets built and leaves the limit binding, which is the section on
 decisions that cannot see each other, measured from the other side.
 

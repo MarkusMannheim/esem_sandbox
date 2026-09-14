@@ -70,7 +70,8 @@ peak_band_weights = [0.1, 0.8, 0.1]
 # Three anchors, at four, eight and 12 years ahead. A plant decided today
 # commissions inside the first anchor and lives well past the last, so the anchors
 # bracket the years its decision actually turns on and the tail beyond them is
-# assumed rather than projected.
+# assumed rather than projected: it pays the cost of new entry plus the loading the
+# market's most cautious investor demands, the price the entry step stops at.
 anchor_offsets = [4, 8, 12]
 # What a plant's lifetime rent is risk-priced over. A run draws the growth path
 # once and keeps it, and draws the weather shape and the peak band afresh every

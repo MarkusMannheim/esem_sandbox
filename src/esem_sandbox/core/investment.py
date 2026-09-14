@@ -245,13 +245,14 @@ def going_forward_npv_per_mw(unit: Unit, view: ForwardView, settings: Settings,
 
     Between and beyond the anchors the same interpolation applies as for a
     candidate, and past the last anchor the same terminal: the cost of new entry
-    for the plant's technology, which is the rent a market in long-run balance
-    pays any plant of that kind. One terminal per technology, read by the build
-    test and the exit test alike, so a plant the model built last year and the
-    candidate it was judged as read the same far-year rent. A plant with no cost
-    row (coal, hydro, pumped hydro) has no entrant to price the tail on and reads
-    its own fixed operating cost there, which is the zero-profit terminal for a
-    technology nobody builds.
+    for the plant's technology plus the loading the market's own most cautious
+    investor demands, which is the rent a market of these investors pays any
+    plant of that kind in the long run and where the projection stops assuming
+    entry. One terminal per technology, read by the build test and the exit test
+    alike, so a plant the model built last year and the candidate it was judged
+    as read the same far-year rent. A plant with no cost row (coal, hydro, pumped
+    hydro) has no entrant to price the tail on and reads its own fixed operating
+    cost there, which is the zero-profit terminal for a technology nobody builds.
 
     Against that rent the plant pays only its own fixed operating cost each year,
     so a young gas plant in a glut is kept: the far years pay it the entrant's
@@ -264,7 +265,7 @@ def going_forward_npv_per_mw(unit: Unit, view: ForwardView, settings: Settings,
     """
     fom = unit.fixed_cost_per_mw_year
     try:
-        terminal = settings.tech(unit.technology).fixed_cost_per_mw_year
+        terminal = view.tail_per_mw_year(settings.tech(unit.technology))
     except KeyError:
         terminal = fom
     anchors = {

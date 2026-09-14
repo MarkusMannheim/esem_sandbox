@@ -394,6 +394,45 @@ def test_caution_priced_on_the_growth_path_charges_less_than_on_every_cell(setti
     assert len(r) == len({c.growth_path for c in cells})
 
 
+def test_the_tail_pays_what_the_projection_stops_assuming_entry_at(settings, tick_zero_view):
+    """The entry step assumes plant until the marginal entrant's expected rent has
+    fallen to its fixed cost plus the loading the market's most cautious investor
+    demands. The years past the last projection year pay that same price, so the
+    build test and the projection agree on what the long run pays; a tail at the
+    cost of entry alone left every candidate short by the tail's share of the
+    loading. The loading is one number across cells, so it moves every cell's
+    level and none of the dispersion caution is priced on."""
+    from dataclasses import replace
+    from esem_sandbox.core.agents import default_roster
+    from esem_sandbox.core.clearing import cara_certainty_equivalent, cara_coefficient
+    from esem_sandbox.core.simulate import _merchant_entry_loading, _with_tail
+    plain = tick_zero_view
+    loaded = _with_tail(settings, plain, default_roster())
+    a = cara_coefficient(0.6, 1.0, settings)
+    for name in ("ocgt", "solar", "battery_8h"):
+        tech = settings.tech(name)
+        loading = loaded.tail_loading[name]
+        assert loading > 0
+        assert loaded.tail_per_mw_year(tech) == pytest.approx(
+            tech.fixed_cost_per_mw_year + loading)
+        before, after = plain.lifetime_rent(tech), loaded.lifetime_rent(tech)
+        lift = after - before
+        assert lift.min() > 0 and lift.max() == pytest.approx(lift.min(), rel=1e-9), (
+            f"{name}: the tail lifts every cell by the same amount"
+        )
+        r0, w = plain.risk_distribution(tech, settings)
+        r1, _ = loaded.risk_distribution(tech, settings)
+        premium0 = float(r0 @ w) - cara_certainty_equivalent(r0, w, a)
+        premium1 = float(r1 @ w) - cara_certainty_equivalent(r1, w, a)
+        assert premium1 == pytest.approx(premium0, rel=1e-9), (
+            f"{name}: caution is unchanged by a constant in the tail"
+        )
+    # The loading measured on the loaded view is the loading: no circularity.
+    again = _merchant_entry_loading(settings, loaded, default_roster())
+    for name, v in loaded.tail_loading.items():
+        assert again[name] == pytest.approx(v, rel=1e-9)
+
+
 def test_a_market_that_knows_its_growth_path_carries_no_premium(settings):
     """With all the prior weight on one growth path there is one world under the
     ruling, the certainty equivalent equals the expectation, and every hurdle is

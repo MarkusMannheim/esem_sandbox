@@ -633,7 +633,8 @@ def interpolated_rent(anchors: dict[int, float], offset: float,
     return terminal
 
 
-def lifetime_rent_per_mw_year(anchor_rents: dict[int, float], tech: TechCost) -> float:
+def lifetime_rent_per_mw_year(anchor_rents: dict[int, float], tech: TechCost,
+                              tail_loading_per_mw_year: float = 0.0) -> float:
     """The NPV weighted mean rent over the plant's operating life.
 
     Both this and the fixed cost it will be compared against are per MW-year, so no
@@ -642,10 +643,19 @@ def lifetime_rent_per_mw_year(anchor_rents: dict[int, float], tech: TechCost) ->
 
     Discounting is to the decision year, so the early well-resolved years carry
     most of the weight and the assumed tail fades.
+
+    Past the last projection year the plant earns what a market in long-run
+    balance pays its technology: the cost of new entry plus the loading the
+    market's own most cautious investor demands before entering, which is where
+    the projection's entry step stops assuming entry. A tail at the cost of entry
+    alone described a risk-neutral long run under a projection of a cautious one,
+    and left every candidate short of its own hurdle by the tail's share of the
+    loading. The loading is a constant across cells, so it moves the level of
+    every cell and none of the dispersion caution is priced on.
     """
     life = max(1, int(tech.life_years))
     r = tech.wacc
-    terminal = tech.fixed_cost_per_mw_year
+    terminal = tech.fixed_cost_per_mw_year + float(tail_loading_per_mw_year)
     num = den = 0.0
     for u in range(tech.lead_years, tech.lead_years + life):
         disc = (1.0 + r) ** -u
@@ -654,7 +664,8 @@ def lifetime_rent_per_mw_year(anchor_rents: dict[int, float], tech: TechCost) ->
     return num / den if den else 0.0
 
 
-def lifetime_rent_by_cell(anchors: list[Anchor], tech: TechCost) -> np.ndarray:
+def lifetime_rent_by_cell(anchors: list[Anchor], tech: TechCost,
+                          tail_loading_per_mw_year: float = 0.0) -> np.ndarray:
     """Lifetime rent per cell, holding each cell fixed across the anchors.
 
     A cell is one coherent future, so the growth path and weather that produced the
@@ -672,7 +683,7 @@ def lifetime_rent_by_cell(anchors: list[Anchor], tech: TechCost) -> np.ndarray:
     for i in range(n):
         rents = {a.offset: a.outcomes[i].rent_per_mw_year[tech.technology]
                  for a in ordered}
-        out[i] = lifetime_rent_per_mw_year(rents, tech)
+        out[i] = lifetime_rent_per_mw_year(rents, tech, tail_loading_per_mw_year)
     return out
 
 
@@ -726,6 +737,11 @@ class ForwardView:
 
     anchors: tuple[Anchor, ...]
     entry: EntryState
+    # What the market's own most cautious investor demands over the cost of
+    # entry, per technology: the level the projection's entry step stops at, and
+    # so what the years past the last projection year pay. Set by the run once
+    # the roster is known; empty means the cost of entry alone.
+    tail_loading: dict[str, float] = field(default_factory=dict)
 
     def anchor(self, offset: int) -> Anchor:
         for a in self.anchors:
@@ -748,7 +764,12 @@ class ForwardView:
         return self.nearest.expected_unserved_fraction
 
     def lifetime_rent(self, tech: TechCost) -> np.ndarray:
-        return lifetime_rent_by_cell(list(self.anchors), tech)
+        return lifetime_rent_by_cell(list(self.anchors), tech,
+                                     self.tail_loading.get(tech.technology, 0.0))
+
+    def tail_per_mw_year(self, tech: TechCost) -> float:
+        """What the years past the last projection year pay this technology."""
+        return tech.fixed_cost_per_mw_year + self.tail_loading.get(tech.technology, 0.0)
 
     def risk_distribution(self, tech: TechCost, settings: Settings
                           ) -> tuple[np.ndarray, np.ndarray]:
