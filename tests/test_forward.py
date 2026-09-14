@@ -405,9 +405,9 @@ def test_the_tail_pays_what_the_projection_stops_assuming_entry_at(settings, tic
     from dataclasses import replace
     from esem_sandbox.core.agents import default_roster
     from esem_sandbox.core.clearing import cara_certainty_equivalent, cara_coefficient
-    from esem_sandbox.core.simulate import _merchant_entry_loading, _with_tail
+    from esem_sandbox.core.simulate import _merchant_entry_loading, with_tail
     plain = tick_zero_view
-    loaded = _with_tail(settings, plain, default_roster())
+    loaded = with_tail(settings, plain, default_roster())
     a = cara_coefficient(0.6, 1.0, settings)
     for name in ("ocgt", "solar", "battery_8h"):
         tech = settings.tech(name)

@@ -124,13 +124,17 @@ def the_forward_view(settings, bundle, path, tech_name="ocgt"):
     """
     from esem_sandbox.core.agents import PRODUCER, default_roster
     from esem_sandbox.core.forward import EntryState, cell_plan, forward_view
+    from esem_sandbox.core.simulate import with_tail
     from esem_sandbox.core.investment import (build_size_mw, evaluate,
                                               residual_exposure)
 
     cells = cell_plan(settings)
     offsets = list(settings.forward["anchor_offsets"])
-    view = forward_view(settings, settings.fleet, bundle, year=2026,
-                        peak_mw=12_500.0, entry=EntryState())
+    # The view the run's investors read: the years past the last projection year
+    # pay the cost of entry plus the market's own loading.
+    view = with_tail(settings, forward_view(settings, settings.fleet, bundle,
+                                            year=2026, peak_mw=12_500.0,
+                                            entry=EntryState()), default_roster())
     tech = settings.tech(tech_name)
     agent = [a for a in default_roster() if a.kind == PRODUCER][0]
     rents = view.lifetime_rent(tech)
@@ -218,11 +222,13 @@ def what_hesitancy_costs(settings, bundle, path, tech_name="ocgt"):
     """
     from esem_sandbox.core.agents import PRODUCER, default_roster
     from esem_sandbox.core.forward import EntryState, forward_view
+    from esem_sandbox.core.simulate import with_tail
     from esem_sandbox.core.investment import (build_size_mw, evaluate,
                                               residual_exposure)
 
-    view = forward_view(settings, settings.fleet, bundle, year=2026,
-                        peak_mw=12_500.0, entry=EntryState())
+    view = with_tail(settings, forward_view(settings, settings.fleet, bundle,
+                                            year=2026, peak_mw=12_500.0,
+                                            entry=EntryState()), default_roster())
     tech = settings.tech(tech_name)
     size = build_size_mw(12_500.0, tech, settings)
     producers = [a for a in default_roster() if a.kind == PRODUCER]

@@ -386,7 +386,7 @@ def _cap_payoff_per_mw_year(price: np.ndarray, strike: float) -> float:
     return float(np.clip(price - strike, 0.0, None).sum())
 
 
-def _with_tail(settings: Settings, view: ForwardView,
+def with_tail(settings: Settings, view: ForwardView,
                roster: tuple[Agent, ...]) -> ForwardView:
     """The view with the market's own loading in the years past the last
     projection year, so the build test, the exit test and the entry step read one
@@ -514,7 +514,7 @@ def run(settings: Settings, *, ticks: int = 20, start_year: int = 2026,
         # That is not the mechanism the rule exists to isolate, and the rule is one
         # end of the bracket this model reports on how much a market builds.
         belief_behind_view = state.entry
-        view = _with_tail(settings, forward_view(
+        view = with_tail(settings, forward_view(
             live, state.fleet, bundle, year=year, peak_mw=level,
             entry=belief_behind_view, cells=plan), state.roster)
         state.entry = update_projected_entry(
@@ -611,7 +611,7 @@ def run(settings: Settings, *, ticks: int = 20, start_year: int = 2026,
         # difference between the two legs that the mechanism did not create.
         # Rebuilt only in years something was awarded, which is what it costs.
         if awarded_this_year:
-            view = _with_tail(settings, forward_view(
+            view = with_tail(settings, forward_view(
                 live, state.fleet, bundle, year=year, peak_mw=level,
                 entry=belief_behind_view, cells=plan), state.roster)
 
@@ -634,7 +634,7 @@ def run(settings: Settings, *, ticks: int = 20, start_year: int = 2026,
             now is in service at every anchor the decision turns on. It is the
             expensive call in a tick, which is the honest cost of the repair.
             """
-            return _with_tail(settings, forward_view(
+            return with_tail(settings, forward_view(
                 live, state.fleet + tuple(new_units), bundle, year=year,
                 peak_mw=level, entry=belief_behind_view, cells=plan), state.roster)
 
