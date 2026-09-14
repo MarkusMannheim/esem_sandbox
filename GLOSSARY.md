@@ -201,9 +201,10 @@ a smaller set of nine so a run finishes quickly; totals from a reduced lattice a
 not comparable with the full one, and anything using one says so.
 
 **Free entry.** The idea that if something is profitable to build, somebody keeps
-building it until it no longer is. The forward view chases that point
-without ever arriving: see **assumed entry** above, and note that the model treats
-the answer as a signal rather than a settled number.
+building it until it no longer is. The forward view chases that point one step a
+year, growing the best technology that still pays and, when none can grow, shrinking
+the one furthest under water, and it rarely arrives: see **assumed entry** above,
+and note that the model treats the answer as a signal rather than a settled number.
 
 **Projection years.** The model prices the future at three distances, four,
 eight and 12 years out, and fills in between them. Four years is far enough
@@ -215,7 +216,9 @@ avoids the word for both.)*
 
 **Assumed entry.** How much plant investors assume everybody else will build. It
 matters because a project is worth less in a crowded market, and it is how a
-market can talk itself out of building as well as into it.
+market can talk itself out of building as well as into it. What is assumed built
+by four years out is still there at eight and at twelve, so the later projection
+years are priced with it.
 
 **Hurdle.** What a project must earn each year, per megawatt, to be worth
 building: its fixed cost, plus whatever the uncertainty costs the investor. A

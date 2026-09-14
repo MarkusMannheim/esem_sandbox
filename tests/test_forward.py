@@ -13,7 +13,7 @@ import pytest
 
 from esem_sandbox.config import load_settings
 from esem_sandbox.core.forward import (
-    Anchor, Cell, CellOutcome, EntryState, cell_plan, dispatch_anchor,
+    Anchor, Cell, CellOutcome, EntryBelief, EntryState, cell_plan, dispatch_anchor,
     incumbent_rents, interpolated_rent, lifetime_rent_by_cell,
     lifetime_rent_per_mw_year, peak_banded, rent_per_mw_year,
     update_projected_entry,
@@ -423,6 +423,79 @@ def test_only_one_technology_moves_a_tick(settings):
     assert len(moved) == 1, f"{len(moved)} technologies moved in one tick: {moved}"
 
 
+def _anchor_with(settings, offset, rents, shortfall=2000.0):
+    base = _stub_anchor(offset, [1.0], shortfall=shortfall)
+    return Anchor(offset=offset, year=2026 + offset, outcomes=tuple(
+        replace(o, rent_per_mw_year=rents) for o in base.outcomes))
+
+
+def test_a_settled_best_candidate_does_not_freeze_the_second(settings):
+    """A candidate whose bracket has closed to one unit moves nothing. Chosen
+    again while its surplus ranks first, it left every other candidate at the
+    anchor frozen whatever their surplus: on the packaged fleet a combined cycle
+    held the +8 anchor for sixteen passes with a peaker and a four-hour battery
+    both paying and able to grow. The mover is the best candidate that can still
+    move, and the anchor rests only when no paying candidate can."""
+    ocgt, ccgt = settings.tech("ocgt"), settings.tech("ccgt")
+    zero = {t.technology: 0.0 for t in settings.tech_costs}
+    rents = dict(zero, ccgt=2 * ccgt.fixed_cost_per_mw_year,
+                 ocgt=1.5 * ocgt.fixed_cost_per_mw_year)
+    state = EntryState()
+    state.by_offset[8] = {"ccgt": EntryBelief(mw=2_500.0, lo_mw=2_500.0,
+                                              hi_mw=2_500.0 + ccgt.unit_size_mw)}
+    after = update_projected_entry(state, [_anchor_with(settings, 8, rents)],
+                                   settings)
+    assert after.at(8, "ccgt") == 2_500.0, "the settled candidate stays put"
+    assert after.at(8, "ocgt") > 0.0, "the paying candidate behind it moves"
+    assert after.largest_surplus[8] == pytest.approx(ccgt.fixed_cost_per_mw_year)
+    # When every paying candidate is settled the anchor rests, and the surplus
+    # left at it is still recorded.
+    state.by_offset[8]["ocgt"] = EntryBelief(mw=600.0, lo_mw=600.0,
+                                             hi_mw=600.0 + ocgt.unit_size_mw)
+    only = dict(zero, ccgt=2 * ccgt.fixed_cost_per_mw_year,
+                ocgt=1.5 * ocgt.fixed_cost_per_mw_year)
+    rest = update_projected_entry(state, [_anchor_with(settings, 8, only)],
+                                  settings)
+    assert rest.mix(8) == state.mix(8)
+    assert rest.largest_surplus[8] > 0.0
+
+
+def test_a_gated_best_candidate_does_not_skip_the_anchor(settings):
+    """No anchor closer than a technology's lead can gain assumed entry of it.
+    When the best-paying candidate is inside its lead the anchor used to be
+    skipped for the tick, which starved a shorter-lead candidate that paid."""
+    zero = {t.technology: 0.0 for t in settings.tech_costs}
+    long_lead = max(settings.tech_costs, key=lambda t: t.lead_years)
+    short_lead = min((t for t in settings.tech_costs if t.lead_years < long_lead.lead_years),
+                     key=lambda t: t.lead_years)
+    offset = long_lead.lead_years - 1
+    assert offset >= short_lead.lead_years
+    rents = dict(zero, **{long_lead.technology: 3 * long_lead.fixed_cost_per_mw_year,
+                          short_lead.technology: 2 * short_lead.fixed_cost_per_mw_year})
+    after = update_projected_entry(EntryState(),
+                                   [_anchor_with(settings, offset, rents)], settings)
+    assert after.at(offset, long_lead.technology) == 0.0
+    assert after.at(offset, short_lead.technology) > 0.0
+
+
+def test_real_plant_nets_the_belief_that_it_would_be_built(settings):
+    """The belief is about plant beyond the fleet. When plant of that technology
+    joins the fleet the belief has come true by that much, so it is netted,
+    nearest anchor first, and each bracket shifts down with it. Otherwise the
+    anchor prices the belief beside the plant that fulfilled it."""
+    state = EntryState()
+    state.by_offset[4] = {"ccgt": EntryBelief(mw=1_000.0, lo_mw=1_000.0, hi_mw=1_250.0)}
+    state.by_offset[8] = {"ccgt": EntryBelief(mw=500.0, lo_mw=250.0, hi_mw=None)}
+    state.net_out("ccgt", 1_200.0)
+    assert state.at(4, "ccgt") == 0.0
+    assert state.belief(4, "ccgt").hi_mw == pytest.approx(250.0)
+    assert state.at(8, "ccgt") == pytest.approx(300.0)
+    assert state.belief(8, "ccgt").lo_mw == pytest.approx(50.0)
+    assert state.mix(12) == {"ccgt": 300.0}
+    state.net_out("ocgt", 600.0)          # nothing believed of it: nothing to net
+    assert state.mix(12) == {"ccgt": 300.0}
+
+
 def test_a_technology_keeps_its_bracket_when_another_becomes_marginal(settings):
     """Assume enough batteries and a combined cycle looks best; assume enough of
     those and batteries do. Discarding what was learned on a switch made the state
@@ -454,6 +527,23 @@ def test_an_assumed_battery_is_dispatched_as_a_battery(settings):
     assert added[0].technology == "battery"
     assert added[0].duration_h == 8.0
     assert added[0].round_trip_efficiency is not None
+
+
+def test_plant_assumed_at_four_years_is_still_there_at_eight_and_twelve(settings):
+    """Every life on the cost table outlasts the span from the first anchor to the
+    last, so a plant the projection assumes built by four years out is in service
+    at eight and at twelve. The far anchors used to be dispatched without it, and
+    the lifetime rent the build test chained from the three anchors valued an 8h
+    battery at three times its fixed cost on a view whose own +4 anchor said the
+    same plant did not pay. A belief at eight years does not reach back to four."""
+    state = EntryState()
+    state.by_offset[4] = {"battery_8h": EntryBelief(mw=1_000.0)}
+    state.by_offset[8] = {"ocgt": EntryBelief(mw=300.0)}
+    assert state.mix(4) == {"battery_8h": 1_000.0}
+    assert state.mix(8) == {"battery_8h": 1_000.0, "ocgt": 300.0}
+    assert state.mix(12) == {"battery_8h": 1_000.0, "ocgt": 300.0}
+    assert state.at(8) == 300.0, "the anchor's own belief stays the increment"
+    assert state.at(12) == 0.0
 
 
 def test_the_assumed_mix_can_hold_more_than_one_technology(settings):

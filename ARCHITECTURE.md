@@ -39,7 +39,7 @@ transact in (`core/clearing.py`, `core/agents.py`), a mechanism switched on top
 | `core/agents.py` | Six archetypes; what separates them is risk aversion and exposure, not size |
 | `core/clearing.py` | What each contract lane clears at, what it costs a peaker to stand ready, the one measure of caution the whole model shares, and the market where retailers and producers trade |
 | `core/crossing.py` | The option where buyers and sellers have to find a price between them instead of both accepting the reference price |
-| `core/forward.py` | 45 possible futures, priced at four, eight and 12 years out; what each technology would earn in each; and how much plant investors assume everybody else builds |
+| `core/forward.py` | 45 possible futures, priced at four, eight and 12 years out; what each technology would earn in each; and how much plant investors assume everybody else builds, carried from each projection year into the later ones |
 | `core/investment.py` | How much of a project is still exposed to the spot price, what it therefore has to earn to be built, how fast the fleet may change, and when a plant closes |
 | `core/esem.py` | The reliability scheme: how much to buy, what it is worth, when it is committed, who pays |
 | `core/scheme.py` | A state scheme: a milestone a year, a ceiling, a budget, and why it was missed. Note the units: it buys NAMEPLATE megawatts where the reliability lane buys DELIVERED FIRM ones, and the two are not addable |

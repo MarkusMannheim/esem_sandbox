@@ -510,36 +510,49 @@ with a balance sheet.
 When an investor here works out what a project would earn, it has to assume something
 about how much plant everybody else will build, because a crowded market pays less.
 The model works that assumption out by trial: assume some entry, see which technologies
-would still be worth building, assume a bit more of those, and repeat until nothing is
-worth building any more. That last state is the answer, and reaching it takes many
-passes.
+would still be worth building, assume a bit more of the best of those, and repeat.
+One technology moves a step; when none that pays can grow, the one furthest under
+water gives some back; when nothing can grow and nothing is under water, the guess is
+at rest. What is assumed built by four years out is carried into the eight and
+twelve-year projections, since every plant on the cost table outlives that span.
 
-A run does not take many passes. It takes one a year, and the actual fleet changes
+A run does not take many steps. It takes one a year, and the actual fleet changes
 underneath it every year, so what the investment rule reads is a half-finished
-calculation chasing a target that has already moved.
+calculation chasing a target that has already moved. Plant that actually gets built
+is netted from the guess as it is decided, so the guess does not sit beside the plant
+that fulfilled it.
 
-Measured against a frozen fleet, with the risk loading off, over 40 passes, the
-near projection settles and the far one does not:
+Measured against a frozen fleet, with the risk loading off, over 40 passes on the
+full lattice (`tools/belief_table.py`); the surplus is the most any candidate at that
+projection year still earns over its fixed cost, in dollars per megawatt-year:
 
-| pass | four years | eight years | 12 years |
-|---|---|---|---|
-| 1 | 1,936 MW | 3,805 MW | 5,102 MW |
-| 20 | 7,048 MW | 15,850 MW | 17,983 MW |
-| 30 | 7,048 MW | 17,555 MW | 23,201 MW |
-| 40 | 7,048 MW | 18,020 MW | 25,609 MW |
+| pass | four years | at rest | surplus | eight years | at rest | surplus | 12 years | at rest | surplus |
+|---|---|---|---|---|---|---|---|---|---|
+| 1 | 1,935 MW | no | +2,272,258 | 3,839 MW | no | +4,543,569 | 5,145 MW | no | +4,526,793 |
+| 10 | 3,782 MW | no | -9,323 | 7,067 MW | no | +10,727 | 5,352 MW | no | +46,809 |
+| 20 | 3,415 MW | no | -2,569 | 8,654 MW | no | +2,045 | 6,545 MW | no | +172,812 |
+| 30 | 3,331 MW | no | +6,448 | 8,791 MW | no | -8,994 | 7,980 MW | no | -11,466 |
+| 40 | 3,100 MW | yes | +17,495 | 8,411 MW | no | -2,747 | 7,080 MW | no | +40,332 |
 
-The four-year projection is unmoved from pass 20, and the eight-year from about
-pass 35. The 12-year one never arrives: it is still climbing between
-the 30-ninth pass and the fortieth, and nothing here says where it would stop. A
-20-year run gives each projection 20 steps in total, and the fleet it is
-chasing moves at every one of them, so a run sees far less convergence than even this.
+The four-year projection comes to rest at the fortieth pass. Rest means the step has
+nothing left it may do: every candidate that pays is settled to within one generating
+unit, and nothing assumed is under water. A surplus can remain at rest, because a
+settled candidate's last unit is the one that did not pay, and because a bracket
+measured while other technologies held more of the market is not re-measured when
+they give it back. The eight and 12-year projections are still moving at 40 passes,
+with the surplus changing sign between passes, and nothing here says where they would
+stop. A 20-year run gives each projection 20 steps in total, and the fleet it is
+chasing moves at every one of them, so a run sees far less settling than even this.
+Every run writes, for each year and projection, whether the guess was at rest and the
+largest surplus left at it, so a guess that did not move can be read as rest or as
+stall.
 
 The projection is also not held to the annual build ceiling that holds the market, so
 in principle it can assume plant that could not physically arrive in time. On the
 packaged fleet the near one does not: the ceiling allows 8,200 MW a year across all
-seven technologies and the four-year projection assumes 7,048 MW. That is a thinner
-margin than it looks, and the far projections are far above it. Re-check this
-whenever the ceiling or the cost table moves.
+seven technologies and the four-year projection assumes 3,100 MW. The eight-year
+projection carries 11,511 MW in service by then, four years' ceiling at most, and the
+12-year one 18,591 MW. Re-check this whenever the ceiling or the cost table moves.
 
 Read the belief as a signal and not as an equilibrium. It is enough to make the
 market respond to scarcity with the right sign and the right rough size, which is

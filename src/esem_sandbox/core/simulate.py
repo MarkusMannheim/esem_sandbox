@@ -175,6 +175,11 @@ class TickResult:
     firm_capacity_mw: float
     capacity_by_technology: dict[str, float]
     entry_belief_mw: dict[int, float]
+    # Whether each projection year's belief is at rest (every candidate settled
+    # or gated) and the largest surplus any candidate still shows there, so a
+    # belief that did not move can be read as rest or as stall.
+    entry_settled: dict[int, bool]
+    entry_largest_surplus: dict[int, float]
     builds: tuple[Build, ...]
     notices: tuple[str, ...]
     live_contracts: int
@@ -443,6 +448,7 @@ def run(settings: Settings, *, ticks: int = 20, start_year: int = 2026,
     strike = float(settings.contracts["cap_strike_per_mwh"])
     tenor = int(settings.contracts["swap_tenor_years"])
     ocgt = settings.tech("ocgt")
+    resolution = {t.technology: t.unit_size_mw for t in settings.tech_costs}
 
     # Bootstrap. Three years of prices before the first tick, and three clears at
     # tenors one, two and three, so that tick zero opens on a laddered book rather
@@ -613,6 +619,7 @@ def run(settings: Settings, *, ticks: int = 20, start_year: int = 2026,
                 unit.commissioned_year, unit.retirement_year,
                 unit.capacity_mw * tech.capex_per_kw * 1000.0 * tech.crf))
             state.fleet = state.fleet + (unit,)
+            state.entry.net_out(b.technology, unit.capacity_mw)
             state.roster = tuple(
                 replace(a, units=a.units + (unit.unit,)) if a.name == b.owner else a
                 for a in state.roster)
@@ -658,6 +665,10 @@ def run(settings: Settings, *, ticks: int = 20, start_year: int = 2026,
             firm_capacity_mw=res.firm_capacity_mw,
             capacity_by_technology=capacity,
             entry_belief_mw={a.offset: state.entry.at(a.offset) for a in view.anchors},
+            entry_settled={a.offset: state.entry.settled(a.offset, resolution)
+                           for a in view.anchors},
+            entry_largest_surplus={a.offset: state.entry.largest_surplus.get(a.offset, 0.0)
+                                   for a in view.anchors},
             builds=tuple(b for b, _ in builds),
             notices=tuple(sorted(noticed)),
             live_contracts=len(state.book),
@@ -865,6 +876,7 @@ def _auction(settings: Settings, state: RunState, view: ForwardView,
             unit.commissioned_year, unit.retirement_year,
             capacity * tech.capex_per_kw * 1000.0 * tech.crf))
         state.fleet = state.fleet + (unit,)
+        state.entry.net_out(tech.technology, capacity)
         state.roster = tuple(
             replace(a, units=a.units + (name,)) if a.name == line.bid.bidder else a
             for a in state.roster)
@@ -976,6 +988,7 @@ def _commit_scheme_award(settings: Settings, state: RunState, line, row, *,
     state.new_capital.append((unit.commissioned_year, unit.retirement_year,
                               capacity * tech.capex_per_kw * 1000.0 * tech.crf))
     state.fleet = state.fleet + (unit,)
+    state.entry.net_out(tech.technology, capacity)
     state.roster = tuple(
         replace(a, units=a.units + (name,)) if a.name == line.bid.bidder else a
         for a in state.roster)

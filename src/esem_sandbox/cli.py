@@ -220,6 +220,11 @@ def simulate(args: argparse.Namespace) -> int:
             # of any year in this table.
             "expected_unserved_fraction_4y_ahead": round(
                 tick.expected_unserved_fraction, 8),
+            "belief_mw": " ".join(f"{k}y:{v:.0f}" for k, v in tick.entry_belief_mw.items()),
+            "belief_at_rest": " ".join(f"{k}y:{'yes' if v else 'no'}"
+                                       for k, v in tick.entry_settled.items()),
+            "belief_surplus_per_mw_year": " ".join(
+                f"{k}y:{v:.0f}" for k, v in tick.entry_largest_surplus.items()),
             "firm_capacity_mw": round(tick.firm_capacity_mw),
             "built_mw": round(sum(b.capacity_mw for b in tick.builds)),
             "built": _by_technology(tick.builds),

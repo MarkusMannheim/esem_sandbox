@@ -399,6 +399,10 @@ class EntryState:
     """
 
     by_offset: dict[int, dict[str, EntryBelief]] = field(default_factory=dict)
+    # The largest surplus any candidate showed at each anchor on the last step,
+    # $/MW-year over its fixed cost and loading. Telemetry: it is what says
+    # whether an anchor that did not move was at rest or starved.
+    largest_surplus: dict[int, float] = field(default_factory=dict)
 
     def at(self, offset: int, technology: str | None = None) -> float:
         beliefs = self.by_offset.get(offset, {})
@@ -407,9 +411,23 @@ class EntryState:
         return sum(b.mw for b in beliefs.values())
 
     def mix(self, offset: int) -> dict[str, float]:
-        """What the projection assumes gets built, by technology."""
-        return {t: b.mw for t, b in self.by_offset.get(offset, {}).items()
-                if b.mw > 0.0}
+        """What the projection assumes is in service at this anchor, by technology.
+
+        Cumulative across the anchors: plant assumed built by four years out is
+        physically there at eight and at twelve, since every life on the cost
+        table outlasts the span between them, so the later anchors are dispatched
+        with it. Each anchor's own belief is the increment it adds on top of what
+        the nearer anchors already carry, which is what the step at that anchor
+        judges; ``at`` reports that increment.
+        """
+        out: dict[str, float] = {}
+        for near, beliefs in self.by_offset.items():
+            if near > offset:
+                continue
+            for t, b in beliefs.items():
+                if b.mw > 0.0:
+                    out[t] = out.get(t, 0.0) + b.mw
+        return out
 
     def belief(self, offset: int, technology: str) -> EntryBelief:
         return self.by_offset.get(offset, {}).get(technology, EntryBelief())
@@ -427,11 +445,39 @@ class EntryState:
                 return False
         return True
 
+    def net_out(self, technology: str, mw: float) -> None:
+        """Plant of this technology has joined the fleet: the belief that somebody
+        would build it has come true by that much.
+
+        The belief is about plant beyond the fleet, so real plant of the same
+        technology is netted from it, nearest anchor first, and each bracket
+        shifts down with it: the bracket's edges were measured as increments over
+        the old fleet, and the same totals are that much smaller an increment over
+        the new one. Without this a belief sits beside the plant that fulfilled
+        it, the anchor prices both, and with one mover a tick a stale belief
+        decays only when it is the lowest-surplus holder and nothing pays.
+        """
+        left = float(mw)
+        for offset in sorted(self.by_offset):
+            if left <= 0.0:
+                break
+            b = self.by_offset[offset].get(technology)
+            if b is None or b.mw <= 0.0:
+                continue
+            taken = min(b.mw, left)
+            left -= taken
+            b.mw -= taken
+            if b.lo_mw is not None:
+                b.lo_mw = max(0.0, b.lo_mw - taken)
+            if b.hi_mw is not None:
+                b.hi_mw = max(0.0, b.hi_mw - taken)
+
     def copy(self) -> "EntryState":
         return EntryState({
             offset: {t: EntryBelief(b.mw, b.lo_mw, b.hi_mw, b.step_mw)
                      for t, b in beliefs.items()}
-            for offset, beliefs in self.by_offset.items()})
+            for offset, beliefs in self.by_offset.items()},
+            dict(self.largest_surplus))
 
 
 def update_projected_entry(state: EntryState, anchors: list[Anchor],
@@ -442,9 +488,13 @@ def update_projected_entry(state: EntryState, anchors: list[Anchor],
 
     Where a technology's projected rent clears its own fixed cost, the projection
     grows the plant it assumes will be built; where it does not, the assumption
-    decays. At the fixed point every technology's rent sits at or below its cost,
-    with equality for the ones that entered, which is what free entry means when
-    more than one thing can be built.
+    decays. The state the step walks toward is one where every technology's rent
+    sits at or below its cost, with equality for the ones that entered, which is
+    what free entry means when more than one thing can be built. A run takes one
+    step a year against a fleet that moves every year, so it reads a signal
+    rather than that fixed point; an anchor whose candidates are all settled or
+    gated rests, and the largest surplus left at it is carried on the state so a
+    rest and a stall can be told apart.
 
     Why every technology and not one named in advance. Naming one forces the
     projection to price replacement capacity at that technology's running cost
@@ -508,12 +558,28 @@ def update_projected_entry(state: EntryState, anchors: list[Anchor],
             ranked.append((surplus, tech))
         if not ranked:
             continue
-        best = max(ranked, key=lambda r: r[0])
-        # Grow the best where anything pays; otherwise unwind the worst offender,
-        # which is the one furthest from covering its cost.
-        surplus, tech = best if best[0] >= 0.0 else min(
-            (r for r in ranked if state.belief(anchor.offset, r[1].technology).mw > 0),
-            key=lambda r: r[0], default=best)
+        ranked.sort(key=lambda r: r[0], reverse=True)
+        out.largest_surplus[anchor.offset] = ranked[0][0]
+        # Grow the best candidate that can still move. A candidate whose bracket
+        # has closed to within one unit moves nothing, and one inside its build
+        # lead may not grow at this anchor; taking either again would leave every
+        # other candidate frozen whatever its surplus. When no paying candidate
+        # can grow, the tick's one move goes downward instead: the assumed entry
+        # furthest under water gives some back, since capacity the market cannot
+        # support is capacity no evaluation justifies, and holding it while the
+        # paying candidates sit settled froze both halves of the anchor. When
+        # nothing can grow and nothing is under water the anchor is at rest.
+        movers = [r for r in ranked
+                  if r[0] >= 0.0 and _can_grow(state, anchor.offset, r[1])]
+        under_water = [r for r in ranked
+                       if r[0] < 0.0
+                       and state.belief(anchor.offset, r[1].technology).mw > 0]
+        if movers:
+            surplus, tech = movers[0]
+        elif under_water:
+            surplus, tech = min(under_water, key=lambda r: r[0])
+        else:
+            continue
 
         prior = state.belief(anchor.offset, tech.technology)
         here = prior.mw
@@ -548,11 +614,20 @@ def update_projected_entry(state: EntryState, anchors: list[Anchor],
             step = max(step_min, here * decay)
             nxt = max(0.0, here - step)
 
-        if nxt > here and anchor.offset < tech.lead_years:
-            continue                       # no new entry inside the build lead
         beliefs[tech.technology] = EntryBelief(mw=nxt, lo_mw=lo, hi_mw=hi,
                                                step_mw=step)
     return out
+
+
+def _can_grow(state: EntryState, offset: int, tech: TechCost) -> bool:
+    """Whether a step at this anchor could add assumed entry of this technology:
+    not inside its build lead, and its bracket not already closed to one unit."""
+    if offset < tech.lead_years:
+        return False
+    b = state.belief(offset, tech.technology)
+    if b.lo_mw is not None and b.hi_mw is not None:
+        return (b.hi_mw - b.lo_mw) > tech.unit_size_mw
+    return True
 
 
 def interpolated_rent(anchors: dict[int, float], offset: float,
