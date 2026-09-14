@@ -703,6 +703,50 @@ def lifetime_rent_by_cell(anchors: list[Anchor], tech: TechCost) -> np.ndarray:
     return out
 
 
+RISK_WORLDS = ("growth", "growth_band", "all")
+
+
+def risk_worlds(rents: np.ndarray, cells: tuple[Cell, ...], weights: np.ndarray,
+                grouping: str) -> tuple[np.ndarray, np.ndarray]:
+    """The distribution a plant's lifetime rent is risk-priced over.
+
+    A cell is one coherent future for one year, and the lattice holds 45 of them.
+    Over a plant's life only the growth path is one future: the run draws it once
+    and keeps it, and draws the weather shape and the peak band afresh every
+    year from the same odds the lattice weights its cells by. A rent that held
+    one shape and one band for 15 or 25 years is a lifetime nobody in this model
+    can have, and a hurdle charged for its dispersion charges for risk the
+    generative process cannot deliver: on the packaged fleet three quarters of a
+    peaker's premium and almost all of a battery's came from the band axis alone.
+
+    The rents are therefore collapsed to worlds before the certainty equivalent sees
+    them: ``growth`` groups the cells by growth path and takes each path's
+    weighted mean over its weather and band cells, which is what a life on that
+    path earns as the annual draws average out; ``growth_band`` keeps the band
+    as though it persisted, and ``all`` keeps every cell as its own world, which
+    is the reading this replaced. The expectation is the same under every
+    grouping, by construction; only the dispersion the hurdle is charged for
+    changes. What is dropped under ``growth`` is the year-to-year dispersion a
+    life of annual draws still carries, which a longer-lived measure of caution
+    would price and this one, by ruling, does not.
+    """
+    if grouping not in RISK_WORLDS:
+        raise ValueError(
+            f"unknown risk_premium_worlds {grouping!r}: expected one of {RISK_WORLDS}"
+        )
+    if grouping == "all":
+        return np.asarray(rents, dtype=float), np.asarray(weights, dtype=float)
+    key = (lambda c: c.growth_path) if grouping == "growth" \
+        else (lambda c: (c.growth_path, c.peak_band))
+    groups: dict = {}
+    for r, c, w in zip(rents, cells, weights):
+        num, den = groups.get(key(c), (0.0, 0.0))
+        groups[key(c)] = (num + float(r) * float(w), den + float(w))
+    world_rents = np.array([num / den if den else 0.0 for num, den in groups.values()])
+    world_weights = np.array([den for _num, den in groups.values()])
+    return world_rents, world_weights
+
+
 @dataclass(frozen=True)
 class ForwardView:
     """Every anchor of one tick's forward view, and the belief that produced it."""
@@ -732,6 +776,17 @@ class ForwardView:
 
     def lifetime_rent(self, tech: TechCost) -> np.ndarray:
         return lifetime_rent_by_cell(list(self.anchors), tech)
+
+    def risk_distribution(self, tech: TechCost, settings: Settings
+                          ) -> tuple[np.ndarray, np.ndarray]:
+        """Lifetime rent and weight per world, for the certainty equivalent.
+
+        Every reader of caution goes through this, so a firm prices the same
+        risk the same way whether it is building, bidding or writing cover.
+        """
+        cells = tuple(o.cell for o in self.nearest.outcomes)
+        return risk_worlds(self.lifetime_rent(tech), cells, self.weights,
+                           str(settings.forward["risk_premium_worlds"]))
 
 
 def forward_view(settings: Settings, fleet: tuple[Unit, ...], bundle: dict, *,

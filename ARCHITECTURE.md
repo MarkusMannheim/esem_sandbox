@@ -83,6 +83,13 @@ fixed at the start and never revised, so nobody in this model learns which futur
 are in, which is deliberate and costs something: see
 [KNOWN_LIMITATIONS.md](KNOWN_LIMITATIONS.md).
 
+The spread an investor is charged for is the one across the three growth paths. A run
+keeps its growth path for life and draws the weather and the peak afresh every year,
+so over a plant's life those two average out; the 45 futures are collapsed to the
+three paths, each at the mean of its weather and peak cells, before caution is priced.
+The expectation is the same either way. Everything that reads caution, the hurdle,
+the lane's bid and the state scheme's bid, reads that one distribution.
+
 The investor's own tolerance for that spread then decides most of what it demands.
 
 <picture>

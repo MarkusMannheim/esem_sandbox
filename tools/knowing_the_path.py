@@ -9,6 +9,13 @@ That can be tested without a design change: collapse the priors onto the path ea
 run actually drew, so the forward view knows what the run knows, and compare. The
 realised weather and the realised growth path are held identical, which the probe
 asserts rather than assumes.
+
+Caution is priced on the growth paths, so a market that knows its path has one
+world and no premium at all, and the comparison would then be between a cautious
+market and a risk-neutral one, which is not the question. Both arms here price
+caution over every cell (risk_premium_worlds = "all"), so that knowing the path
+changes what the lane sizes against and what the forward expects, and nothing about
+how caution is priced. The table says so in its heading.
 """
 
 import csv
@@ -32,7 +39,9 @@ def certain(settings, path: str):
 
 
 def main(ticks: int = 20, reduced: bool = True) -> int:
-    s = load_settings()
+    s = load_settings({"forward": {"risk_premium_worlds": "all"}})
+    print("caution priced over every cell in both arms, so that only the priors "
+          "move between them")
     seeds = [int(r["seed"]) for r in csv.DictReader(open(ENVELOPE))] \
         if os.path.exists(ENVELOPE) else [20260904, 20260101, 111, 19990101]
     voll = s.market["market_price_cap_per_mwh"]

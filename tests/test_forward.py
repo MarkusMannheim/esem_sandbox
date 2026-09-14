@@ -330,6 +330,93 @@ def test_entry_that_cannot_pay_stays_at_zero_and_leaves_the_shortfall_visible(se
     assert state.at(8) == 0.0
 
 
+# --------------------------------------------------------------------------
+# What caution is priced over
+
+
+def _lattice_view(settings, cells=None):
+    from esem_sandbox.core.forward import forward_view
+    bundle = generate_bundle(settings.weather["seed"], settings.weather["shape_years"])
+    return forward_view(settings, settings.fleet, bundle, year=2026, peak_mw=12_500.0,
+                        entry=EntryState(), cells=cells)
+
+
+@pytest.fixture(scope="module")
+def tick_zero_view(settings):
+    return _lattice_view(settings)
+
+
+def test_the_expectation_is_the_same_whatever_caution_is_priced_over(settings, tick_zero_view):
+    """Collapsing cells to worlds moves the dispersion the hurdle is charged for and
+    nothing else: each world's rent is the weighted mean of its cells, so the
+    expectation is the full-lattice mean under every grouping."""
+    from esem_sandbox.core.forward import RISK_WORLDS, risk_worlds
+    view = tick_zero_view
+    cells = tuple(o.cell for o in view.nearest.outcomes)
+    for tech in settings.tech_costs:
+        rents = view.lifetime_rent(tech)
+        mean = float(rents @ view.weights)
+        for grouping in RISK_WORLDS:
+            r, w = risk_worlds(rents, cells, view.weights, grouping)
+            assert w.sum() == pytest.approx(1.0)
+            assert float(r @ w) == pytest.approx(mean, rel=1e-9), (tech.technology, grouping)
+    with pytest.raises(ValueError, match="risk_premium_worlds"):
+        risk_worlds(rents, cells, view.weights, "weather")
+
+
+def test_caution_priced_on_the_growth_path_charges_less_than_on_every_cell(settings, tick_zero_view):
+    """The weather shape and the peak band are drawn afresh every year, so over a
+    life they average out and only the growth path is one future. A hurdle that
+    priced every cell as a lifetime charged for dispersion the run cannot produce:
+    on the packaged fleet three quarters of a peaker's premium and almost all of
+    a battery's. The certainty equivalent on growth worlds is never below the one
+    on every cell, and the premium falls."""
+    from esem_sandbox.core.clearing import cara_certainty_equivalent, cara_coefficient
+    from esem_sandbox.core.forward import risk_worlds
+    view = tick_zero_view
+    cells = tuple(o.cell for o in view.nearest.outcomes)
+    a = cara_coefficient(0.6, 1.0, settings)
+    premium = {}
+    for name in ("ocgt", "battery_4h"):
+        rents = view.lifetime_rent(settings.tech(name))
+        by_cell = cara_certainty_equivalent(*risk_worlds(rents, cells, view.weights, "all"), a)
+        by_band = cara_certainty_equivalent(*risk_worlds(rents, cells, view.weights, "growth_band"), a)
+        by_path = cara_certainty_equivalent(*risk_worlds(rents, cells, view.weights, "growth"), a)
+        assert by_cell <= by_band <= by_path, name
+        mean = float(rents @ view.weights)
+        premium[name] = (mean - by_path, mean - by_cell)
+        assert premium[name][0] < premium[name][1], name
+    # A peaker's rent moves with demand, so most of its premium is the growth
+    # path's and survives; a battery's moves with the peak band, which does not.
+    assert premium["ocgt"][0] > 0.5 * premium["ocgt"][1]
+    assert premium["battery_4h"][0] < 0.1 * premium["battery_4h"][1]
+    r, w = risk_worlds(view.lifetime_rent(settings.tech("ocgt")), cells, view.weights, "growth")
+    assert len(r) == len({c.growth_path for c in cells})
+
+
+def test_a_market_that_knows_its_growth_path_carries_no_premium(settings):
+    """With all the prior weight on one growth path there is one world under the
+    ruling, the certainty equivalent equals the expectation, and every hurdle is
+    the plain cost. That is what pricing caution on the growth axis alone means,
+    and it is why the knowing-the-path experiment has to name the worlds it
+    prices over."""
+    from esem_sandbox.core.agents import PRODUCER, default_roster
+    from esem_sandbox.core.investment import evaluate
+    one_path = replace(settings, growth=tuple(
+        replace(g, weight=1.0 if g.path == "central" else 0.0) for g in settings.growth))
+    view = _lattice_view(one_path, cells=tuple(
+        c for c in cell_plan(one_path) if c.shape_year in (0, 4)))
+    merchant = [a for a in default_roster() if a.kind == PRODUCER][0]
+    v = evaluate(view, one_path.tech("ocgt"), merchant, one_path, exposure=1.0,
+                 capacity_mw=200.0)
+    assert v.risk_discount_per_mw_year == pytest.approx(0.0, abs=1e-6)
+    every_cell = replace(one_path, forward={**one_path.forward,
+                                            "risk_premium_worlds": "all"})
+    v_all = evaluate(view, every_cell.tech("ocgt"), merchant, every_cell,
+                     exposure=1.0, capacity_mw=200.0)
+    assert v_all.risk_discount_per_mw_year > 0.0
+
+
 def test_the_belief_is_on_the_run_and_not_in_a_module_global(settings):
     """Two legs of a paired run must not share one belief about entry, and a test
     must not leave its state behind for the next one."""

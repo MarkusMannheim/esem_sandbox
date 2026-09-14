@@ -31,14 +31,18 @@ def merchant():
 
 
 def _view(tech_rents, unit_rents=None, offsets=(4, 8, 12), weights=None):
-    """A forward view whose per-cell rents are whatever the test says they are."""
+    """A forward view whose per-cell rents are whatever the test says they are.
+
+    Each cell is its own growth path, so the dispersion a test writes across
+    cells is dispersion caution is priced on: risk is priced over growth paths,
+    and cells sharing one path are averaged before the certainty equivalent."""
     n = len(next(iter(tech_rents.values())))
     weights = weights if weights is not None else [1.0 / n] * n
     anchors = []
     for off in offsets:
         outcomes = tuple(
             CellOutcome(
-                cell=Cell(shape_year=i, growth_path="central", peak_band=1,
+                cell=Cell(shape_year=i, growth_path=f"path_{i}", peak_band=1,
                           weight=w, annual_growth=0.019, peak_multiplier=1.0),
                 rent_per_mw_year={t: v[i] for t, v in tech_rents.items()},
                 unit_rent_per_mw_year={u: v[i] for u, v in (unit_rents or {}).items()},

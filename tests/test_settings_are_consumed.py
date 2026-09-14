@@ -40,6 +40,7 @@ CONSUMED = {
     "peak_band_weights": "forward.cell_plan, the probability on each peak band",
     "anchor_offsets": "forward.forward_view, the years the lattice is dispatched at",
     "entry_step_min_mw": "forward.update_projected_entry, the floor on a step",
+    "risk_premium_worlds": "forward.risk_worlds, the worlds caution is priced over",
     "entry_decay": "forward.update_projected_entry, the unbracketed retreat",
     "risk_premium": "investment.cara_coefficient, lambda = risk aversion x this",
     "cara_scale": "investment.cara_coefficient, the coefficient over $/MW-year",

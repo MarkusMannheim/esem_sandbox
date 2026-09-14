@@ -18,13 +18,13 @@ would order.
 
 The distance between those two answers is what the argument about electricity policy
 is actually about. A peaker in this model costs about $136,000 per megawatt-year to
-own, and the firms want $386,000 to $425,000 before building one. About two thirds of
-the bar is caution rather than cost, and a least-cost model cannot see that gap
+own, and the firms want $331,000 to $357,000 before building one. About three fifths
+of the bar is caution rather than cost, and a least-cost model cannot see that gap
 because it has nobody in it who could be cautious.
 
 That is also why a contract can cause plant to be built. Selling 60 per cent of the
 output forward removes the uncertainty rather than paying for it, and the bar falls by
-about a third. The same money handed over as a subsidy would do less.
+about a quarter. The same money handed over as a subsidy would do less.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="outputs/canonical/hesitancy_dark.png">

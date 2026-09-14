@@ -22,6 +22,7 @@ language.
 | [A lower hurdle moves the mix](#a-lower-hurdle-changes-what-gets-built-not-only-how-much) | result | firm capacity does not follow the hurdle |
 | [The guess at what others build never settles](#investors-guess-at-what-everyone-else-builds-never-settles) | simplification | read it as a signal, not as a settled answer |
 | [Investors never learn their future](#investors-never-learn-which-future-they-are-in) | simplification | nobody here forecasts, and it costs something |
+| [Caution is priced on the growth path](#caution-is-priced-on-the-growth-path-and-on-nothing-else) | simplification | a year's weather carries no premium, by ruling |
 | [The scheme buys plant built anyway](#the-scheme-can-buy-plant-that-would-have-been-built-anyway) | result | additionality, made visible rather than hidden |
 | [Part of the effect is reallocation](#part-of-the-schemes-effect-is-reallocation-not-addition) | result | what the awards displace matters as much as what they add |
 | [A scheme cannot fix an early year](#a-scheme-cannot-fix-a-year-that-arrives-before-its-plant-does) | result | the most misread rows in a paired run |
@@ -812,9 +813,12 @@ is in keeps buying for the average of them.
 That can be tested without a design change. Put all the odds on the path each run
 actually drew, so the forward view knows what the run knows, and hold the realised
 weather and the realised path identical, which `tools/knowing_the_path.py` asserts
-rather than assumes. Run over nine possible futures rather than 45, so these
-figures are not comparable with
-the 10-seed table above:
+rather than assumes. Caution is priced over the growth paths, so a market that knows
+its path would carry no premium at all and the comparison would be between a cautious
+market and a risk-neutral one; both arms of this experiment therefore price caution
+over every cell of the lattice, so that only the odds move between them. Run over
+nine possible futures rather than 45, so these figures are not comparable with the
+10-seed table above:
 
 | | across 10 seeds |
 |---|---|
@@ -838,6 +842,24 @@ change does opposite things on two draws from the same model.
 Whatever makes the scheme expensive on a slow path, not knowing which path it is on
 is not it. The question is closed, and the explanation it closes is an easy one to
 reach for.
+
+## Caution is priced on the growth path, and on nothing else
+
+A run draws its growth path once and keeps it, and draws the weather shape and the
+peak band afresh every year. Over a plant's life, then, only the growth path is one
+future; the other two are a long run of annual draws that average toward their
+means. The hurdle prices caution over the three growth paths, each at the mean of its
+weather and peak cells, and every reader of caution reads that one distribution.
+
+What that drops is the year-to-year dispersion a life of annual draws still carries:
+a drought year is a bad year whether or not the next one is. Priced with the same
+caution, that residual would add roughly $20,000 to $30,000 per megawatt-year to a
+four-hour battery's hurdle. It is dropped by ruling rather than measured as zero,
+because the alternative, holding one weather year and one peak band for 25 years,
+charges for a lifetime nobody in this model can have. On the packaged fleet that
+reading puts three quarters of a peaker's premium and almost all of a battery's on
+the two axes the run redraws every year, and a four-hour battery's naked hurdle at
+$479,879 per megawatt-year against $179,652 on the growth path.
 
 ## What the simplification costs elsewhere
 

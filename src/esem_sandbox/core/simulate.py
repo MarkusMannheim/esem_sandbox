@@ -402,10 +402,9 @@ def _merchant_entry_loading(settings: Settings, view: ForwardView,
         return {}
     representative = max(a.risk_aversion for a in producers)
     a = cara_coefficient(representative, 1.0, settings)
-    weights = view.weights
     out: dict[str, float] = {}
     for tech in settings.tech_costs:
-        rents = view.lifetime_rent(tech)
+        rents, weights = view.risk_distribution(tech, settings)
         out[tech.technology] = float(rents @ weights) - cara_certainty_equivalent(
             rents, weights, a)
     return out
@@ -814,9 +813,9 @@ def _auction(settings: Settings, state: RunState, view: ForwardView,
         # A scheme priced on expectations would report itself as free.
         exposure = residual_exposure(settings, tech.life_years,
                                      award_years=tenor, award_cover=1.0)
-        rents = view.lifetime_rent(tech)
+        rents, weights = view.risk_distribution(tech, settings)
         a = cara_coefficient(representative_aversion, exposure, settings)
-        bankable = cara_certainty_equivalent(rents, view.weights, a)
+        bankable = cara_certainty_equivalent(rents, weights, a)
         cost = long_run_cost_per_mw_year(
             tech, blended_wacc(tech, settings, share), bankable)
         price = cost * capacity / firm
@@ -933,9 +932,9 @@ def _scheme_round(settings: Settings, state: RunState, view: ForwardView,
         share = min(1.0, row.tenor_years / max(1, tech.life_years))
         exposure = residual_exposure(settings, tech.life_years,
                                      award_years=row.tenor_years, award_cover=1.0)
-        rents = view.lifetime_rent(tech)
+        rents, weights = view.risk_distribution(tech, settings)
         a = cara_coefficient(representative, exposure, settings)
-        bankable = cara_certainty_equivalent(rents, view.weights, a)
+        bankable = cara_certainty_equivalent(rents, weights, a)
         price = long_run_cost_per_mw_year(
             tech, blended_wacc(tech, settings, share), bankable)
         for agent in ordered:

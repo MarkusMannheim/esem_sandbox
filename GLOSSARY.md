@@ -229,7 +229,9 @@ every policy in this model works through.
 one for. Somebody offered an even chance of nothing or two million usually prefers
 a sure eight hundred thousand to a sure million, and the certainty equivalent is
 that number. The gap between it and the plain average is the price of the risk,
-and it is what a contract buys away.
+and it is what a contract buys away. Here it is taken over the three growth paths,
+each at the average of its weather and peak futures, because a plant lives on one
+growth path and through many years of weather.
 
 **Risk aversion.** How strongly an investor prefers a sure thing. The model gives
 its six firms different amounts of it, and that is most of what separates them.

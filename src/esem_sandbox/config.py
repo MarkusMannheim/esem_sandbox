@@ -38,7 +38,8 @@ _SECTIONS = {
         "screen_floor_per_mwh", "recycling_window_years", "recycling_conduct",
         "fire_sale_fraction", "overhead_per_year", "reserve_margin",
     },
-    "forward": {"anchor_offsets", "entry_step_min_mw", "entry_decay"},
+    "forward": {"anchor_offsets", "entry_step_min_mw", "entry_decay",
+                "risk_premium_worlds"},
     "investment": {
         "risk_premium", "cara_scale", "hedge_fraction_cap",
         "bilateral_contract_years", "merchant_underwrite_years", "discount_rate",

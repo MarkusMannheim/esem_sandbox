@@ -185,8 +185,7 @@ def evaluate(view: ForwardView, tech: TechCost, agent: Agent, settings: Settings
              *, exposure: float, capacity_mw: float,
              contracted_share: float = 0.0) -> Verdict:
     """One candidate technology, for one producer, against one forward view."""
-    rents = view.lifetime_rent(tech)
-    weights = view.weights
+    rents, weights = view.risk_distribution(tech, settings)
     a = cara_coefficient(agent.risk_aversion, exposure, settings)
     ce = cara_certainty_equivalent(rents, weights, a)
     fixed = tech.fixed_cost_per_mw_year

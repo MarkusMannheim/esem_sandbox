@@ -72,6 +72,15 @@ peak_band_weights = [0.1, 0.8, 0.1]
 # bracket the years its decision actually turns on and the tail beyond them is
 # assumed rather than projected.
 anchor_offsets = [4, 8, 12]
+# What a plant's lifetime rent is risk-priced over. A run draws the growth path
+# once and keeps it, and draws the weather shape and the peak band afresh every
+# year, so over a life only the growth path is one future and the other two
+# average out. "growth" prices caution on the three growth paths, each at the mean
+# of its weather and band cells; "growth_band" keeps the band as though it lasted
+# a life; "all" keeps every cell as its own world. The expectation is the same
+# under all three. Anything reading caution reads this, so the hurdle, the lane
+# bid and the state scheme's bid price one risk one way.
+risk_premium_worlds = "growth"
 # Projected entry: one adaptive step a tick, for one technology a tick. The best
 # candidate that pays and can still move grows; when none can, the one furthest
 # under water shrinks; when nothing can grow and nothing is under water the
