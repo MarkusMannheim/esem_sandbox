@@ -298,7 +298,7 @@ def _projected_entry_unit(mw: float, tech: TechCost, year: int) -> Unit:
     return Unit(
         unit=f"{PROJECTED_ENTRY_UNIT}_{tech.technology}",
         technology=tech.dispatch_technology, capacity_mw=mw,
-        availability=tech.availability, srmc_per_mwh=tech.srmc_per_mwh,
+        availability=tech.availability, srmc_per_mwh=tech.offer_per_mwh,
         retirement_year=9999, commissioned_year=year, must_run_mw=0.0,
         energy_budget_gwh=None, duration_h=tech.duration_h,
         round_trip_efficiency=tech.round_trip_efficiency,

@@ -370,7 +370,7 @@ def _new_unit(tech: TechCost, mw: float, name: str, decided_year: int) -> Unit:
         unit=name,
         technology=tech.dispatch_technology,
         capacity_mw=mw, availability=tech.availability,
-        srmc_per_mwh=tech.srmc_per_mwh,
+        srmc_per_mwh=tech.offer_per_mwh,
         retirement_year=commissioned + tech.life_years,
         commissioned_year=commissioned, must_run_mw=0.0, energy_budget_gwh=None,
         duration_h=tech.duration_h,

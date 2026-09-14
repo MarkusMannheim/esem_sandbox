@@ -878,3 +878,28 @@ def test_a_recycled_cap_nets_the_bilateral_cap_rung(settings):
     assert netted == pytest.approx(plain - 4 * held / 3, rel=1e-9), (
         "the rung is the mandate less the recycled cap, over the ladder length"
     )
+
+
+def test_a_built_plant_offers_on_the_same_basis_as_the_plant_already_there(settings):
+    """The packaged wind and solar farms offer below zero in a surplus hour, a
+    curtailment offer standing for certificate revenue the model does not carry.
+    A plant the model builds used to offer at the cost row's zero, so two vintages
+    of one technology sat in the merit order on two bases, the new one was
+    curtailed first, and from mid-run it set the surplus price at zero where the
+    packaged plant set it at minus 25 or minus 45. One offer per technology,
+    whatever the vintage; a peaker still offers its running cost."""
+    from esem_sandbox.core.forward import anchor_fleet
+    from esem_sandbox.core.simulate import _new_unit
+    fleet_offer = {u.technology: u.srmc_per_mwh for u in settings.fleet
+                   if u.technology in ("wind", "solar")}
+    assert fleet_offer["wind"] < 0 and fleet_offer["solar"] < 0
+    for name in ("wind", "solar"):
+        tech = settings.tech(name)
+        built = _new_unit(tech, 600.0, f"{name}_test", 2026)
+        assert built.srmc_per_mwh == fleet_offer[name], name
+        assumed = [u for u in anchor_fleet(settings.fleet, 2035, {name: 300.0}, settings)
+                   if u.unit.startswith("projected_entry")][0]
+        assert assumed.srmc_per_mwh == fleet_offer[name], name
+    ocgt = settings.tech("ocgt")
+    assert _new_unit(ocgt, 200.0, "ocgt_test", 2026).srmc_per_mwh == ocgt.srmc_per_mwh
+    assert ocgt.offer_per_mwh == ocgt.srmc_per_mwh
