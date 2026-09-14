@@ -3,8 +3,8 @@
 The drought is found, not authored. Given the fleet in hand, the worst
 contiguous run of days is the one with the highest residual demand net of what
 the fleet can cover, clamped to three to seven days. That window is telemetry:
-it draws the worst-week chart and sets the days parameter of a storage unit's
-firm contribution.
+it draws the worst-week chart and nothing that settles money or decides a build
+reads it.
 
 Because it is measured after dispatch it cannot move prices, so re-selecting it
 each tick is safe.

@@ -175,10 +175,12 @@ takes to a decision, because others rank above it on surplus. Clearing a hurdle 
 being chosen are different questions here, and only the second one builds anything.
 
 What fills the ceiling is not one investor wanting an unlimited amount. Each
-producer wants exactly one 600 MW block, so it is four producers picking the same
-winner against a ceiling that allows two: the first two get their block and the other
-two are shut out. The economics therefore decides which technologies get built and
-whether a year builds at all. It never decides how much.
+producer commits at most one block of each technology that passes its test, and
+only the best three candidates are put to the test at all, so a technology's
+ceiling is filled by four producers picking the same winner against a ceiling that
+allows two blocks: the first two get theirs and the other two are shut out. The
+economics therefore decides which technologies get built and whether a year builds
+at all. It never decides how much.
 
 The annual build volume in this model is a parameter, not a result, and it is not
 a parameter that only bites when the forward is enthusiastic - it binds in every year
@@ -665,9 +667,10 @@ model the first does not determine the second.
 
 It offers its position back at the market price for the delivery being sold and
 warehouses whatever nobody buys. It does not withhold volume to hold a price up, does
-not read the market, and does not trade on its own account. The conduct lever offers a fire sale as the alternative, which is
-the other end of the same absence of judgement. A real administrator would sit
-somewhere between, and where it sat would be worth money.
+not read the market, and does not trade on its own account. The conduct lever offers
+a fire sale as the alternative, every strip at a discount to the market whoever is
+buying, which is the other end of the same absence of judgement. A real administrator
+would sit somewhere between, and where it sat would be worth money.
 
 ## When buyers and sellers negotiate, both start from the same number
 

@@ -432,9 +432,12 @@ def recycle(admin: Administrator, settings: Settings, *, year: int,
     market price, which is the bid. That is the scheme's cost and it is what the levy
     should show.
 
-    Volume nobody takes is warehoused rather than dumped, unless the conduct lever
-    says otherwise: what an administrator does with unsold volume is a policy
-    question with a real price attached.
+    Volume nobody takes is warehoused rather than dumped. The conduct lever's
+    other setting is a fire sale, which offers every strip at a fraction of the
+    market price so that more of the position sells, with the discount landing on
+    the levy; what still finds no buyer is warehoused under either conduct, since
+    this model has nobody to dump volume on. What an administrator does with its
+    position is a policy question with a real price attached.
     """
     window = int(settings.esem["recycling_window_years"])
     conduct = str(settings.esem["recycling_conduct"])
@@ -500,7 +503,11 @@ def levy_per_mwh(net_settlement: float, settings: Settings,
 
 
 def shortfall_hours_per_day(anchor: Anchor) -> float:
-    """The longest run of shortfall a single day carries, expected across cells.
+    """The most hours of shortfall a single day carries, expected across cells.
+
+    Hours in the day, whether or not they are contiguous: a store that has to
+    cover an evening gap and a separate late-night one draws on the same energy
+    for both.
 
     This is what decides whether duration matters. A store with four hours of energy
     covers a four-hour evening gap completely and a 12-hour one only a third of

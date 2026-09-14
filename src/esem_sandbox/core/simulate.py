@@ -816,7 +816,6 @@ def _auction(settings: Settings, state: RunState, view: ForwardView,
                             price_per_mw_year=price, lead_years=tech.lead_years))
 
     kept = screen(bids, float(res.price.mean()), settings)
-    expected_price = view.nearest.expected_block_prices["overnight"]
     out: list[Award] = []
     for line in clear_pay_as_bid(kept, lane_mw):
         tech, _cap, _firm = priced[line.bid.technology]
@@ -898,7 +897,6 @@ def _scheme_round(settings: Settings, state: RunState, view: ForwardView,
     nameplate wind at a firm factor of a tenth is 900 megawatts of firm
     capacity.
     """
-    tenor = int(settings.esem["contract_tenor_years"])
     producers = [a for a in state.roster if a.kind == PRODUCER]
     if not producers:
         return clear_scheme(row, [], year, _scheme_held_mw(state))[0], []
@@ -1043,10 +1041,11 @@ def _invest(settings: Settings, state: RunState, view: ForwardView,
     MW, more than three times the annual ceiling of 1,200 MW, so the ceiling always
     bites first.
 
-    Each producer wants exactly one block, so what actually fills the ceiling is
-    four producers picking the same winner: the first two get their block and the
-    rest are shut out. That is why, measured, every megawatt of build lands on the
-    ceiling.
+    Each producer commits at most one block of each technology that passes its
+    test, among the few candidates it ranks highest, so what fills a technology's
+    ceiling is four producers picking the same winner: the first two get their
+    block and the rest are shut out. That is why, measured, every megawatt of build
+    lands on the ceiling.
     """
     built = {} if built is None else built
     out: list[tuple[Build, Unit]] = []

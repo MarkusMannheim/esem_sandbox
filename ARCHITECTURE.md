@@ -63,12 +63,13 @@ transact in (`core/clearing.py`, `core/agents.py`), a mechanism switched on top
 ## The forward view, which is where the work goes
 
 `core/forward.py` is where most of the computing goes. Every tick it enumerates 45
-possible
-futures, five weather patterns by three growth paths by three
-peak severities, and dispatches each of them in full at 4, 8 and 12 years ahead. That
-is 135 whole dispatched years behind every investment decision, and 2,700 over a
-20-year run, which is why it is the expensive call in a tick and why the sequential
-investment rule costs about twice the run time.
+possible futures, five weather patterns by three growth paths by three peak
+severities, and dispatches each of them in full at 4, 8 and 12 years ahead. That is
+135 whole dispatched years behind every investment decision, and at least 2,700
+over a 20-year run: one view a tick, a second in any year the scheme awards plant,
+and under the sequential investment rule one more after each producer that builds,
+which is why it is the expensive call in a tick and why that rule costs about twice
+the run time.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="outputs/canonical/forward_view_dark.png">

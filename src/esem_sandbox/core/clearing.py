@@ -120,20 +120,6 @@ def ewma_block_anchor(history: list[dict[str, float]], block: str,
     return num / den
 
 
-@dataclass(frozen=True)
-class Lane:
-    """One product's clearing outcome for a tick."""
-
-    name: str
-    anchor_per_mwh: float
-    volume_mw: float
-    band_low: float
-    band_high: float
-
-    def clears_at(self) -> float:
-        return float(np.clip(self.anchor_per_mwh, self.band_low, self.band_high))
-
-
 def energy_margin_per_mw_year(price: np.ndarray, srmc_per_mwh: float,
                               availability: float) -> float:
     """What a unit earns in the pool above its own running cost, per MW of capacity.

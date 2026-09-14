@@ -536,7 +536,6 @@ def _apply_ladder(residual: np.ndarray, stack_price: np.ndarray,
     # is the offer that meets the last megawatt of it.
     tiers = list(settings.dsr)
     remaining_hours = [t.call_hours for t in tiers]
-    short = residual - firm_capacity
 
     if prices is None or caps is None or not len(prices):
         prices = np.array([stack_price.max() if len(stack_price) else 0.0])
@@ -599,52 +598,6 @@ def _apply_ladder(residual: np.ndarray, stack_price: np.ndarray,
             if filled < need - 1e-9:
                 unserved[h] = need - filled
                 hour_price = mpc
-            price[h] = hour_price
-        # Incremental rolling sum: O(1) an hour rather than O(window).
-        running += price[h]
-        if h >= window:
-            running -= price[h - window]
-        if running >= threshold:
-            capped = min(price[h], apc)
-            # The window has to track SETTLED prices. An hour that entered the sum
-            # at its uncapped price and leaves it, a window later, at the capped one
-            # leaves the difference behind for ever, and after a handful of capped
-            # hours the sum can no longer fall back under the threshold: the cap
-            # latches on for the rest of the year instead of releasing. Take the
-            # difference back out here and the same number goes in and comes out.
-            running -= price[h] - capped
-            price[h] = capped
-            administered[h] = True
-    return price, unserved, ladder_mw, administered
-
-    running = 0.0
-    for h in range(len(residual)):
-        # A tranche is called when the residual passes what offers below it, and its
-        # own capacity comes with it. Walking the tranches in price order, each one
-        # covers what the plant and the cheaper tranches below it could not.
-        covered = 0.0
-        hour_price = price[h]
-        for i, tier in enumerate(tiers):
-            if remaining_hours[i] <= 0:
-                continue
-            need = residual[h] - below[i] - covered
-            if need <= 0:
-                continue
-            used = min(need, tier.capacity_mw)
-            covered += used
-            ladder_mw[h] += used
-            remaining_hours[i] -= 1
-            if used >= need - 1e-9:
-                # This tranche is the marginal resource, so it sets the price.
-                hour_price = tier.price_per_mwh
-            else:
-                hour_price = max(hour_price, tier.price_per_mwh)
-        if short[h] > 0:
-            unmet = short[h] - ladder_mw[h]
-            if unmet > 0:
-                unserved[h] = unmet
-                hour_price = mpc
-        if ladder_mw[h] > 0 or short[h] > 0:
             price[h] = hour_price
         # Incremental rolling sum: O(1) an hour rather than O(window).
         running += price[h]

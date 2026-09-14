@@ -83,7 +83,8 @@ intervals. Averaging first would price it at nearly nothing.
 of the run the model writes down 45 possible futures, five weather patterns by three
 demand growth paths by three peak severities, each with fixed odds, and dispatches
 every one of them in full at 4, 8 and 12 years ahead. That is 135 whole years of
-hourly dispatch behind every investment decision, and 2,700 over a 20-year run.
+hourly dispatch behind every investment decision, and at least 2,700 over a 20-year
+run.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="outputs/canonical/forward_view_dark.png">

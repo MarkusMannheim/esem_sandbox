@@ -66,9 +66,6 @@ class Contract:
         """Contracts struck at t first settle at t+1, so delivery starts at start_year."""
         return self.start_year <= year < self.start_year + self.tenor_years
 
-    def delivery_years(self) -> range:
-        return range(self.start_year, self.start_year + self.tenor_years)
-
 
 def hours_of(settings: Settings, contract: Contract, n_hours: int) -> np.ndarray:
     """The hours this contract settles over, as a boolean mask."""

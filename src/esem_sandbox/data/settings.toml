@@ -203,8 +203,9 @@ screen_floor_per_mwh = 500.0
 # back to retailers as a one-year strip, in the shape the position is held and at the market
 # price for that delivery.
 recycling_window_years = 3
-# What the administrator does with volume nobody buys. "warehouse" holds it,
-# "fire_sale" clears it at a fraction of the anchor. Warehousing is the default
+# How the administrator offers its position. "warehouse" offers at the market price
+# and holds what nobody buys; "fire_sale" offers every strip at the fraction below
+# of the market price, and still holds what nobody buys. Warehousing is the default
 # because it is the conduct that does not require the administrator to have a view.
 recycling_conduct = "warehouse"
 fire_sale_fraction = 0.5
