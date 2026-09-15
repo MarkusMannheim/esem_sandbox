@@ -8,7 +8,7 @@ version = "0.1.0.dev0"
 description = "A small, readable agent-based model of one electricity market region"
 readme = "README.md"
 requires-python = ">=3.11"
-license = { file = "LICENSE" }
+license = { file = "LICENCE" }
 dependencies = ["numpy>=1.26", "matplotlib>=3.8"]
 
 [project.optional-dependencies]

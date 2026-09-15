@@ -127,4 +127,4 @@ Every number and chart on this page is produced by something you can run. `tools
 
 ## Licence
 
-Code is [MIT](LICENSE). The small data files in `src/esem_sandbox/data/` are not: they are derived from published sources and carry those sources' terms. [DATA_SOURCES.md](DATA_SOURCES.md) names the source and the derivation for each, and [NOTICE](NOTICE) carries the attributions.
+Code is [MIT](LICENCE). The small data files in `src/esem_sandbox/data/` are not: they are derived from published sources and carry those sources' terms. [DATA_SOURCES.md](DATA_SOURCES.md) names the source, the derivation and the attribution for each.

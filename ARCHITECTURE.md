@@ -1,43 +1,33 @@
 # How the model fits together
 
-The map: what each piece does, what it hands to the next one, and where to start reading.
+The model is a loop over one year at a time. Each year is dispatched hour by hour, contracts settle on those prices, investors rebuild their view of the future and decide what to build, and plant retires or arrives. This page says what each part of the code does and in what order to read it.
 
-This page is written for someone about to read the code. [GLOSSARY.md](GLOSSARY.md) explains what the model does and what its words mean, and assumes no background.
+## Where to start
 
-The code uses **anchor** for two unrelated things: the reference price a contract lane clears at, and each of the distances ahead the forward view is priced at, which are 4, 8 and 12 years. The glossary calls the second one **projection years**.
+`core/dispatch.py` runs one year, hour by hour, and everything else consumes its output. `core/contracts.py` says what a swap and a cap are and how they settle on those hours. `core/forward.py` builds what investors think the next 4, 8 and 12 years look like. `core/investment.py` decides whether anything gets built. `core/simulate.py` runs those four in order, 20 times. Read them in that order; each needs only the one before it.
 
-## Start here
-
-Read in this order and each piece only needs the one before it.
-
-1. `core/dispatch.py`: one year, hour by hour. Everything else consumes its output.
-2. `core/contracts.py`: what a swap and a cap are, and how they settle.
-3. `core/forward.py`: what investors think the next 4, 8 and 12 years look like.
-4. `core/investment.py`: the four lines that decide whether anything gets built.
-5. `core/simulate.py`: the loop that runs those four, 20 times.
-
-The rest is either an input to those (`config.py`, `core/weather.py`), a market they transact in (`core/clearing.py`, `core/agents.py`), a mechanism switched on top (`core/esem.py`, `core/scheme.py`), or a way of looking at the result (`core/report.py`, `plots.py`, `cli.py`).
+The rest is an input to those (`config.py`, `core/weather.py`), a market they trade in (`core/clearing.py`, `core/agents.py`, `core/crossing.py`), a mechanism switched on top (`core/esem.py`, `core/scheme.py`), or a way of looking at the result (`core/report.py`, `plots.py`, `cli.py`).
 
 ## What each piece does
 
-| Piece | What it is |
+| Piece | What it does |
 |---|---|
-| `config.py` | The settings and the packaged tables. Strict: an unknown key raises rather than leaving a default in place |
-| `core/weather.py` | Five synthetic shape-years from one seed, always 8,760 hours |
-| `core/dispatch.py` | The merit order, with a coal unit's must-run band offered below its running cost and the rest at cost; the scarcity ladder, administered pricing, hydro against its budget, and storage shaving quantities |
-| `core/windows.py` | Finds the worst contiguous run of days, rather than being told where it is |
-| `core/report.py` | Blocks, quarters, duration curves, per-unit revenue, the calibration check |
-| `core/contracts.py` | Swaps and caps, settled over the full hourly series and never a sample |
-| `core/agents.py` | Six archetypes; what separates them is risk aversion and exposure, not size |
+| `config.py` | Loads the settings and the packaged tables. An unknown key raises an error rather than leaving a default in place |
+| `core/weather.py` | Generates five synthetic shape-years from one seed, always 8,760 hours |
+| `core/dispatch.py` | Stacks the offers and prices each hour: a coal unit's must-run band below its running cost, the demand-response ladder, administered pricing, hydro against its annual budget, storage scheduled on quantities |
+| `core/windows.py` | Finds the worst contiguous run of days in a year |
+| `core/report.py` | Blocks, quarters, duration curves, revenue per unit, the calibration check |
+| `core/contracts.py` | Swaps and caps, settled over the full hourly series |
+| `core/agents.py` | Six archetypes, separated by risk aversion and exposure |
 | `core/clearing.py` | What each contract lane clears at, what it costs a peaker to stand ready, the one measure of caution the whole model shares, and the market where retailers and producers trade |
-| `core/crossing.py` | The option where buyers and sellers have to find a price between them instead of both accepting the reference price |
-| `core/forward.py` | 45 possible futures, priced at four, eight and 12 years out; what each technology would earn in each; and how much plant investors assume everyone else builds, carried from each projection year into the later ones |
-| `core/investment.py` | How much of a project is still exposed to the spot price, what it therefore has to earn to be built, how fast the fleet may change, and when a plant closes |
+| `core/crossing.py` | The option where buyers and sellers find a price between them instead of both accepting the reference price |
+| `core/forward.py` | 45 possible futures, priced at 4, 8 and 12 years out; what each technology would earn in each; and how much plant investors assume everyone else builds |
+| `core/investment.py` | How much of a project is still exposed to the spot price, what it has to earn to be built, how fast the fleet may change, and when a plant closes |
 | `core/esem.py` | The reliability scheme: how much to buy, what it is worth, when it is committed, who pays |
-| `core/scheme.py` | A state scheme: a milestone a year, a ceiling, a budget, and why it was missed. Note the units: it buys nameplate megawatts where the reliability lane buys delivered firm ones, and the two are not addable |
-| `core/simulate.py` | The tick loop, and the order the eight steps run in |
+| `core/scheme.py` | A state scheme: a milestone a year, a ceiling, a budget, and why a milestone was missed. It buys nameplate megawatts where the reliability lane buys delivered firm ones, and the two are not addable |
+| `core/simulate.py` | The year loop, and the order its eight steps run in |
 | `plots.py`, `cli.py` | The dashboard, the worst-week and price-duration charts, and three commands |
-| `tools/` | The probes behind every measured claim in the documents, and the charts in them |
+| `tools/` | The scripts that produce the numbers and charts in the documents |
 
 ## What a year looks like
 
@@ -50,31 +40,31 @@ The rest is either an input to those (`config.py`, `core/weather.py`), a market 
 7. The scheme's auction runs, awarding at final investment decision.
 8. Exit notices are given, and then entry is decided.
 
-`core/simulate.py` says which of those orderings carry weight, and why.
+The order matters in three places, and `core/simulate.py` says why: the administrator sells before the bilateral market, so a retailer does not hedge one load twice; exit comes before entry, so an entrant prices a market without the plant everyone knows is leaving; and a contract struck in one year first settles in the next.
 
-## The forward view, which is where the work goes
+## The forward view
 
-`core/forward.py` is where most of the computing goes. Every tick it enumerates 45 possible futures, five weather patterns by three growth paths by three peak severities, and dispatches each of them in full at 4, 8 and 12 years ahead. That is 135 whole dispatched years behind every investment decision, and at least 2,700 over a 20-year run: one view a tick, a second in any year the scheme awards plant, and under the sequential investment rule one more after each producer that builds, which is why it is the expensive call in a tick and why that rule costs about twice the run time.
+`core/forward.py` is where most of the computing goes. Every year it enumerates 45 possible futures, five weather patterns by three growth paths by three peak severities, and dispatches each of them in full at 4, 8 and 12 years ahead. That is 135 dispatched years behind every investment decision, and at least 2,700 over a 20-year run: one view a year, a second in any year the scheme awards plant, and under the sequential investment rule one more after each producer that builds, which is why that rule costs about twice the run time.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="outputs/canonical/forward_view_dark.png">
   <img alt="45 futures priced at three distances, and what they pay a peaker" src="outputs/canonical/forward_view.png">
 </picture>
 
-Enumerating rather than sampling has three consequences. The same settings always give the same picture, so no seed enters here. The result is a distribution rather than a point, which is what lets the investment rule work on the spread. The odds are fixed at the start and never revised, so no one in this model learns which future they are in, which is deliberate and costs something: see [KNOWN_LIMITATIONS.md](KNOWN_LIMITATIONS.md).
+Because the futures are enumerated rather than sampled, the same settings always give the same picture and no seed enters here. What comes out is a distribution, and the investment rule works on its spread. The odds are fixed at the start and never revised, so no one in the model learns which future they are in; that is deliberate, and [KNOWN_LIMITATIONS.md](KNOWN_LIMITATIONS.md) says what it costs.
 
-The spread an investor is charged for is the one across the three growth paths. A run keeps its growth path for life and draws the weather and the peak afresh every year, so over a plant's life those two average out; the 45 futures are collapsed to the three paths, each at the mean of its weather and peak cells, before caution is priced. The expectation is the same either way. Everything that reads caution, the hurdle, the lane's bid and the state scheme's bid, reads that one distribution.
-
-The investor's own tolerance for that spread then decides most of what it demands.
+The spread an investor is charged for is the one across the three growth paths. A run keeps its growth path for life and draws the weather and the peak afresh every year, so over a plant's life those two average out; the 45 futures are collapsed to the three paths, each at the mean of its weather and peak cells, before caution is priced. The expectation is the same either way. Everything that reads caution, the hurdle, the lane's bid and the state scheme's bid, reads that one distribution. The investor's own tolerance for the spread then decides most of what it demands.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="outputs/canonical/hesitancy_dark.png">
   <img alt="How much of the bar a plant must clear is caution rather than cost" src="outputs/canonical/hesitancy.png">
 </picture>
 
-## Three things the model holds to
+The code calls the three distances anchors, a word it also uses for the reference price a contract lane clears at. [GLOSSARY.md](GLOSSARY.md) calls the distances projection years.
 
-Everything is per megawatt-year. Rent and fixed cost are on the same basis, so no capacity-factor assumption enters the build decision. A peaker running two per cent of the year and a wind farm running 35 per cent are each tested against their own costs. It is also what lets the forward view leave the entry it assumes open to technology rather than naming one in advance: a test that divided a fixed cost by a duty cycle would have to know the duty cycle first, and so would end up pinned to whichever technology someone had measured.
+## What the model holds to
+
+Everything is per megawatt-year. Rent and fixed cost are on the same basis, so no capacity-factor assumption enters the build decision: a peaker running two per cent of the year and a wind farm running 35 per cent are each tested against their own costs. It is also what lets the forward view leave the entry it assumes open to technology rather than naming one in advance, because a test that divided a fixed cost by a duty cycle would have to know the duty cycle first, and so would be pinned to whichever technology someone had measured.
 
 Risk is priced once. One function decides how cautious a firm is, and both the cap lane and the investment rule go through it. A firm that priced the same tail one way when writing insurance and another when building the plant that covers it could arbitrage the difference between them.
 

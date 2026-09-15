@@ -1,15 +1,15 @@
 cff-version: 1.2.0
 title: ESEM sandbox
 message: >-
-  If you use this model or its figures, please cite it, and please say that every
-  number it produces is illustrative rather than a forecast.
+  If you use this model or its figures, cite it and say that its numbers are
+  illustrative rather than forecasts.
 type: software
 authors:
   - family-names: Mannheim
     given-names: Markus
 abstract: >-
-  A small agent-based model of one electricity market region, built to be read in an
-  afternoon. It simulates the region hour by hour: plant is dispatched and the price
+  A small agent-based model of one electricity market region. It simulates the
+  region hour by hour: plant is dispatched and the price
   is set by the last unit needed to meet demand. Over 20 annual steps, contracts
   move risk between the firms in it, investors decide what to build against a view
   of the future they extrapolate rather than forecast, and a procurement scheme can
