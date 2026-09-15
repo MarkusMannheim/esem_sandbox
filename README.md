@@ -119,7 +119,7 @@ Every number and chart on this page is produced by something you can run. `tools
 
 [ARCHITECTURE.md](ARCHITECTURE.md) is the map: what each piece does, what a year looks like, and where to start reading.
 
-[GLOSSARY.md](GLOSSARY.md) explains the terms, for a reader who knows the NEM but does not build models.
+[GLOSSARY.md](GLOSSARY.md) explains the terms.
 
 [KNOWN_LIMITATIONS.md](KNOWN_LIMITATIONS.md) says what the model leaves out, what it gets wrong, and which of its results are easy to misread.
 

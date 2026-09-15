@@ -340,7 +340,10 @@ def what_hesitancy_costs(settings, bundle, path, tech_name="ocgt"):
     ax.barh(y, fixed, color=plots.SERIES[0], height=0.55, label="What it costs to own")
     ax.barh(y, caution, left=fixed, color=plots.SERIES[1], height=0.55,
             label="What the uncertainty costs")
-    ax.scatter(contracted, y, color=plots.INK, zorder=5, s=42, marker="D",
+    # Rimmed in the surface colour: on the dark ground the ink is white and the
+    # bar it sits on is pale, so an unrimmed marker disappears into it.
+    ax.scatter(contracted, y, color=plots.INK, zorder=5, s=56, marker="D",
+               edgecolor=plots.SURFACE, linewidths=1.4,
                label=f"The same firm, all of its output under a {tenor}-year award")
     ax.set_yticks(y); ax.set_yticklabels(names, fontsize=10)
     ax.invert_yaxis()

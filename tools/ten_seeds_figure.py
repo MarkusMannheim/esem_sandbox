@@ -57,8 +57,9 @@ def ten_seeds_figure(data: list[dict], path: str, labels: dict[str, str] | None 
     ax.barh([v - h / 2 for v in y], [r["rest"] for r in data], height=h,
             color=rest_c, edgecolor=plots.SURFACE, linewidth=1,
             label="Fuel, fixed costs and capital, saved")
-    ax.scatter([r["total"] for r in data], y, marker="D", s=34, color=plots.INK,
-               zorder=4, label="The two together")
+    ax.scatter([r["total"] for r in data], y, marker="D", s=44, color=plots.INK,
+               edgecolor=plots.SURFACE, linewidths=1.2, zorder=4,
+               label="The two together")
     ax.axvline(0, color=plots.INK_2, lw=1.0)
     # Rows are numbered in the order drawn; the seed behind each is in the csv,
     # and the tool prints the mapping. A seed number tells a reader nothing.

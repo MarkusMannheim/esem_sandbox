@@ -162,6 +162,8 @@ def test_no_sentence_announces_a_quality_instead_of_showing_it():
     pattern = re.compile(
         r"(?i)[^.\n]*\b("
         r"every (claim|entry|number|figure|term)[^.\n]*\b(is|are) (measured|shown|defined)|"
+        r"(defines|explains|lists|covers|names) every (term|claim|number|entry|figure|word)|"
+        r"in the order (you|a reader|they|readers) (meet|meets|need|needs)|"
         r"rather than (asserted|assumed|authored|invented|named)|"
         r"so (a reader|you) can (check|judge|tell)|"
         r"a reader (should|can) be able to|"

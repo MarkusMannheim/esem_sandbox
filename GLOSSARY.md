@@ -1,6 +1,6 @@
 # The words this model uses
 
-The terms are in the order a reader meets them rather than alphabetical. Nothing on this page assumes you have worked in electricity.
+Nothing on this page assumes you have worked in electricity.
 
 If you read one entry, read **the bill and the resource cost**. Confusing those two is the easiest way to reach a wrong conclusion from this model.
 
