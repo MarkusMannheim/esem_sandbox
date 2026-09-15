@@ -68,30 +68,28 @@ dependencies are numpy and matplotlib.
 
 ### Scarcity pricing
 
-In most hours the price is the running cost of the last plant
-needed, which is tens of dollars. When there is not enough, the price climbs through
-customers who agree to be interrupted and on to the market price cap of $20,300/MWh.
-Almost all of a peaking plant's income arrives in those few hours, so it is modelled
-hour by hour, all 8,760 of them, with the cumulative price threshold and the
-administered cap that follow it in the real market. Plant and interruptible demand
-sit in one merit order, so a customer who will stop at $300/MWh is called before a
-generator offering at $480.
+In most hours the price is the running cost of the last plant needed, which is tens of
+dollars. When there is not enough, the price climbs through customers who agree to be
+interrupted and on to the market price cap of $20,300/MWh. Almost all of a peaking
+plant's income arrives in those few hours, so it is modelled hour by hour, all 8,760
+of them, with the cumulative price threshold and the administered cap that follow it
+in the real market. Plant and interruptible demand sit in one merit order, so a
+customer who will stop at $300/MWh is called before a generator offering at $480.
 
 ### Contract settlement
 
-Swaps and caps settle against every one of those 8,760
-hours, never against an average. A cap written at $300/MWh pays on the hours above
-$300 and on no others, so its value comes almost entirely from a handful of
-intervals. Averaging first would price it at nearly nothing.
+Swaps and caps settle against every one of those 8,760 hours, never against an
+average. A cap written at $300/MWh pays on the hours above $300 and on no others, so
+its value comes almost entirely from a handful of intervals. Averaging first would
+price it at nearly nothing.
 
 ### The forward view, rebuilt every year
 
-Nobody here forecasts a price. Every year
-of the run the model writes down 45 possible futures, five weather patterns by three
-demand growth paths by three peak severities, each with fixed odds, and dispatches
-every one of them in full at 4, 8 and 12 years ahead. That is 135 whole years of
-hourly dispatch behind every investment decision, and at least 2,700 over a 20-year
-run.
+Nobody here forecasts a price. Every year of the run the model writes down 45 possible
+futures, five weather patterns by three demand growth paths by three peak severities,
+each with fixed odds, and dispatches every one of them in full at 4, 8 and 12 years
+ahead. That is 135 whole years of hourly dispatch behind every investment decision,
+and at least 2,700 over a 20-year run.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="outputs/canonical/forward_view_dark.png">
@@ -103,21 +101,21 @@ would earn in each of those futures. The investment rule works on the spread.
 
 ### The investment rule
 
-A plant is built when what it expects to earn, per megawatt
-per year, covers what it costs to own, per megawatt per year. Both sides are on that
-same basis, so no assumption about how often a plant runs enters the comparison. The
-investor is cautious rather than neutral: it values an uncertain income at less than
-its average, by an amount that shrinks as more of the plant's output is sold forward.
+A plant is built when what it expects to earn, per megawatt per year, covers what it
+costs to own, per megawatt per year. Both sides are on that same basis, so no
+assumption about how often a plant runs enters the comparison. The investor is
+cautious rather than neutral: it values an uncertain income at less than its average,
+by an amount that shrinks as more of the plant's output is sold forward.
 
 ### What the scheme writes
 
-An award is the contract the plant could actually back.
-Plant that can stand behind a scarcity hour writes a cap on its firm megawatts;
-wind, solar and storage write swaps on the blocks they generate in. The administrator
-holds those positions and offers them back to retailers at the market price for each
-delivery, because nobody buys a hedge above the market. What it never recovers is the
-uplift that carried the bid, so the levy measures the cost of the capacity rather than
-the gap between two price bases.
+An award is the contract the plant could actually back. Plant that can stand behind a
+scarcity hour writes a cap on its firm megawatts; wind, solar and storage write swaps
+on the blocks they generate in. The administrator holds those positions and offers
+them back to retailers at the market price for each delivery, because nobody buys a
+hedge above the market. What it never recovers is the uplift that carried the bid, so
+the levy measures the cost of the capacity rather than the gap between two price
+bases.
 
 ## What it leaves out, and what that costs
 
