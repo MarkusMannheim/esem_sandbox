@@ -25,7 +25,7 @@ from esem_sandbox.config import load_settings  # noqa: E402
 from esem_sandbox.core.dispatch import dispatch_year  # noqa: E402
 from esem_sandbox.core.weather import generate_bundle  # noqa: E402
 from esem_sandbox import plots  # noqa: E402
-from esem_sandbox.plots import CAPTION, _style, theme, titled  # noqa: E402
+from esem_sandbox.plots import _style, finish, theme, titled  # noqa: E402
 
 OUT = "outputs/canonical"
 VARIABLE = {"wind", "solar", "rooftop"}
@@ -66,8 +66,7 @@ def reliability_curve(settings, bundle, path):
     titled(ax, "A small change in firm capacity is a large change in blackouts",
                  loc="left")
     ax.invert_xaxis()
-    fig.text(0.01, 0.015, CAPTION, fontsize=8, color=plots.INK_MUTED)
-    fig.tight_layout(rect=(0, 0.05, 1, 1))
+    finish(fig)
     fig.savefig(path, dpi=150, facecolor=plots.SURFACE)
     plt.close(fig)
     return path, list(zip(firm, unserved))
@@ -106,10 +105,7 @@ def where_a_cap_pays(settings, bundle, path):
                   f"{len(price) - show:,} hours are not drawn)")
     ax.set_ylabel("dollars per MWh, log scale")
     titled(ax, "Almost all of a cap's money is in a handful of hours", loc="left")
-    ax.legend(frameon=False, fontsize=9.5, loc="upper center",
-              bbox_to_anchor=(0.5, -0.22), ncol=1, labelcolor=plots.INK)
-    fig.text(0.01, 0.015, CAPTION, fontsize=8, color=plots.INK_MUTED)
-    fig.tight_layout(rect=(0, 0.10, 1, 1))
+    finish(fig, legend_from=ax, ncol=1)
     fig.savefig(path, dpi=150, facecolor=plots.SURFACE)
     plt.close(fig)
     return path, payout, naive, above
@@ -177,7 +173,7 @@ def the_forward_view(settings, bundle, path, tech_name="ocgt"):
     ax1.grid(False)
     for side in ("left", "bottom"):
         ax1.spines[side].set_visible(False)
-    ax1.text(0, -0.95, f"the SAME {len(cells)} possible futures, dispatched at each "
+    ax1.text(0, -0.95, f"the same {len(cells)} possible futures, dispatched at each "
              f"distance:\n{len(cells) * len(offsets)} whole years, every year of the run",
              fontsize=10, color=plots.INK_2, va="top")
     titled(ax1, "Every tick, the model prices the future by enumerating it",
@@ -200,12 +196,9 @@ def the_forward_view(settings, bundle, path, tech_name="ocgt"):
     ax2.set_xlabel("$m per megawatt per year, in each future")
     ax2.set_ylabel(f"the {len(rents)} futures, poorest first")
     ax2.set_yticks([])
-    ax2.legend(frameon=False, fontsize=9.5, loc="lower right",
-               labelcolor=plots.INK)
     titled(ax2, "A contract is worth the gap it closes", loc="left")
 
-    fig.text(0.01, 0.015, CAPTION, fontsize=8, color=plots.INK_MUTED)
-    fig.tight_layout(rect=(0, 0.06, 1, 1))
+    finish(fig, legend_from=ax2, ncol=1)
     fig.savefig(path, dpi=150, facecolor=plots.SURFACE)
     plt.close(fig)
     return path, mean, bare.certainty_equivalent_per_mw_year, \
@@ -261,11 +254,7 @@ def what_hesitancy_costs(settings, bundle, path, tech_name="ocgt"):
     ax.set_xlabel("$ thousand per megawatt per year")
     titled(ax, "What a gas peaker must earn to be built, and why",
            loc="left")
-    ax.legend(frameon=False, fontsize=9.5, loc="upper center",
-              bbox_to_anchor=(0.5, -0.16), ncol=2, labelcolor=plots.INK,
-              handletextpad=0.6, columnspacing=2.4)
-    fig.text(0.01, 0.015, CAPTION, fontsize=8, color=plots.INK_MUTED)
-    fig.tight_layout(rect=(0, 0.10, 1, 1))
+    finish(fig, legend_from=ax, ncol=2, handletextpad=0.6, columnspacing=2.4)
     fig.savefig(path, dpi=150, facecolor=plots.SURFACE)
     plt.close(fig)
     return path, fixed[0] * 1e3, min(caution) * 1e3, max(caution) * 1e3

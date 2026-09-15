@@ -16,7 +16,7 @@ import matplotlib.pyplot as plt
 
 from esem_sandbox import plots
 from esem_sandbox.config import load_settings
-from esem_sandbox.plots import theme, titled
+from esem_sandbox.plots import finish, theme, titled
 
 OUT = "outputs/canonical"
 PATHS = ("low", "central", "high")
@@ -54,10 +54,12 @@ def ten_seeds_figure(data: list[dict], path: str) -> str:
     ax.scatter([r["total"] for r in data], y, marker="D", s=34, color=plots.INK,
                zorder=4, label="the two together")
     ax.axvline(0, color=plots.INK_2, lw=1.0)
+    # Rows are numbered in the order drawn; the seed behind each is in the csv,
+    # and the tool prints the mapping. A seed number tells a reader nothing.
     ax.set_yticks(y)
-    ax.set_yticklabels([r["seed"] for r in data], fontsize=9)
+    ax.set_yticklabels([f"draw {i + 1}" for i in range(n)], fontsize=9)
     lo, hi = ax.get_xlim()
-    ax.set_xlim(lo - 0.3, max(hi + 0.3, 2.2))
+    ax.set_xlim(lo - 0.3, max(hi + 0.3, 1.7))
     # The growth path each band of seeds drew: a rule between bands, and the
     # path's name at the right-hand end of the band's first row.
     for p in PATHS:
@@ -75,8 +77,7 @@ def ten_seeds_figure(data: list[dict], path: str) -> str:
     ax.set_xlabel("$bn over 20 years; positive means the scheme saved it")
     titled(ax, "What the scheme avoided and what it spent, on ten weather draws",
            fontsize=11.5)
-    ax.legend(frameon=False, fontsize=9, labelcolor=plots.INK, loc="lower left")
-    fig.tight_layout()
+    finish(fig, legend_from=ax, ncol=3)
     fig.savefig(path, dpi=150, facecolor=plots.SURFACE)
     plt.close(fig)
     return path
@@ -89,6 +90,8 @@ def main(csv_path: str = f"{OUT}/ten_seeds.csv") -> int:
         with theme(name):
             p = ten_seeds_figure(data, f"{OUT}/ten_seeds{suffix}.png")
         print(f"wrote {p}")
+    for i, r in enumerate(data):
+        print(f"  draw {i + 1:>2}: seed {r['seed']} ({r['path']} growth)")
     better = sum(r["outage"] > 0 for r in data)
     cheaper = sum(r["total"] > 0 for r in data)
     print(f"reliability better on {better} of {len(data)}, "

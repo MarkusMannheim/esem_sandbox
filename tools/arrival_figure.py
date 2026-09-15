@@ -18,7 +18,7 @@ import matplotlib.ticker
 from esem_sandbox import plots
 from esem_sandbox.config import load_settings
 from esem_sandbox.core.simulate import ESEM, MERCHANT, run
-from esem_sandbox.plots import LEG_COLOUR, LEG_LABEL, LEG_MARKER, theme, titled
+from esem_sandbox.plots import LEG_COLOUR, LEG_LABEL, LEG_MARKER, finish, theme, titled
 
 OUT = "outputs/canonical"
 SEED = 20260904
@@ -76,21 +76,19 @@ def arrival_figure(settings, legs, path: str) -> str:
                  color=plots.INK, fontsize=9, va="center")
     top.xaxis.set_major_locator(matplotlib.ticker.MultipleLocator(2))
     top.set_ylabel("firm capacity commissioned so far, GW on the table")
-    top.legend(frameon=False, fontsize=9.5, labelcolor=plots.INK, loc="upper left")
     titled(top, "Firm capacity arrives later without the scheme", fontsize=11.5)
 
     w = 0.38
     for k, leg in enumerate((MERCHANT, ESEM)):
         vals = [t.unserved_gwh for t in legs[leg].ticks]
         bottom.bar([y + (k - 0.5) * w for y in years], vals, width=w,
-                   color=LEG_COLOUR[leg], edgecolor=plots.SURFACE, linewidth=1,
-                   label=LEG_LABEL[leg])
+                   color=LEG_COLOUR[leg], edgecolor=plots.SURFACE, linewidth=1)
     bottom.set_ylabel("energy shed, GWh")
     bottom.set_xlabel("year")
     bottom.set_xlim(years[0] - 0.7, last + 2.2)
     titled(bottom, "and the years the market is short in are the ones it misses",
            fontsize=11.5)
-    fig.tight_layout()
+    finish(fig, legend_from=top, ncol=2)
     fig.savefig(path, dpi=150, facecolor=plots.SURFACE)
     plt.close(fig)
     return path

@@ -788,8 +788,13 @@ four terms and subtracting it leaves fuel, fixed costs and capital together:
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="outputs/canonical/ten_seeds_dark.png">
-  <img alt="Outage avoided and plant and fuel spent, per seed, grouped by growth path" src="outputs/canonical/ten_seeds.png">
+  <img alt="Outage avoided and plant and fuel spent, per draw, grouped by growth path" src="outputs/canonical/ten_seeds.png">
 </picture>
+
+Each row is one seed: a paired 20-year run on one weather sequence and one growth
+path. The rows are numbered in the order drawn, slow growth first and the largest
+outage avoided first within each band; `tools/ten_seeds_figure.py` prints which
+seed each is. Positive is money the scheme saved.
 
 Which of the two is larger decides the total. On six of the seven seeds where the
 scheme avoids outage it spends more on plant and fuel than the outage was worth,

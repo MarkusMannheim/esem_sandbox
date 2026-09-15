@@ -155,11 +155,13 @@ on.
 
 What one weather draw shows is that draw's. Ten draws of the same comparison show
 the scheme buying reliability on seven and paying for it in real resources on most
-of them, and on three draws the market alone sheds less:
+of them, and on three draws the market alone sheds less. Each row below is one
+draw: the outage the scheme avoided, valued at the price cap, beside what it saved
+or spent on plant and fuel, and the two together:
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="outputs/canonical/ten_seeds_dark.png">
-  <img alt="Outage avoided and plant and fuel spent, per seed, grouped by growth path" src="outputs/canonical/ten_seeds.png">
+  <img alt="Outage avoided and plant and fuel spent, per weather draw, grouped by growth path" src="outputs/canonical/ten_seeds.png">
 </picture>
 
 A second bracket sits underneath every reliability figure here. The model paces

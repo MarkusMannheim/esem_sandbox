@@ -47,11 +47,12 @@ knows. This seed is a high-growth one, which is the flattering end of the range.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="ten_seeds_dark.png">
-  <img alt="Outage avoided and plant and fuel spent, per seed, grouped by growth path" src="ten_seeds.png">
+  <img alt="Outage avoided and plant and fuel spent, per draw, grouped by growth path" src="ten_seeds.png">
 </picture>
 
-`ten_seeds.png` is that table as a picture, one row per seed, slow growth at the
-top. `arrival.png` is the canonical pair's firm capacity as it is commissioned,
+`ten_seeds.png` is that table as a picture, one row per draw, slow growth at the
+top and the largest outage avoided first within each band; the tool prints which
+seed each row is. `arrival.png` is the canonical pair's firm capacity as it is commissioned,
 year by year, over the energy each leg shed: the scheme leg's plant arrives in the
 years the merchant leg is short in, and the merchant leg's arrives after them.
 

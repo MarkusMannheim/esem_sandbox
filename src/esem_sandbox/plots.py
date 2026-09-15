@@ -159,6 +159,43 @@ def _style(ax) -> None:
     ax.yaxis.label.set_fontsize(10)
 
 
+# The foot of every chart, in inches, so the spacing is the same whatever the
+# figure's size: the caption sits this far above the bottom edge, a legend this far
+# above the caption, and the axes this far above whichever of the two is higher.
+FOOT_CAPTION_IN = 0.14
+FOOT_LEGEND_GAP_IN = 0.10
+FOOT_AXES_GAP_IN = 0.16
+CAPTION_HEIGHT_IN = 0.12
+
+
+def finish(fig, legend_from=None, ncol: int = 1, **legend_kw) -> None:
+    """Lay the chart out with the caption at the foot, the legend directly above
+    it, and the axes above both, at the same distances on every chart.
+
+    ``legend_from`` is an axes, or a list of axes, whose labelled artists make the
+    legend; None draws no legend. Call it last, before saving.
+    """
+    height_in = fig.get_size_inches()[1]
+    fig.text(0.01, FOOT_CAPTION_IN / height_in, CAPTION, fontsize=8, color=INK_MUTED,
+             va="baseline")
+    top_in = FOOT_CAPTION_IN + CAPTION_HEIGHT_IN
+    axes = [] if legend_from is None else (
+        list(legend_from) if isinstance(legend_from, (list, tuple)) else [legend_from])
+    handles, labels = [], []
+    for a in axes:
+        h, l = a.get_legend_handles_labels()
+        handles += h
+        labels += l
+    if handles:
+        anchor_in = top_in + FOOT_LEGEND_GAP_IN
+        leg = fig.legend(handles, labels, loc="lower center",
+                         bbox_to_anchor=(0.5, anchor_in / height_in), frameon=False,
+                         fontsize=9.5, labelcolor=INK, ncol=ncol, **legend_kw)
+        fig.canvas.draw()
+        top_in = anchor_in + leg.get_window_extent().height / fig.dpi
+    fig.tight_layout(rect=(0, (top_in + FOOT_AXES_GAP_IN) / height_in, 1, 1))
+
+
 def titled(ax, text, **kw):
     """A title that keeps its colour.
 
@@ -196,8 +233,6 @@ def worst_week(result, window: Window, firm_capacity_mw: float, path: str) -> st
     ax.axhline(firm_capacity_mw, color=INK, lw=1.4, ls="--",
                label="firm capacity")
     ax.set_ylabel("residual demand, MW")
-    ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.02), ncol=3,
-              frameon=False, fontsize=9.5, labelcolor=INK)
     titled(ax, f"Worst window: {window.days} days from day {window.start_day}",
            loc="left")
 
@@ -205,8 +240,7 @@ def worst_week(result, window: Window, firm_capacity_mw: float, path: str) -> st
     ax2.set_yscale("symlog", linthresh=100)
     ax2.set_ylabel("price, dollars per MWh")
     ax2.set_xlabel("hour of the window")
-    fig.text(0.01, 0.01, CAPTION, fontsize=8, color=INK_MUTED)
-    fig.tight_layout(rect=(0, 0.03, 1, 1))
+    finish(fig, legend_from=ax, ncol=3)
     fig.savefig(path, dpi=140, facecolor=SURFACE)
     plt.close(fig)
     return path
@@ -231,10 +265,8 @@ def price_duration(results: dict[str, object], path: str) -> str:
     ax.set_yscale("log")
     ax.set_xlabel("per cent of hours at or above this price")
     ax.set_ylabel("price, dollars per MWh")
-    ax.legend(frameon=False, fontsize=9.5, labelcolor=INK)
     titled(ax, "Price duration, dearest tenth of the year", loc="left")
-    fig.text(0.01, 0.01, CAPTION, fontsize=8, color=INK_MUTED)
-    fig.tight_layout(rect=(0, 0.03, 1, 1))
+    finish(fig, legend_from=ax, ncol=min(3, max(1, len(results))))
     fig.savefig(path, dpi=140, facecolor=SURFACE)
     plt.close(fig)
     return path
