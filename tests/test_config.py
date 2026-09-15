@@ -185,7 +185,7 @@ def test_the_readme_does_not_call_a_built_thing_unbuilt():
     readme = (root / "README.md").read_text()
     # Whitespace-insensitive, because a check on what a document says should not be
     # a check on where its lines end.
-    match = re.search(r"What is not built is\s+([^.]+)\.", readme)
+    match = re.search(r"planned and not built:\s+([^.]+)\.", readme)
     assert match, "the status section no longer says what is missing"
     missing = match.group(1).lower()
 

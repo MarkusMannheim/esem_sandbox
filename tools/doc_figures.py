@@ -17,6 +17,7 @@ away from what the model does: regenerate with `python tools/doc_figures.py`.
 from dataclasses import replace
 
 import matplotlib
+import matplotlib.ticker
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
 import numpy as np  # noqa: E402
@@ -52,24 +53,114 @@ def reliability_curve(settings, bundle, path):
     _style(ax)
     ax.plot(firm, unserved, color=plots.SERIES[0], lw=2.2, marker="o", ms=5, zorder=3)
     base_f, base_u = firm[0], unserved[0]
-    ax.annotate(f"{base_u:,.1f} GWh", (base_f, base_u), textcoords="offset points",
-                xytext=(6, 10), fontsize=9.5, color=plots.INK)
-    ax.annotate(f"{unserved[-1]:,.1f} GWh\nat {1-scales[-1]:.0%} less firm plant",
+    ax.annotate(f"The packaged fleet: {base_u:,.1f} GWh", (base_f, base_u),
+                textcoords="offset points", xytext=(4, -14), fontsize=9.5,
+                color=plots.INK, ha="right", va="top")
+    ax.annotate(f"{1-scales[-1]:.0%} less firm plant: {unserved[-1]:,.1f} GWh, "
+                f"{unserved[-1] / base_u:.0f} times as much",
                 (firm[-1], unserved[-1]), textcoords="offset points",
-                xytext=(-12, -34), fontsize=9.5, color=plots.INK, ha="right")
-    # The axis runs BACKWARDS on purpose, so the eye travels the way the sentence
-    # does: take plant away, and blackouts rise. Unmarked, a reader who does not
-    # notice reads the curve as the opposite claim, so the label says which way it
-    # goes rather than leaving it to the tick values.
-    ax.set_xlabel("firm capacity (MW), falling to the right")
-    ax.set_ylabel("unserved energy (GWh)")
+                xytext=(10, -4), fontsize=9.5, color=plots.INK, ha="left", va="top")
+    ax.xaxis.set_major_formatter(matplotlib.ticker.StrMethodFormatter("{x:,.0f}"))
+    ax.set_xlabel("Firm capacity, MW")
+    ax.set_ylabel("Unserved energy, GWh")
     titled(ax, "A small change in firm capacity is a large change in blackouts",
                  loc="left")
-    ax.invert_xaxis()
     finish(fig)
     fig.savefig(path, dpi=150, facecolor=plots.SURFACE)
     plt.close(fig)
     return path, list(zip(firm, unserved))
+
+
+def price_stack(settings, path):
+    """The offer stack the model prices an hour from: every price-setting offer in
+    the packaged fleet, cheapest first, with the demand-response rungs and the
+    market price cap above it. Hydro and storage are scheduled against a budget and
+    on quantities rather than offered at a price, so they are not on it."""
+    from esem_sandbox.core.dispatch import _offer_stack
+
+    units = [u for u in settings.fleet if u.in_service(2026) and u.technology != "hydro"]
+    prices, caps, labels = _offer_stack(list(units), settings)
+    by_unit = {u.unit: u for u in units}
+    floor = settings.dispatch["must_run_offer_per_mwh"]
+    # A dollar sign is escaped because two of them in one string read as maths.
+    money = lambda v: f"-\\${-v:,.0f}" if v < 0 else f"\\${v:,.0f}"
+
+    fig, ax = plt.subplots(figsize=(7.6, 5.6), facecolor=plots.SURFACE)
+    _style(ax)
+    ax.set_yscale("symlog", linthresh=100, linscale=0.8)
+    colour_of = {"wind": plots.TECH_COLOUR["wind"], "solar": plots.TECH_COLOUR["solar"],
+                 "coal": plots.TECH_COLOUR["coal"], "ccgt": plots.TECH_COLOUR["gas"],
+                 "ocgt": plots.TECH_COLOUR["gas"], "import": plots.TECH_COLOUR["hydro"]}
+    legend_name = {"wind": "Wind", "solar": "Solar", "coal": "Coal", "ccgt": "Gas",
+                   "import": "Imports"}
+    seen = set()
+
+    def band(x, width, price, tech):
+        label = legend_name.get(tech if tech != "ocgt" else "ccgt")
+        if label in seen:
+            label = None
+        seen.add(label)
+        ax.bar(x, price if price != 0 else 1.0, width=width, align="edge",
+               color=colour_of[tech], edgecolor=plots.SURFACE, linewidth=1, label=label)
+
+    x = 0.0
+    vre = sorted((u for u in units if u.technology in ("wind", "solar")),
+                 key=lambda u: u.srmc_per_mwh)
+    for u in vre:
+        band(x, u.capacity_mw, u.srmc_per_mwh, u.technology)
+        ax.text(x + u.capacity_mw / 2, u.srmc_per_mwh - 8, money(u.srmc_per_mwh),
+                ha="center", va="top", fontsize=8.5, color=plots.INK)
+        x += u.capacity_mw
+    # Price labels sit above the wide bands; the steep, narrow top of the stack is
+    # read off the note at the upper left instead, where there is room.
+    top = []
+    for price, cap, label in zip(prices, caps, labels):
+        u = by_unit[label]
+        band(x, cap, price, u.technology)
+        if u.technology == "coal":
+            if price == floor and "floor" not in seen:
+                seen.add("floor")
+                ax.text(x + cap / 2, price - 8, f"must-run band {money(price)}",
+                        ha="left", va="top", fontsize=8.5, color=plots.INK)
+            elif price != floor and "coal_price" not in seen:
+                seen.add("coal_price")
+                ax.text(x + cap / 2, price + 6, f"{money(price)} to {money(52)}", ha="center",
+                        va="bottom", fontsize=8.5, color=plots.INK)
+        else:
+            name = {"ccgt": "combined-cycle gas", "import": "imports",
+                    "ocgt": "open-cycle gas"}[u.technology]
+            if u.unit == "peaker_dist":
+                name = "high-cost peaker"
+            top.append(f"{name} {money(price)}")
+        x += cap
+    x_end = x
+    ax.text(150, 230, "Top of the stack, left to right:\n" + "\n".join(top),
+            fontsize=8.5, color=plots.INK, va="bottom", linespacing=1.35)
+    # The demand-response rungs and the cap, as lines to the right of the stack:
+    # the rungs are 1 to 364 MW wide, too thin to draw to scale on this axis.
+    for t in settings.dsr:
+        ax.hlines(t.price_per_mwh, x_end + 200, x_end + 1_400, color=plots.INK, lw=1.6)
+        ax.text(x_end + 1_500, t.price_per_mwh,
+                f"Demand response {money(t.price_per_mwh)}, {t.capacity_mw:,.0f} MW",
+                fontsize=8.5, color=plots.INK, va="center")
+    cap_price = settings.market["market_price_cap_per_mwh"]
+    ax.axhline(cap_price, color=plots.INK_2, lw=1.2, ls="--")
+    ax.text(150, cap_price * 1.12, f"Market price cap {money(cap_price)}", fontsize=8.5,
+            color=plots.INK_2, va="bottom")
+    ax.axhline(0, color=plots.GRID, lw=0.8)
+    ax.set_xlim(0, x_end + 6_000)
+    ax.set_ylim(-130, cap_price * 2.4)
+    ax.set_yticks([-50, 0, 50, 100, 300, 1000, 3000, 10000, 20300])
+    ax.set_yticklabels(["-50", "0", "50", "100", "300", "1,000", "3,000", "10,000", "20,300"])
+    ax.xaxis.set_major_formatter(matplotlib.ticker.StrMethodFormatter("{x:,.0f}"))
+    ax.set_xlabel("Megawatts offered, cheapest first")
+    ax.set_ylabel("Offer, $ per MWh (log scale above 100)")
+    titled(ax, "What sets the price in an hour: the offer stack, and the rungs above it",
+           loc="left", fontsize=11.5)
+    finish(fig, legend_from=ax, ncol=5)
+    fig.savefig(path, dpi=150, facecolor=plots.SURFACE)
+    plt.close(fig)
+    return path
 
 
 def where_a_cap_pays(settings, bundle, path):
@@ -93,17 +184,17 @@ def where_a_cap_pays(settings, bundle, path):
     ax.plot(hours, np.maximum(head, 1.0), color=plots.INK_2, lw=1.6, zorder=3)
     ax.fill_between(hours, strike, np.maximum(head, strike), color=plots.SERIES[1],
                     alpha=0.6, zorder=2,
-                    label=f"what the cap pays: {payout:,.0f} dollars per MW")
+                    label=f"What the cap pays: {payout:,.0f} dollars per MW")
     ax.axhline(strike, color=plots.SERIES[0], lw=1.6, zorder=4,
-               label=f"the strike: {strike:,.0f} dollars per MWh")
+               label=f"The strike: {strike:,.0f} dollars per MWh")
     ax.axhline(price.mean(), color=plots.INK, lw=1.4, ls="--", zorder=4,
-               label=f"the year's average: {price.mean():,.0f}, below the strike, "
+               label=f"The year's average: {price.mean():,.0f}, below the strike, "
                      f"so averaging first pays nothing")
     ax.set_xlim(0, show)
-    ax.set_xlabel(f"the dearest {show} hours of the year "
+    ax.set_xlabel(f"The dearest {show} hours of the year "
                   f"(only {above} clear the strike; the other "
                   f"{len(price) - show:,} hours are not drawn)")
-    ax.set_ylabel("dollars per MWh, log scale")
+    ax.set_ylabel("Dollars per MWh, log scale")
     titled(ax, "Almost all of a cap's money is in a handful of hours", loc="left")
     finish(fig, legend_from=ax, ncol=1)
     fig.savefig(path, dpi=150, facecolor=plots.SURFACE)
@@ -194,7 +285,7 @@ def the_forward_view(settings, bundle, path, tech_name="ocgt"):
         ax2.axvline(x / 1e6, color=colour, lw=1.6, zorder=4)
         ax2.plot([], [], color=colour, lw=1.6, label=label)
     ax2.set_xlabel("$m per megawatt per year, in each future")
-    ax2.set_ylabel(f"the {len(rents)} futures, poorest first")
+    ax2.set_ylabel(f"The {len(rents)} futures, poorest first")
     ax2.set_yticks([])
     titled(ax2, "A contract is worth the gap it closes", loc="left")
 
@@ -236,7 +327,9 @@ def what_hesitancy_costs(settings, bundle, path, tech_name="ocgt"):
     for a in producers:
         bare = evaluate(view, tech, a, settings, exposure=1.0, capacity_mw=size)
         hedged = evaluate(view, tech, a, settings, exposure=awarded, capacity_mw=size)
-        names.append(f"{a.name.replace('_', ' ')}\n(caution {a.risk_aversion:.2f})")
+        shown = a.name.replace("_", " ").capitalize()
+        shown = shown[:-1] + shown[-1].upper() if shown[-2:] in (" a", " b") else shown
+        names.append(f"{shown}\n(caution {a.risk_aversion:.2f})")
         fixed.append(bare.fixed_cost_per_mw_year / 1e3)
         caution.append(bare.risk_discount_per_mw_year / 1e3)
         contracted.append(hedged.hurdle_per_mw_year / 1e3)
@@ -244,11 +337,11 @@ def what_hesitancy_costs(settings, bundle, path, tech_name="ocgt"):
     fig, ax = plt.subplots(figsize=(7.4, 4.8), facecolor=plots.SURFACE)
     _style(ax)
     y = np.arange(len(names))
-    ax.barh(y, fixed, color=plots.SERIES[0], height=0.55, label="what it costs to own")
+    ax.barh(y, fixed, color=plots.SERIES[0], height=0.55, label="What it costs to own")
     ax.barh(y, caution, left=fixed, color=plots.SERIES[1], height=0.55,
-            label="what the uncertainty costs")
+            label="What the uncertainty costs")
     ax.scatter(contracted, y, color=plots.INK, zorder=5, s=42, marker="D",
-               label=f"the same firm, all of its output under a {tenor}-year award")
+               label=f"The same firm, all of its output under a {tenor}-year award")
     ax.set_yticks(y); ax.set_yticklabels(names, fontsize=10)
     ax.invert_yaxis()
     ax.set_xlabel("$ thousand per megawatt per year")
@@ -275,7 +368,8 @@ def main() -> int:
                 settings, bundle, f"{OUT}/forward_view{suffix}.png")
             p4, cost, lo, hi = what_hesitancy_costs(
                 settings, bundle, f"{OUT}/hesitancy{suffix}.png")
-        print(f"wrote {p1}, {p2}, {p3} and {p4}")
+            p5 = price_stack(settings, f"{OUT}/price_stack{suffix}.png")
+        print(f"wrote {p1}, {p2}, {p3}, {p4} and {p5}")
     for f, u in pts:
         print(f"    {f:>9,.0f} MW  {u:>8.2f} GWh")
     print(f"    cap pays ${payout:,.0f}/MW-year from {n} hours; "

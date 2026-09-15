@@ -20,7 +20,6 @@ from esem_sandbox.plots import finish, theme, titled
 
 OUT = "outputs/canonical"
 PATHS = ("low", "central", "high")
-PATH_LABEL = {"low": "low growth", "central": "central growth", "high": "high growth"}
 
 
 def rows(path: str, cap: float) -> list[dict]:
@@ -37,7 +36,14 @@ def rows(path: str, cap: float) -> list[dict]:
     return out
 
 
-def ten_seeds_figure(data: list[dict], path: str) -> str:
+def path_labels(settings) -> dict[str, str]:
+    """The three demand growth paths, named with their rates, from the settings."""
+    return {g.path: f"{g.path.capitalize()} growth, {g.annual_growth:.1%} a year"
+            for g in settings.growth}
+
+
+def ten_seeds_figure(data: list[dict], path: str, labels: dict[str, str] | None = None) -> str:
+    labels = labels or {p: f"{p.capitalize()} growth" for p in PATHS}
     fig, ax = plt.subplots(figsize=(7.6, 6.0), facecolor=plots.SURFACE)
     plots._style(ax)
     ax.grid(False, axis="y")
@@ -47,17 +53,17 @@ def ten_seeds_figure(data: list[dict], path: str) -> str:
     outage_c, rest_c = plots.SERIES[4], plots.SERIES[5]
     ax.barh([v + h / 2 for v in y], [r["outage"] for r in data], height=h,
             color=outage_c, edgecolor=plots.SURFACE, linewidth=1,
-            label="outage the scheme avoided")
+            label="Outage the scheme avoided")
     ax.barh([v - h / 2 for v in y], [r["rest"] for r in data], height=h,
             color=rest_c, edgecolor=plots.SURFACE, linewidth=1,
-            label="fuel, fixed costs and capital, saved")
+            label="Fuel, fixed costs and capital, saved")
     ax.scatter([r["total"] for r in data], y, marker="D", s=34, color=plots.INK,
-               zorder=4, label="the two together")
+               zorder=4, label="The two together")
     ax.axvline(0, color=plots.INK_2, lw=1.0)
     # Rows are numbered in the order drawn; the seed behind each is in the csv,
     # and the tool prints the mapping. A seed number tells a reader nothing.
     ax.set_yticks(y)
-    ax.set_yticklabels([f"draw {i + 1}" for i in range(n)], fontsize=9)
+    ax.set_yticklabels([f"Draw {i + 1}" for i in range(n)], fontsize=9)
     lo, hi = ax.get_xlim()
     ax.set_xlim(lo - 0.3, max(hi + 0.3, 1.7))
     # The growth path each band of seeds drew: a rule between bands, and the
@@ -68,7 +74,7 @@ def ten_seeds_figure(data: list[dict], path: str) -> str:
             top = y[idx[0]] + 0.5
             if idx[0] > 0:
                 ax.axhline(top, color=plots.GRID, lw=0.8)
-            ax.text(ax.get_xlim()[1], top - 0.1, PATH_LABEL[p], fontsize=9,
+            ax.text(ax.get_xlim()[1], top - 0.1, labels[p], fontsize=9,
                     color=plots.INK_2, va="top", ha="right", style="italic")
     for i, r in enumerate(data):
         ax.text(r["total"] + (0.12 if r["total"] >= 0 else -0.12), y[i],
@@ -88,7 +94,7 @@ def main(csv_path: str = f"{OUT}/ten_seeds.csv") -> int:
     data = rows(csv_path, settings.market["market_price_cap_per_mwh"])
     for suffix, name in (("", "light"), ("_dark", "dark")):
         with theme(name):
-            p = ten_seeds_figure(data, f"{OUT}/ten_seeds{suffix}.png")
+            p = ten_seeds_figure(data, f"{OUT}/ten_seeds{suffix}.png", path_labels(settings))
         print(f"wrote {p}")
     for i, r in enumerate(data):
         print(f"  draw {i + 1:>2}: seed {r['seed']} ({r['path']} growth)")

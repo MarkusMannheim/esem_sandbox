@@ -75,7 +75,7 @@ def arrival_figure(settings, legs, path: str) -> str:
         top.text(last + 0.3, ends[leg] + (k - 0.5) * 2 * nudge, f"{ends[leg]:.1f} GW",
                  color=plots.INK, fontsize=9, va="center")
     top.xaxis.set_major_locator(matplotlib.ticker.MultipleLocator(2))
-    top.set_ylabel("firm capacity commissioned so far, GW on the table")
+    top.set_ylabel("Firm capacity commissioned so far, GW on the table")
     titled(top, "Firm capacity arrives later without the scheme", fontsize=11.5)
 
     w = 0.38
@@ -83,8 +83,8 @@ def arrival_figure(settings, legs, path: str) -> str:
         vals = [t.unserved_gwh for t in legs[leg].ticks]
         bottom.bar([y + (k - 0.5) * w for y in years], vals, width=w,
                    color=LEG_COLOUR[leg], edgecolor=plots.SURFACE, linewidth=1)
-    bottom.set_ylabel("energy shed, GWh")
-    bottom.set_xlabel("year")
+    bottom.set_ylabel("Energy shed, GWh")
+    bottom.set_xlabel("Year")
     bottom.set_xlim(years[0] - 0.7, last + 2.2)
     titled(bottom, "and the years the market is short in are the ones it misses",
            fontsize=11.5)

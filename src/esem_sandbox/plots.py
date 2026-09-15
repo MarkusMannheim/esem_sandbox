@@ -97,7 +97,7 @@ class theme:
         return False
 
 
-LEG_LABEL = {"merchant": "merchant", "esem": "with the scheme"}
+LEG_LABEL = {"merchant": "Merchant", "esem": "With the scheme"}
 
 # Identity is never carried by colour alone. Each leg also gets its own marker, which
 # matters more here than usual: for most of a run the two legs sit on exactly the same
@@ -226,20 +226,20 @@ def worst_week(result, window: Window, firm_capacity_mw: float, path: str) -> st
     for a in (ax, ax2):
         _style(a)
     ax.fill_between(hours, 0, np.minimum(residual, firm_capacity_mw),
-                    color=SERIES[0], alpha=0.55, label="met by the stack")
+                    color=SERIES[0], alpha=0.55, label="Met by the stack")
     ax.fill_between(hours, np.minimum(residual, firm_capacity_mw), residual,
                     where=residual > firm_capacity_mw, color=SERIES[1],
-                    interpolate=True, label="above the stack")
+                    interpolate=True, label="Above the stack")
     ax.axhline(firm_capacity_mw, color=INK, lw=1.4, ls="--",
-               label="firm capacity")
-    ax.set_ylabel("residual demand, MW")
+               label="Firm capacity")
+    ax.set_ylabel("Residual demand, MW")
     titled(ax, f"Worst window: {window.days} days from day {window.start_day}",
            loc="left")
 
     ax2.plot(hours, price, color=SERIES[2], lw=1.4)
     ax2.set_yscale("symlog", linthresh=100)
-    ax2.set_ylabel("price, dollars per MWh")
-    ax2.set_xlabel("hour of the window")
+    ax2.set_ylabel("Price, dollars per MWh")
+    ax2.set_xlabel("Hour of the window")
     finish(fig, legend_from=ax, ncol=3)
     fig.savefig(path, dpi=140, facecolor=SURFACE)
     plt.close(fig)
@@ -263,8 +263,8 @@ def price_duration(results: dict[str, object], path: str) -> str:
         ax.plot(share[keep], np.clip(curve[keep], 1.0, None), lw=1.6,
                 color=shades[i], label=label)
     ax.set_yscale("log")
-    ax.set_xlabel("per cent of hours at or above this price")
-    ax.set_ylabel("price, dollars per MWh")
+    ax.set_xlabel("Per cent of hours at or above this price")
+    ax.set_ylabel("Price, dollars per MWh")
     titled(ax, "Price duration, dearest tenth of the year", loc="left")
     finish(fig, legend_from=ax, ncol=min(3, max(1, len(results))))
     fig.savefig(path, dpi=140, facecolor=SURFACE)
@@ -322,7 +322,7 @@ def _panel_capacity(ax, legs) -> None:
     for x, total in enumerate(base):
         ax.text(x, total * 1.02, f"{total:,.1f} GW", ha="center", va="bottom",
                 fontsize=11, color=INK)
-    ax.set_ylabel("installed capacity, GW")
+    ax.set_ylabel("Installed capacity, GW")
     titled(ax, "The fleet at the end")
     ax.set_ylim(0, base.max() * 1.40)   # headroom for the legend and the totals
 
@@ -338,7 +338,7 @@ def _panel_unserved(ax, legs, standard) -> None:
                 markeredgewidth=1.2)
     ax.axhline(1.0, color=INK_MUTED, lw=1.4, ls="--")
     ax.text(years[0], 1.15, "the reliability standard", fontsize=9.5, color=INK_2)
-    ax.set_ylabel("unserved energy, times the standard")
+    ax.set_ylabel("Unserved energy, times the standard")
     titled(ax, "Reliability, each year")
     _years(ax)
     ax.legend(frameon=False, fontsize=8, labelcolor=INK_2)
@@ -360,8 +360,8 @@ def _panel_duration(ax, legs, year_index, year) -> None:
                 lw=2.6 if name == "merchant" else 1.8,
                 color=LEG_COLOUR[name], label=LEG_LABEL[name])
     ax.set_yscale("log")
-    ax.set_xlabel("per cent of hours at or above this price")
-    ax.set_ylabel("price, \\$/MWh")
+    ax.set_xlabel("Per cent of hours at or above this price")
+    ax.set_ylabel("Price, \\$/MWh")
     titled(ax, f"Price duration in {year}, dearest twentieth")
     ax.legend(frameon=False, fontsize=8, labelcolor=INK_2)
 
@@ -388,8 +388,8 @@ def _panel_hurdle(ax, legs) -> None:
                     zorder=1)
     ax.text(0.03, 0.95, "anything in the shaded half was worth building",
             transform=ax.transAxes, fontsize=7.5, color=INK_2, va="top")
-    ax.set_xlabel("hurdle, \\$000 per MW-year")
-    ax.set_ylabel("expected rent, \\$000 per MW-year")
+    ax.set_xlabel("Hurdle, \\$000 per MW-year")
+    ax.set_ylabel("Expected rent, \\$000 per MW-year")
     titled(ax, "Every build, and the test it passed")
     ax.legend(frameon=False, fontsize=8, labelcolor=INK_2, loc="lower right",
               handletextpad=0.4)
@@ -401,7 +401,7 @@ def _panel_cap(ax, legs) -> None:
         years = [t.year for t in result.ticks]
         ax.plot(years, [t.cap_premium_per_mwh for t in result.ticks], lw=2,
                 color=LEG_COLOUR[name], label=LEG_LABEL[name])
-    ax.set_ylabel("cap premium, \\$/MWh")
+    ax.set_ylabel("Cap premium, \\$/MWh")
     titled(ax, "What a cap cost")
     _years(ax)
     ax.legend(frameon=False, fontsize=8, labelcolor=INK_2)
@@ -412,7 +412,7 @@ def _panel_levy(ax, esem) -> None:
     years = [t.year for t in esem.ticks]
     ax.bar(years, [t.levy_per_mwh for t in esem.ticks], color=SERIES[1], width=0.7,
            edgecolor=SURFACE, linewidth=1.5)
-    ax.set_ylabel("levy, \\$/MWh")
+    ax.set_ylabel("Levy, \\$/MWh")
     titled(ax, "What consumers paid the scheme")
     _years(ax)
 
@@ -442,7 +442,7 @@ def _panel_costs(ax, legs, settings) -> None:
             ax.text(x[i] + (j - 0.5) * width, value + top * 0.015, f"{value:,.0f}",
                     ha="center", fontsize=8, color=INK)
     ax.set_xticks(x)
-    ax.set_xticklabels(["the bill", "the resource cost"])
+    ax.set_xticklabels(["The bill", "The resource cost"])
     ax.set_ylabel("\\$bn over the horizon")
     titled(ax, "What it costs, two ways", pad=16)
     # BELOW the axes. The caveat needs the top of the panel and is four lines wide,
@@ -482,10 +482,10 @@ def _panel_lane(ax, esem) -> None:
     sought = [t.lane_volume_mw for t in esem.ticks]
     got = [sum(a.firm_mw for a in t.awards) for t in esem.ticks]
     ax.bar(years, sought, color=SERIES[2], width=0.7, edgecolor=SURFACE,
-           linewidth=1.5, label="sought, firm MW")
+           linewidth=1.5, label="Sought, firm MW")
     ax.plot(years, got, lw=2, color=SERIES[1], marker="o", markersize=4,
-            markeredgecolor=SURFACE, markeredgewidth=1.2, label="contracted, firm MW")
-    ax.set_ylabel("firm capacity, MW")
+            markeredgecolor=SURFACE, markeredgewidth=1.2, label="Contracted, firm MW")
+    ax.set_ylabel("Firm capacity, MW")
     titled(ax, "What the lane asked for, and got")
     _years(ax)
     ax.legend(frameon=False, fontsize=8, labelcolor=INK_2)

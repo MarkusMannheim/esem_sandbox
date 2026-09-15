@@ -1,15 +1,10 @@
-# How it fits together
+# How the model fits together
 
-The map: what each piece does, what it hands to the next one, and where to start
-reading.
+The map: what each piece does, what it hands to the next one, and where to start reading.
 
-This page is written for somebody about to read the code.
-[GLOSSARY.md](GLOSSARY.md) explains what the model does and what its words mean, and
-assumes no background.
+This page is written for somebody about to read the code. [GLOSSARY.md](GLOSSARY.md) explains what the model does and what its words mean, and assumes no background.
 
-The code uses **anchor** for two unrelated things: the reference price a contract
-lane clears at, and each of the distances ahead the forward view is priced at, which
-are 4, 8 and 12 years. The glossary calls the second one **projection years**.
+The code uses **anchor** for two unrelated things: the reference price a contract lane clears at, and each of the distances ahead the forward view is priced at, which are 4, 8 and 12 years. The glossary calls the second one **projection years**.
 
 ## Start here
 
@@ -21,10 +16,7 @@ Read in this order and each piece only needs the one before it.
 4. `core/investment.py`: the four lines that decide whether anything gets built.
 5. `core/simulate.py`: the loop that runs those four, 20 times.
 
-The rest is either an input to those (`config.py`, `core/weather.py`), a market they
-transact in (`core/clearing.py`, `core/agents.py`), a mechanism switched on top
-(`core/esem.py`, `core/scheme.py`), or a way of looking at the result (`core/report.py`,
-`plots.py`, `cli.py`).
+The rest is either an input to those (`config.py`, `core/weather.py`), a market they transact in (`core/clearing.py`, `core/agents.py`), a mechanism switched on top (`core/esem.py`, `core/scheme.py`), or a way of looking at the result (`core/report.py`, `plots.py`, `cli.py`).
 
 ## What each piece does
 
@@ -62,33 +54,16 @@ transact in (`core/clearing.py`, `core/agents.py`), a mechanism switched on top
 
 ## The forward view, which is where the work goes
 
-`core/forward.py` is where most of the computing goes. Every tick it enumerates 45
-possible futures, five weather patterns by three growth paths by three peak
-severities, and dispatches each of them in full at 4, 8 and 12 years ahead. That is
-135 whole dispatched years behind every investment decision, and at least 2,700
-over a 20-year run: one view a tick, a second in any year the scheme awards plant,
-and under the sequential investment rule one more after each producer that builds,
-which is why it is the expensive call in a tick and why that rule costs about twice
-the run time.
+`core/forward.py` is where most of the computing goes. Every tick it enumerates 45 possible futures, five weather patterns by three growth paths by three peak severities, and dispatches each of them in full at 4, 8 and 12 years ahead. That is 135 whole dispatched years behind every investment decision, and at least 2,700 over a 20-year run: one view a tick, a second in any year the scheme awards plant, and under the sequential investment rule one more after each producer that builds, which is why it is the expensive call in a tick and why that rule costs about twice the run time.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="outputs/canonical/forward_view_dark.png">
   <img alt="45 futures priced at three distances, and what they pay a peaker" src="outputs/canonical/forward_view.png">
 </picture>
 
-Enumerating rather than sampling has three consequences. The same settings always
-give the same picture, so no seed enters here. The result is a distribution rather
-than a point, which is what lets the investment rule work on the spread. The odds are
-fixed at the start and never revised, so nobody in this model learns which future they
-are in, which is deliberate and costs something: see
-[KNOWN_LIMITATIONS.md](KNOWN_LIMITATIONS.md).
+Enumerating rather than sampling has three consequences. The same settings always give the same picture, so no seed enters here. The result is a distribution rather than a point, which is what lets the investment rule work on the spread. The odds are fixed at the start and never revised, so no one in this model learns which future they are in, which is deliberate and costs something: see [KNOWN_LIMITATIONS.md](KNOWN_LIMITATIONS.md).
 
-The spread an investor is charged for is the one across the three growth paths. A run
-keeps its growth path for life and draws the weather and the peak afresh every year,
-so over a plant's life those two average out; the 45 futures are collapsed to the
-three paths, each at the mean of its weather and peak cells, before caution is priced.
-The expectation is the same either way. Everything that reads caution, the hurdle,
-the lane's bid and the state scheme's bid, reads that one distribution.
+The spread an investor is charged for is the one across the three growth paths. A run keeps its growth path for life and draws the weather and the peak afresh every year, so over a plant's life those two average out; the 45 futures are collapsed to the three paths, each at the mean of its weather and peak cells, before caution is priced. The expectation is the same either way. Everything that reads caution, the hurdle, the lane's bid and the state scheme's bid, reads that one distribution.
 
 The investor's own tolerance for that spread then decides most of what it demands.
 
@@ -99,29 +74,12 @@ The investor's own tolerance for that spread then decides most of what it demand
 
 ## Three things the model holds to
 
-Everything is per megawatt-year. Rent and fixed cost are on the same basis, so no
-capacity-factor assumption enters the build decision. A peaker running two per cent of
-the year and a wind farm running 35 per cent are each tested against their own
-costs.
-It is also what lets the forward view leave the entry it assumes open to technology
-rather than naming one in advance: a test that divided a fixed cost by a duty cycle
-would have to know the duty cycle first, and so would end up pinned to whichever
-technology somebody had measured.
+Everything is per megawatt-year. Rent and fixed cost are on the same basis, so no capacity-factor assumption enters the build decision. A peaker running two per cent of the year and a wind farm running 35 per cent are each tested against their own costs. It is also what lets the forward view leave the entry it assumes open to technology rather than naming one in advance: a test that divided a fixed cost by a duty cycle would have to know the duty cycle first, and so would end up pinned to whichever technology somebody had measured.
 
-Risk is priced once. One function decides how cautious a firm is, and both the cap
-lane and the investment rule go through it. A firm that priced the same tail one way
-when writing insurance and another when building the plant that covers it could
-arbitrage the difference between them.
+Risk is priced once. One function decides how cautious a firm is, and both the cap lane and the investment rule go through it. A firm that priced the same tail one way when writing insurance and another when building the plant that covers it could arbitrage the difference between them.
 
-Nothing forecasts. The bilateral market's contract prices are weighted averages of
-prices that have already happened, a scheme award's strike is the forward view's
-expectation for its delivery years, and the forward view is a list of possible
-futures at fixed odds.
-That is the whole mechanism behind boom and bust: scarcity lifts prices, investors
-extrapolate, everybody builds, and the plant arrives together into a market that no
-longer needs it.
+Nothing forecasts. The bilateral market's contract prices are weighted averages of prices that have already happened, a scheme award's strike is the forward view's expectation for its delivery years, and the forward view is a list of possible futures at fixed odds. That is the whole mechanism behind boom and bust: scarcity lifts prices, investors extrapolate, everybody builds, and the plant arrives together into a market that no longer needs it.
 
-## What it does not do
+## What the model does not do
 
-[KNOWN_LIMITATIONS.md](KNOWN_LIMITATIONS.md) lists what the model gets wrong, with
-the measurement behind each entry.
+[KNOWN_LIMITATIONS.md](KNOWN_LIMITATIONS.md) lists what the model gets wrong, with the measurement behind each entry.
