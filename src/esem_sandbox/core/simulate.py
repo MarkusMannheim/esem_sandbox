@@ -6,7 +6,7 @@ Each tick, in this order and for reasons:
 2. The year is dispatched and priced.
 3. Contracts written in earlier ticks settle against that price.
 4. The book ages: what has finished delivering leaves it.
-5. The forward view is rebuilt, and the guess at how much plant everybody else
+5. The forward view is rebuilt, and the guess at how much plant everyone else
    builds is revised once.
 6. The administrator offers its position back, and then the bilateral market covers
    whatever the retailers still need.
@@ -259,7 +259,7 @@ class RunResult:
     def unserved_valued_at_the_cap(self, settings: Settings) -> float:
         """Unserved energy priced at the value of lost load.
 
-        A reliability failure is a cost even though nobody invoices for it, and a
+        A reliability failure is a cost even though no one invoices for it, and a
         comparison that left it out would show the leg that sheds load as the cheap
         one. This is the line that stops a bill view being an argument for
         unreliability.
@@ -280,7 +280,7 @@ class RunResult:
 
     def resource_cost(self, settings: Settings) -> float:
         """What the whole thing costs the economy: fuel, fixed costs, new capital,
-        and the energy nobody got.
+        and the energy no one got.
 
         The line that stops a bill view being an argument. A scheme that builds
         capacity pushes the pool price down, which cuts the wholesale bill by far
@@ -306,7 +306,7 @@ class RunResult:
         What it costs to run the administrator IS counted. Consumers pay it through
         the levy, and staffing a statutory body consumes real resources whoever
         writes the cheque, so leaving it out here would class it as a transfer and
-        the two views would disagree about a cost that nobody recovers.
+        the two views would disagree about a cost that no one recovers.
         """
         return (sum(t.fuel_and_vom for t in self.ticks)
                 + sum(t.fixed_cost_of_fleet for t in self.ticks)
@@ -328,7 +328,7 @@ class RunResult:
 
 def forced_retirements(fleet: tuple[Unit, ...], retire: dict[str, int] | None,
                        start_year: int) -> tuple[Unit, ...]:
-    """Close plant because somebody decided to, not because it stopped paying.
+    """Close plant because someone decided to, not because it stopped paying.
 
     Separate from the economic exit rule and deliberately so. Exit is a decision a
     firm takes when the going-forward position turns negative twice; this is a
@@ -510,7 +510,7 @@ def run(settings: Settings, *, ticks: int = 20, start_year: int = 2026,
         # what the previous producer saw by the PLANT JUST DECIDED and by nothing
         # else. Reading state.entry at that point instead picked up the step taken on
         # the line below, so the second producer faced a market containing the first
-        # producer's plant AND a whole extra step of assumed entry by everybody else.
+        # producer's plant AND a whole extra step of assumed entry by everyone else.
         # That is not the mechanism the rule exists to isolate, and the rule is one
         # end of the bracket this model reports on how much a market builds.
         belief_behind_view = state.entry
@@ -660,7 +660,7 @@ def run(settings: Settings, *, ticks: int = 20, start_year: int = 2026,
             levy = levy_per_mwh(admin_net, settings, consumed)
             state.admin.levy_paid.append(levy * consumed)
             # The position for the year just delivered, as it stood after its last
-            # offer: what nobody bought when this year was still ahead.
+            # offer: what no one bought when this year was still ahead.
             warehoused = state.admin.warehoused_mw.get(year, 0.0)
 
         in_service = [u for u in state.fleet if u.in_service(year)]
@@ -709,7 +709,7 @@ def run(settings: Settings, *, ticks: int = 20, start_year: int = 2026,
             # charged consumers for both. The unserved half was charged twice over,
             # because consumer_cost adds the same megawatt hours again at the value
             # of lost load on the line below. The shed half was charged to consumers
-            # and paid to nobody: ladder_mw reaches no cashflow anywhere in the
+            # and paid to no one: ladder_mw reaches no cashflow anywhere in the
             # model, which is its own gap and is written up in KNOWN_LIMITATIONS.
             wholesale_cost=float((res.price * (res.operational_demand_mw
                                                - res.ladder_mw
@@ -967,7 +967,7 @@ def _scheme_round(settings: Settings, state: RunState, view: ForwardView,
         if capacity < tech.unit_size_mw:
             # The year's build room for this technology is spent before the scheme
             # asks. That is the ceiling binding, and it is reported as such below
-            # rather than as a year in which nobody eligible bid.
+            # rather than as a year in which no one eligible bid.
             no_room.append(name)
             continue
         capacity = (capacity // tech.unit_size_mw) * tech.unit_size_mw
@@ -999,7 +999,7 @@ def _scheme_round(settings: Settings, state: RunState, view: ForwardView,
     elif no_room and binding in (NO_ELIGIBLE_BIDS, SUPPLY):
         # An eligible technology could not bid because the year's room for it was
         # already built, so the milestone was missed on the ceiling, whether the
-        # other technologies bid and ran out or nobody could bid at all.
+        # other technologies bid and ran out or no one could bid at all.
         binding = BUILD_CEILING
     year_record = summarise(row, year, year_record.sought_mw, lines, binding)
     return year_record, lines
@@ -1013,7 +1013,7 @@ def _commit_scheme_award(settings: Settings, state: RunState, line, row, *,
     The scheme draws on the SAME annual build ceiling as everything else. One supply
     chain builds a scheme's wind farm and a merchant's, and letting a scheme build on
     top of the ceiling rather than inside it would make a policy look like it added
-    capacity when what it added was permission the model had not granted anybody
+    capacity when what it added was permission the model had not granted anyone
     else.
     """
     tech = settings.tech(line.bid.technology)
@@ -1076,7 +1076,7 @@ def _invest(settings: Settings, state: RunState, view: ForwardView,
     The ceiling is shared across producers rather than held per producer. Two firms
     building the same technology draw on one supply chain, and a per-producer
     ceiling would let a market with more firms in it build faster for no reason
-    anybody could point at.
+    anyone could point at.
 
     Producers are taken in an order that rotates with the tick. Sharing the ceiling
     means whoever is asked first gets it, and a fixed order hands it to the same two

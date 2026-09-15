@@ -214,7 +214,7 @@ def rank_candidates(view: ForwardView, agent: Agent, settings: Settings, *,
     choice rather than physics. The limit is applied to decisions TAKEN, not to
     arithmetic done: every candidate is priced and the best few are returned.
     Selecting which few to price first would be a rule that quietly decides the
-    answer, and nobody in the room could see it.
+    answer, and no one in the room could see it.
     """
     if agent.kind != PRODUCER:
         return []
@@ -255,7 +255,7 @@ def going_forward_npv_per_mw(unit: Unit, view: ForwardView, settings: Settings,
     alike, so a plant the model built last year and the candidate it was judged
     as read the same far-year rent. A plant with no cost row (coal, hydro, pumped
     hydro) has no entrant to price the tail on and reads its own fixed operating
-    cost there, which is the zero-profit terminal for a technology nobody builds.
+    cost there, which is the zero-profit terminal for a technology no one builds.
 
     Against that rent the plant pays only its own fixed operating cost each year,
     so a young gas plant in a glut is kept: the far years pay it the entrant's

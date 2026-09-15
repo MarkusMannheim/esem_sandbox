@@ -441,7 +441,7 @@ def test_the_year_that_has_settled_is_not_offered(settings):
 
 
 def test_a_position_is_offered_back_at_the_market_price_for_that_delivery(settings):
-    """Nobody buys a hedge above the market, so the administrator sells at the market
+    """No one buys a hedge above the market, so the administrator sells at the market
     price for the delivery it is selling. That price is the forward expectation the
     award was struck on; a trailing average of prices that have already happened is a
     different market, and selling on it leaves the administrator's book carrying the
@@ -499,7 +499,7 @@ def test_a_cap_with_no_market_premium_is_warehoused_not_sold_at_the_bid(settings
     """When no hour in the trailing years cleared the strike the market premium is
     exactly zero. Reading that zero as absent and charging the award premium
     instead had consumers pay the bid back through the strip after paying it
-    through the levy; on the low-growth seed that roughly tripled the levy. Nobody
+    through the levy; on the low-growth seed that roughly tripled the levy. No one
     buys a cap for nothing, so the position is held."""
     admin = Administrator(awards=[_held_cap(volume_mw=500.0)])
     for market in (0.0, None):

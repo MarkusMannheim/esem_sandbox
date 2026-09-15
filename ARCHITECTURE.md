@@ -2,7 +2,7 @@
 
 The map: what each piece does, what it hands to the next one, and where to start reading.
 
-This page is written for somebody about to read the code. [GLOSSARY.md](GLOSSARY.md) explains what the model does and what its words mean, and assumes no background.
+This page is written for someone about to read the code. [GLOSSARY.md](GLOSSARY.md) explains what the model does and what its words mean, and assumes no background.
 
 The code uses **anchor** for two unrelated things: the reference price a contract lane clears at, and each of the distances ahead the forward view is priced at, which are 4, 8 and 12 years. The glossary calls the second one **projection years**.
 
@@ -31,7 +31,7 @@ The rest is either an input to those (`config.py`, `core/weather.py`), a market 
 | `core/agents.py` | Six archetypes; what separates them is risk aversion and exposure, not size |
 | `core/clearing.py` | What each contract lane clears at, what it costs a peaker to stand ready, the one measure of caution the whole model shares, and the market where retailers and producers trade |
 | `core/crossing.py` | The option where buyers and sellers have to find a price between them instead of both accepting the reference price |
-| `core/forward.py` | 45 possible futures, priced at four, eight and 12 years out; what each technology would earn in each; and how much plant investors assume everybody else builds, carried from each projection year into the later ones |
+| `core/forward.py` | 45 possible futures, priced at four, eight and 12 years out; what each technology would earn in each; and how much plant investors assume everyone else builds, carried from each projection year into the later ones |
 | `core/investment.py` | How much of a project is still exposed to the spot price, what it therefore has to earn to be built, how fast the fleet may change, and when a plant closes |
 | `core/esem.py` | The reliability scheme: how much to buy, what it is worth, when it is committed, who pays |
 | `core/scheme.py` | A state scheme: a milestone a year, a ceiling, a budget, and why it was missed. Note the units: it buys nameplate megawatts where the reliability lane buys delivered firm ones, and the two are not addable |
@@ -45,7 +45,7 @@ The rest is either an input to those (`config.py`, `core/weather.py`), a market 
 2. The year is dispatched and priced.
 3. Contracts written earlier settle against that price.
 4. The book ages: what has finished delivering leaves it.
-5. The forward view is rebuilt, and the guess at what everybody else builds is revised once.
+5. The forward view is rebuilt, and the guess at what everyone else builds is revised once.
 6. The administrator offers its position back, then the bilateral market covers the rest.
 7. The scheme's auction runs, awarding at final investment decision.
 8. Exit notices are given, and then entry is decided.
@@ -74,12 +74,12 @@ The investor's own tolerance for that spread then decides most of what it demand
 
 ## Three things the model holds to
 
-Everything is per megawatt-year. Rent and fixed cost are on the same basis, so no capacity-factor assumption enters the build decision. A peaker running two per cent of the year and a wind farm running 35 per cent are each tested against their own costs. It is also what lets the forward view leave the entry it assumes open to technology rather than naming one in advance: a test that divided a fixed cost by a duty cycle would have to know the duty cycle first, and so would end up pinned to whichever technology somebody had measured.
+Everything is per megawatt-year. Rent and fixed cost are on the same basis, so no capacity-factor assumption enters the build decision. A peaker running two per cent of the year and a wind farm running 35 per cent are each tested against their own costs. It is also what lets the forward view leave the entry it assumes open to technology rather than naming one in advance: a test that divided a fixed cost by a duty cycle would have to know the duty cycle first, and so would end up pinned to whichever technology someone had measured.
 
 Risk is priced once. One function decides how cautious a firm is, and both the cap lane and the investment rule go through it. A firm that priced the same tail one way when writing insurance and another when building the plant that covers it could arbitrage the difference between them.
 
-Nothing forecasts. The bilateral market's contract prices are weighted averages of prices that have already happened, a scheme award's strike is the forward view's expectation for its delivery years, and the forward view is a list of possible futures at fixed odds. That is the whole mechanism behind boom and bust: scarcity lifts prices, investors extrapolate, everybody builds, and the plant arrives together into a market that no longer needs it.
+Nothing forecasts. The bilateral market's contract prices are weighted averages of prices that have already happened, a scheme award's strike is the forward view's expectation for its delivery years, and the forward view is a list of possible futures at fixed odds. That is the whole mechanism behind boom and bust: scarcity lifts prices, investors extrapolate, everyone builds, and the plant arrives together into a market that no longer needs it.
 
 ## What the model does not do
 
-[KNOWN_LIMITATIONS.md](KNOWN_LIMITATIONS.md) lists what the model gets wrong, with the measurement behind each entry.
+[KNOWN_LIMITATIONS.md](KNOWN_LIMITATIONS.md) says what the model leaves out, what it gets wrong, and which of its results are easy to misread.

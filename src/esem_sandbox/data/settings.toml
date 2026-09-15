@@ -118,8 +118,8 @@ bilateral_contract_years = 3
 # A capacity underwrite for firm technologies, in years. Zero is the policy-free
 # market-led counterfactual, which is what the merchant leg is for. A scenario
 # raises it to ask what a ten-year underwrite would have done instead. It is off
-# rather than absent so that the counterfactual is a setting somebody chose, not a
-# mechanism nobody wrote.
+# rather than absent so that the counterfactual is a setting someone chose, not a
+# mechanism no one wrote.
 merchant_underwrite_years = 0
 # The rate an incumbent discounts its going-forward position at. A candidate uses
 # its own technology's wacc from tech_costs.csv, because a project has to be
@@ -161,7 +161,7 @@ cap_strike_per_mwh = 300.0
 # it is why the bootstrap writes tenors of one, two and three years before the
 # first tick: without it the model would open with a market that had never traded.
 swap_tenor_years = 3
-# The anchor is an exponentially weighted average of realised block prices. Nobody
+# The anchor is an exponentially weighted average of realised block prices. No one
 # here forecasts; they extrapolate, and the half-life is how long a memory that is.
 # It is what makes the boom-and-bust scenario work, so it is a setting rather than
 # a number buried in a function.
@@ -216,8 +216,8 @@ screen_floor_per_mwh = 500.0
 # price for that delivery.
 recycling_window_years = 3
 # How the administrator offers its position. "warehouse" offers at the market price
-# and holds what nobody buys; "fire_sale" offers every strip at the fraction below
-# of the market price, and still holds what nobody buys. Warehousing is the default
+# and holds what no one buys; "fire_sale" offers every strip at the fraction below
+# of the market price, and still holds what no one buys. Warehousing is the default
 # because it is the conduct that does not require the administrator to have a view.
 recycling_conduct = "warehouse"
 fire_sale_fraction = 0.5

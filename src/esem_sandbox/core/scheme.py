@@ -1,6 +1,6 @@
 """A state scheme: one row, a milestone a year, and a counterparty that holds on.
 
-The procurement scheme in ``esem.py`` buys reliability. This buys a service somebody
+The procurement scheme in ``esem.py`` buys reliability. This buys a service someone
 decided they wanted, which is a different thing and behaves differently in three
 ways that matter.
 
@@ -11,14 +11,14 @@ This is why it is modelled: a target that is easy in one year and impossible
 in another is exactly what a milestone is.
 
 It can fail, and how it failed is the output. A milestone is not always met, and
-the interesting question is which constraint stopped it: nobody eligible bid, every
+the interesting question is which constraint stopped it: no one eligible bid, every
 bid was above the price ceiling, or the money ran out. Recording "awarded 300 of
 500 MW" and leaving it there hides the only thing a reader wanted to know. The binding channel is therefore named every year, including in the years when nothing bound.
 
 Its counterparty holds to maturity. The administrator sells its position back to
 retailers and charges consumers the difference. A scheme counterparty does not: it
 holds what it bought until the contract runs out. That means the cost lands
-differently and it is not recycled into anybody's hedge book, which is a real
+differently and it is not recycled into anyone's hedge book, which is a real
 difference between the two instruments rather than a simplification of one.
 
 There is no lateness channel. A plant that is awarded arrives after its lead time
@@ -44,8 +44,8 @@ MET = "met"
 NO_ELIGIBLE_BIDS = "no eligible bids"
 PRICE_CEILING = "the price ceiling"
 BUDGET = "the budget"
-SUPPLY = "nobody had any more to sell"
-BUILD_CEILING = "nobody could build it that fast"
+SUPPLY = "no one had any more to sell"
+BUILD_CEILING = "no one could build it that fast"
 
 
 @dataclass(frozen=True)
@@ -130,10 +130,10 @@ def truncate_to_ceiling(lines: list[AwardLine], room: dict[str, float],
     A scheme draws on the same annual build ceiling as everything else: one supply
     chain builds a scheme's wind farm and a merchant's. Letting a scheme build on top
     of the ceiling rather than inside it makes a policy look like it added capacity
-    when what it added was permission the model had not granted anybody else.
+    when what it added was permission the model had not granted anyone else.
 
     A milestone missed this way is missed for a real reason and gets its own binding
-    channel. Recording it as "supply" would say nobody wanted to sell, which is the
+    channel. Recording it as "supply" would say no one wanted to sell, which is the
     opposite of what happened: they did, and the year was not long enough.
     """
     left = dict(room)
@@ -183,7 +183,7 @@ def clear_scheme(row: SchemeRow, bids: list[Bid], year: int,
     """One year of one scheme, through the same clearing the auction uses.
 
     The order of the checks is the order a reader would ask them in: was anything
-    sought, did anybody eligible bid, was anything under the ceiling, did the money
+    sought, did anyone eligible bid, was anything under the ceiling, did the money
     last, and did supply run out. The first one that bound is the one reported,
     because a year in which three things bound at once is still a year in which one
     of them bound first.

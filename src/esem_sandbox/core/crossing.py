@@ -10,13 +10,13 @@ This is the extension, and it answers a different question: what if the two side
 have to find each other? Writers offer ascending, because a producer that has
 already sold most of its output wants more for the next megawatt. Holders bid
 descending, because a retailer that has already covered most of its load will pay
-less for the next. Where the curves cross is the price, and everybody who traded
+less for the next. Where the curves cross is the price, and everyone who traded
 pays it, whatever they asked.
 
 Uniform price, not pay-as-bid. The auction in the scheme is pay-as-bid because
 that is what the scheme being modelled does; a bilateral market is not, and the
 difference between the two can be measured here by
-running both. Under a uniform price the marginal trade sets everybody's price, so a
+running both. Under a uniform price the marginal trade sets everyone's price, so a
 writer who offered cheap is paid what the last accepted writer asked.
 
 What the elasticity lever does, and where it does nothing. A steeper curve
@@ -108,7 +108,7 @@ def cross(writers: list[Order], holders: list[Order], anchor: float,
     """Clear an ascending writer curve against a descending holder curve.
 
     The crossing is the volume at which the holders' willingness to pay stops
-    covering the writers' willingness to sell. Everybody who trades settles at one
+    covering the writers' willingness to sell. Everyone who trades settles at one
     price, taken as the midpoint of the last pair that agreed: the marginal writer
     would have accepted less and the marginal holder would have paid more, and
     splitting the difference is the convention that does not hand the whole of the

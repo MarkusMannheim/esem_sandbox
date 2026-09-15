@@ -6,7 +6,7 @@ through a change that is still internally consistent but no longer the same mode
 and this does not.
 
 These numbers are not claimed to be right. The claim is that a change which moves
-them should be a change somebody meant to make. When this fails, read what moved: if the
+them should be a change someone meant to make. When this fails, read what moved: if the
 change was deliberate, regenerate with ``tools/write_golden.py`` and put the diff in
 the same commit as the change that caused it, so the movement is reviewable. A golden
 file regenerated without a reason in the message is a test that has been switched off.

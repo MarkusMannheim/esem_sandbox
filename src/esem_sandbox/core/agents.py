@@ -82,7 +82,7 @@ UNOWNABLE_TECHNOLOGIES = ("rooftop", "import")
 
 
 def ownable_units(fleet) -> set[str]:
-    """The units that must reach somebody's balance sheet."""
+    """The units that must reach someone's balance sheet."""
     return {u.unit for u in fleet
             if u.technology not in UNOWNABLE_TECHNOLOGIES}
 
@@ -90,7 +90,7 @@ def ownable_units(fleet) -> set[str]:
 def check_roster(roster: tuple[Agent, ...], unit_names: set[str]) -> None:
     """Every unit owned once, all load accounted for.
 
-    A unit owned by nobody earns revenue that reaches no balance sheet, and a unit
+    A unit owned by no one earns revenue that reaches no balance sheet, and a unit
     owned twice earns it twice. Neither shows up in a price.
     """
     owned: dict[str, str] = {}

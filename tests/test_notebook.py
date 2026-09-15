@@ -1,6 +1,6 @@
 """The notebook has to run.
 
-A notebook is code that nobody executes until somebody else opens it, which is the
+A notebook is code that no one executes until someone else opens it, which is the
 worst moment to find out it is broken, so it is executed here instead.
 
 The cells are run in one namespace, in order, exactly as a reader would run them.

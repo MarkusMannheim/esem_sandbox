@@ -136,7 +136,7 @@ def test_a_milestone_is_nameplate_and_not_firm(settings):
 def test_a_scheme_technology_that_is_not_a_technology_fails_loudly(settings):
     """The loader promises that a typo cannot leave a default in place. A scheme
     naming a technology no cost row carries must refuse to load rather than bid
-    nothing and report the year as one in which nobody eligible bid; a bare string
+    nothing and report the year as one in which no one eligible bid; a bare string
     would otherwise become four single-letter names the same way."""
     from esem_sandbox.config import load_settings
     for bad in (["battery"], "wind", ["wind", "solr"]):
@@ -158,7 +158,7 @@ def test_a_scheme_cannot_name_a_cap_eligible_technology(settings):
 def test_a_year_nobody_could_build_in_is_reported_as_the_ceiling(settings):
     """When every eligible technology's build room for the year is already spent,
     the milestone is missed on the ceiling, and the round says so rather than
-    reporting a year in which nobody eligible bid, which is a different reason."""
+    reporting a year in which no one eligible bid, which is a different reason."""
     from esem_sandbox.core.agents import default_roster
     from esem_sandbox.core.forward import cell_plan, forward_view
     from esem_sandbox.core.investment import build_ceiling_mw

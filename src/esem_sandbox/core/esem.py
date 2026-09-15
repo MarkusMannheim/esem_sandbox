@@ -446,7 +446,7 @@ def recycle(admin: Administrator, settings: Settings, *, year: int,
 
     A cap is offered at the market premium. When there is no market premium, or
     it is zero because no hour in the trailing years cleared the strike, the cap
-    slot is warehoused: nobody buys a cap for nothing and a cap with no premium is
+    slot is warehoused: no one buys a cap for nothing and a cap with no premium is
     not a contract, and pricing it at the award premium instead would have
     consumers pay the bid back through the strip after paying it through the levy.
 
@@ -457,7 +457,7 @@ def recycle(admin: Administrator, settings: Settings, *, year: int,
     swap as a swap on the same block: they are different products and a retailer
     buying one is not covered for the other.
 
-    Offered at the market price for the delivery being sold, because nobody buys a
+    Offered at the market price for the delivery being sold, because no one buys a
     hedge above the market. The market price here is the forward view's expectation
     for that block, which is the basis the award itself was struck on. A trailing
     average of prices that have already happened is a different market, and pricing
@@ -469,11 +469,11 @@ def recycle(admin: Administrator, settings: Settings, *, year: int,
     market price, which is the bid. That is the scheme's cost and it is what the levy
     should show.
 
-    Volume nobody takes is warehoused rather than dumped. The conduct lever's
+    Volume no one takes is warehoused rather than dumped. The conduct lever's
     other setting is a fire sale, which offers every strip at a fraction of the
     market price so that more of the position sells, with the discount landing on
     the levy; what still finds no buyer is warehoused under either conduct, since
-    this model has nobody to dump volume on. What an administrator does with its
+    this model has no one to dump volume on. What an administrator does with its
     position is a policy question with a real price attached.
     """
     window = int(settings.esem["recycling_window_years"])
@@ -539,7 +539,7 @@ def levy_per_mwh(net_settlement: float, settings: Settings,
     Minus the administrator's net position plus what it costs to run, in the year the
     money moved. No fund, no smoothing and no borrowing: a levy that arrives in the
     year of the cashflow is one an audience can add up, and one that does not let a
-    scheme look cheap by moving its cost into a year nobody is looking at.
+    scheme look cheap by moving its cost into a year no one is looking at.
     """
     if consumed_mwh <= 0:
         return 0.0

@@ -63,7 +63,7 @@ def test_every_colour_comes_from_the_theme_s_own_matplotlib_cycle():
 
 def test_no_more_colours_than_a_reader_can_hold():
     """More than about seven colours carrying meaning stops being readable, and
-    nobody reading this needs to tell two coal stations apart."""
+    no one reading this needs to tell two coal stations apart."""
     assert len(plots.TECH_ORDER) <= 7
     assert set(plots.TECH_GROUP.values()) == set(plots.TECH_ORDER)
 
@@ -125,7 +125,7 @@ def test_the_cost_panel_carries_the_one_seed_caveat():
     assert "ten-seed envelope" in source
     assert "changes sign" not in source.split("ax.text")[1], (
         "the caveat must be an instruction, not a claim about what the seeds show: "
-        "a claim goes stale the moment anybody recalibrates the fleet"
+        "a claim goes stale the moment anyone recalibrates the fleet"
     )
 
 
@@ -416,7 +416,7 @@ def test_the_five_series_chart_has_no_red_beside_a_green(settings):
     """The one chart that draws five series at once.
 
     matplotlib's default cycle puts green at index 2 and red at index 3, so drawing
-    five series from it in order puts the pair nobody can tell apart side by side,
+    five series from it in order puts the pair no one can tell apart side by side,
     so the chart draws them from a sequential scale instead.
     """
     import matplotlib.colors as mcolours

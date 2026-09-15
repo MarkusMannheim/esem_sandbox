@@ -559,7 +559,7 @@ def test_the_energy_balance_closes_at_every_peak_it_is_claimed_for(
     every shape-year inside the reliability standard and no unserved energy at all.
 
     This pins the guarantee across the range it is claimed for rather than at a single
-    point. KNOWN_LIMITATIONS.md carries the boundary and the table. If somebody
+    point. KNOWN_LIMITATIONS.md carries the boundary and the table. If someone
     teaches rooftop to curtail, widen this and delete that.
     """
     for y in range(settings.weather["shape_years"]):

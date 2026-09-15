@@ -2,7 +2,7 @@
 #
 # The core path assumes both sides accept the anchor and trades the whole volume a
 # retailer wanted. This one makes them find each other: writers offer ascending,
-# holders bid descending, everybody who trades settles at one price, and only what
+# holders bid descending, everyone who trades settles at one price, and only what
 # both sides wanted changes hands.
 #
 # On this market that assumption is worth about two fifths of the contracted volume,

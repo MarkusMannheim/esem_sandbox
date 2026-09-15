@@ -19,7 +19,7 @@ def settings():
 
 
 def test_every_unit_is_owned_exactly_once(settings):
-    """A unit owned by nobody earns revenue that reaches no balance sheet; one owned
+    """A unit owned by no one earns revenue that reaches no balance sheet; one owned
     twice earns it twice. Neither shows up in a price."""
     names = {u.unit for u in settings.fleet
              if u.technology not in ("rooftop", "import")}

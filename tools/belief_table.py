@@ -1,4 +1,4 @@
-"""Where does the guess at what everybody else builds go, given time to settle?
+"""Where does the guess at what everyone else builds go, given time to settle?
 
 A run gives the belief one step a year against a fleet that moves every year. This
 freezes the packaged fleet, switches the risk loading off, and lets the step run for

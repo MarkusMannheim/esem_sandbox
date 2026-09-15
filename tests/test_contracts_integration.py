@@ -92,8 +92,8 @@ def test_a_swap_struck_at_the_anchor_is_roughly_fair_over_the_history(settings, 
 
 
 def test_the_cap_premium_is_a_small_part_of_what_the_cap_pays(settings, years):
-    """A premium larger than the expected payout would mean nobody buys; one far
-    below it would mean nobody writes. This checks the anchor lands between."""
+    """A premium larger than the expected payout would mean no one buys; one far
+    below it would mean no one writes. This checks the anchor lands between."""
     payoffs = np.array([np.clip(r.price - 300.0, 0.0, None).sum() for r in years])
     weights = np.full(len(years), 1 / len(years))
     basis = _peaker_basis(settings, years)
@@ -151,7 +151,7 @@ def test_ageing_does_not_delete_a_contract_that_has_not_started(settings):
     Testing only whether a contract is in force NEXT year deleted every scheme award
     whose plant was still being built: one signed in 2026 for a plant commissioning
     in 2029 survived a single ageing pass and then vanished, four years before it was
-    due to pay anybody. Silently, and only for the long-lead technologies, so the
+    due to pay anyone. Silently, and only for the long-lead technologies, so the
     mechanism half worked.
     """
     from esem_sandbox.core.contracts import age

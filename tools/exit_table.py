@@ -6,7 +6,7 @@ the run and the year it reaches it, on both legs, so the claim that the rule nev
 fires on the packaged fleet carries its own measurement. Nothing about the run is
 changed: the exit rule is wrapped, read, and then called as it stands.
 
-Usage: exit_table.py [ticks]   (default 10, the horizon the limitations page quotes)
+Usage: exit_table.py [ticks]   (default 10)
 """
 import sys
 

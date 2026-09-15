@@ -31,7 +31,7 @@ _DK = matplotlib.style.library["dark_background"]
 _hex = matplotlib.colors.to_hex
 
 # Six groups, not the fleet's 16 rows. More than about seven colours carrying meaning
-# stops being readable, and nobody reading this needs to tell two coal stations apart.
+# stops being readable, and no one reading this needs to tell two coal stations apart.
 TECH_GROUP = {
     "coal": "coal", "ccgt": "gas", "ocgt": "gas", "hydro": "hydro", "phes": "hydro",
     "battery": "storage", "wind": "wind", "solar": "solar",
@@ -201,7 +201,7 @@ def titled(ax, text, **kw):
 
     set_title AFTER _style resets the colour to the default, which is black. On a
     pale ground that is invisible only to a careful eye; on the dark one it is
-    invisible to everybody, and every chart here is served in both.
+    invisible to everyone, and every chart here is served in both.
     """
     ax.set_title(text, color=INK, **kw)
 
@@ -302,7 +302,7 @@ def _panel_capacity(ax, legs) -> None:
     for group in TECH_ORDER:
         values = np.array([b[group] / 1000.0 for b in bottoms])
         # A two-point gap of surface colour between segments, so the boundary is a
-        # gap rather than a colour change nobody can see.
+        # gap rather than a colour change no one can see.
         ax.bar(labels, values, bottom=base, color=TECH_COLOUR[group], width=0.55,
                edgecolor=SURFACE, linewidth=2, label=group)
         for x, (v, b) in enumerate(zip(values, base)):
@@ -458,11 +458,11 @@ def _panel_costs(ax, legs, settings) -> None:
     # between, which turned this note into "bill moves 2.9bn, resourcecost1.2bn".
     # Above the axes rather than inside them. Inside, it competed with the legend
     # for the only empty corner, and the loser was whichever was drawn first.
-    # The caveat goes on the picture, not in a footnote somebody reads afterwards:
+    # The caveat goes on the picture, not in a footnote someone reads afterwards:
     # a room shown the left-hand pair without it takes away a number this is one
     # draw of. It is written as an instruction rather than as a claim about what the
     # seeds show, because a claim about what the seeds show goes stale the moment
-    # anybody recalibrates the fleet, and a chart carrying a sentence that is no
+    # anyone recalibrates the fleet, and a chart carrying a sentence that is no
     # longer true is worse than one carrying none.
     # INSIDE the axes, under the title. At 1.01 it sat in the same strip the title
     # occupies and the two printed over each other.

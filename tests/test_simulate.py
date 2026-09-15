@@ -93,7 +93,7 @@ def test_the_realised_draw_comes_from_the_lattice_s_own_distribution(settings):
 
 def test_every_tick_s_contracts_net_to_zero(baseline):
     """A contract moves money; it does not make any. If a tick's cashflows do not
-    sum to zero, some party is being paid by nobody."""
+    sum to zero, some party is being paid by no one."""
     for tick in baseline.ticks:
         total = sum(tick.cashflows.values())
         scale = max(1.0, max(abs(v) for v in tick.cashflows.values() or [1.0]))
@@ -168,7 +168,7 @@ def test_nothing_generates_before_it_is_built(baseline, settings):
 
 
 def test_every_built_unit_has_exactly_one_owner(baseline):
-    """A unit owned by nobody earns revenue that reaches no balance sheet, and a
+    """A unit owned by no one earns revenue that reaches no balance sheet, and a
     unit owned twice earns it twice. Neither shows up in a price."""
     from esem_sandbox.core.agents import check_roster
     check_roster(baseline.roster, ownable_units(baseline.fleet))
@@ -244,7 +244,7 @@ def test_the_scheme_leg_is_the_merchant_leg_with_something_added(settings, small
 
 def test_an_unreliable_leg_is_not_reported_as_the_cheap_one(settings, small):
     """The line that stops a bill view being an argument for unreliability. Unserved
-    energy is a cost even though nobody invoices for it."""
+    energy is a cost even though no one invoices for it."""
     result = run(settings, ticks=3, seed=SEED, cells=small)
     priced = result.unserved_valued_at_the_cap(settings)
     assert priced == pytest.approx(
@@ -546,7 +546,7 @@ def test_the_scheme_builds_inside_the_same_ceiling_as_everybody_else(settings, s
     """One supply chain builds a scheme's wind farm and a merchant's. Letting the
     scheme build on top of the annual ceiling rather than inside it made a policy
     look like it added capacity when what it added was permission the model had not
-    granted anybody else."""
+    granted anyone else."""
     from esem_sandbox.core.investment import build_ceiling_mw
 
     result = run(settings, ticks=8, seed=SEED, cells=small, scheme=True)
@@ -604,7 +604,7 @@ def test_a_milestone_can_be_missed_because_nobody_could_build_it_that_fast(
         settings, small):
     """A real reason a target is missed, and one that was invisible until the scheme
     was made to share the annual build ceiling. Recording it as a supply failure
-    would say nobody wanted to sell, which is the opposite of what happened."""
+    would say no one wanted to sell, which is the opposite of what happened."""
     from esem_sandbox.core.scheme import BUILD_CEILING
 
     result = run(settings, ticks=8, seed=SEED, cells=small, scheme=True)
@@ -809,7 +809,7 @@ def test_sequential_repricing_changes_only_the_plant_just_decided(settings, smal
     """The repriced view must differ from the previous producer's by the plant that
     was decided and by nothing else.
 
-    Step 5 builds the forward view on one belief about how much everybody else
+    Step 5 builds the forward view on one belief about how much everyone else
     builds, and then advances that belief by a step. The repricing closure reads the
     belief behind the view; reading the advanced one would have the second producer
     in a tick face a market containing the first producer's plant and a whole extra

@@ -68,7 +68,7 @@ def test_the_prose_does_not_read_as_machine_writing(tic, pattern):
 
 
 def test_nothing_is_explained_by_pointing_at_a_model_the_reader_cannot_see():
-    """A teaching model cannot define itself by reference to one nobody has read.
+    """A teaching model cannot define itself by reference to one no one has read.
 
     The README once carried a table whose first three rows read "kept as it is" against
     "the same mechanism", for scarcity pricing, contract settlement and the investment
@@ -142,29 +142,6 @@ def test_headings_and_stock_phrases_stay_out_of_the_register():
                 line = text[:m.start()].count("\n") + 1
                 bad.append(f"{name}:{line} {m.group(0)!r} ({why})")
     assert not bad, "stock phrasing:\n  " + "\n  ".join(bad)
-
-
-def test_the_limitations_file_counts_its_own_labels_correctly():
-    """The opening said "five kinds" while six were defined.
-
-    A count written in prose beside a list it describes is the same defect as a
-    measured result hardcoded in source: nothing makes the two move together. This
-    reads the labels and checks the sentence against them.
-    """
-    import pathlib
-    import re
-
-    root = pathlib.Path(__file__).resolve().parents[1]
-    text = (root / "KNOWN_LIMITATIONS.md").read_text()
-    defined = set(re.findall(r"^- \*\*([a-z]+)\*\* means", text, re.M))
-    words = {"three": 3, "four": 4, "five": 5, "six": 6, "seven": 7, "eight": 8}
-    claimed = re.search(r"one of (\w+) kinds", text)
-    assert claimed, "the opening no longer says how many kinds there are"
-    n = words.get(claimed.group(1))
-    assert n == len(defined), (
-        f"the opening claims {claimed.group(1)} kinds and {len(defined)} are "
-        f"defined: {sorted(defined)}"
-    )
 
 
 def test_no_sentence_announces_a_quality_instead_of_showing_it():

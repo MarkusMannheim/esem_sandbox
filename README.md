@@ -121,7 +121,7 @@ Every number and chart on this page is produced by something you can run. `tools
 
 [GLOSSARY.md](GLOSSARY.md) explains the terms, for a reader who knows the NEM but does not build models.
 
-[KNOWN_LIMITATIONS.md](KNOWN_LIMITATIONS.md) lists what this model gets wrong, with the measurement behind each entry.
+[KNOWN_LIMITATIONS.md](KNOWN_LIMITATIONS.md) says what the model leaves out, what it gets wrong, and which of its results are easy to misread.
 
 [notebooks/walkthrough.ipynb](notebooks/walkthrough.ipynb) runs the model end to end and can be opened in Colab.
 

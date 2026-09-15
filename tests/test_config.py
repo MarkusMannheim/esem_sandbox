@@ -143,7 +143,7 @@ def test_every_packaged_data_row_carries_its_derivation():
 
 
 def test_every_packaged_data_file_is_named_in_data_sources():
-    """A file that ships without a row in the table is a file whose terms nobody
+    """A file that ships without a row in the table is a file whose terms no one
     stated."""
     import pathlib
     from importlib import resources
@@ -157,7 +157,7 @@ def test_every_packaged_data_file_is_named_in_data_sources():
 
 def test_the_architecture_note_names_every_module():
     """A map with a missing road is worse than no map. The model is meant to be
-    understood in an hour, and a reader who finds a module nobody mentioned has to
+    understood in an hour, and a reader who finds a module no one mentioned has to
     work out on their own whether it matters."""
     import pathlib
 
@@ -171,7 +171,7 @@ def test_the_architecture_note_names_every_module():
 
 def test_the_readme_does_not_call_a_built_thing_unbuilt():
     """A status section is the first thing a reader believes and the last thing
-    anybody updates. This one has been wrong twice: it said the notebook was not
+    anyone updates. This one has been wrong twice: it said the notebook was not
     built while linking to it two sections above, and it named a storage defect as
     the largest limitation long after it was fixed.
 

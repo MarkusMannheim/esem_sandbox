@@ -7,7 +7,7 @@ available as an extension, but the anchor is the path everything is written from
 because it can be explained in a sentence and checked by hand.
 
 A swap lane's anchor is what the block has been worth lately, on an exponentially
-weighted average of realised block prices. Nobody in this market forecasts; they
+weighted average of realised block prices. No one in this market forecasts; they
 extrapolate, which is what makes the boom-and-bust scenario work.
 
 A cap lane's anchor is different in kind. A cap is insurance, so its price is the cost

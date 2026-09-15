@@ -120,7 +120,7 @@ def age(book: list[Contract], year: int) -> list[Contract]:
     whether it is in force NEXT year deleted every award whose plant was still being
     built: a scheme contract signed in 2026 for a plant commissioning in 2029
     survived one ageing pass and then vanished, four years before it was due to pay
-    anybody. That was silent - the book simply got shorter - and it voided exactly
+    anyone. That was silent - the book simply got shorter - and it voided exactly
     the long-dated awards the scheme exists to write, while leaving the short-lead
     ones in place, so the mechanism half worked, which is the worst way for a thing
     to fail.

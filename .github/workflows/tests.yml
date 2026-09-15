@@ -24,7 +24,7 @@ jobs:
         run: pytest -q -m "not slow"
 
       - name: The notebook, end to end
-        # A notebook is code nobody executes until they open it, so it is executed
+        # A notebook is code no one executes until they open it, so it is executed
         # here. Once is enough: this checks the notebook, not the interpreter.
         if: matrix.python-version == '3.12'
         run: pytest -q -m slow

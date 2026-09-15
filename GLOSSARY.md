@@ -12,7 +12,7 @@ If you read one entry, read **the bill and the resource cost**. Confusing those 
 
 **Merit order.** That cheapest-first ordering. A plant's place in it is set by what it costs to produce one more unit, not by what it cost to build.
 
-**The price.** In each hour, what the last plant needed to meet demand asked for. Everybody who ran that hour is paid it, including the plants that would have accepted less. That is how the real market works, and it is why a few tight hours matter so much.
+**The price.** In each hour, what the last plant needed to meet demand asked for. Everyone who ran that hour is paid it, including the plants that would have accepted less. That is how the real market works, and it is why a few tight hours matter so much.
 
 **Unserved energy.** Demand that could not be met at all, because there was not enough plant. It is this model's measure of blackouts.
 
@@ -30,7 +30,7 @@ If you read one entry, read **the bill and the resource cost**. Confusing those 
 
 **Curtailment.** Generation that was available and deliberately not taken, usually because there was already more than enough.
 
-**Demand response.** Customers who agree to stop drawing power when the price gets high enough. The model holds a short list of them at rising prices and puts them in the same merit order as the generators, so a customer who will stop at $300/MWh is called before a plant offering at $480. Some demand switches itself off before anybody is cut off involuntarily.
+**Demand response.** Customers who agree to stop drawing power when the price gets high enough. The model holds a short list of them at rising prices and puts them in the same merit order as the generators, so a customer who will stop at $300/MWh is called before a plant offering at $480. Some demand switches itself off before anyone is cut off involuntarily.
 
 **Round trip.** The energy a battery or pumped hydro loses between storing power and giving it back. Here about 15 per cent.
 
@@ -48,9 +48,9 @@ If you read one entry, read **the bill and the resource cost**. Confusing those 
 
 ## Money
 
-**The bill.** What electricity costs the people who use it: the wholesale cost of the energy they were actually delivered, plus any scheme charge, plus the value of the energy they wanted and did not get. Nobody invoices that last term. It is counted so that a leg which keeps the lights off cannot look cheap. Most of the rest is money moving from consumers to generators.
+**The bill.** What electricity costs the people who use it: the wholesale cost of the energy they were actually delivered, plus any scheme charge, plus the value of the energy they wanted and did not get. No one invoices that last term. It is counted so that a leg which keeps the lights off cannot look cheap. Most of the rest is money moving from consumers to generators.
 
-**The resource cost.** What the whole thing costs the economy: fuel, the fixed cost of keeping plant open, the capital spent on new plant, and the value of the energy nobody got. This is the real cost. New plant's capital is counted at the rate the plant is actually financed at: a plant under a long contract borrows more cheaply, because the price risk has moved to consumers, who carry it more cheaply than its financiers did, and that saving is real. What the risk costs consumers is not priced anywhere in the model.
+**The resource cost.** What the whole thing costs the economy: fuel, the fixed cost of keeping plant open, the capital spent on new plant, and the value of the energy no one got. This is the real cost. New plant's capital is counted at the rate the plant is actually financed at: a plant under a long contract borrows more cheaply, because the price risk has moved to consumers, who carry it more cheaply than its financiers did, and that saving is real. What the risk costs consumers is not priced anywhere in the model.
 
 **Transfer.** Money moving between two parties without anything being consumed or saved. Most of the difference between the two lines above is transfer. **A policy that pushes the price down cuts the bill enormously and may not save a cent**, which is why this model always reports both lines and never one.
 
@@ -70,7 +70,7 @@ If you read one entry, read **the bill and the resource cost**. Confusing those 
 
 ## Contracts
 
-**Spot price.** The hour-by-hour price described above, also called the pool price. Nobody has to live on it, because they can contract.
+**Spot price.** The hour-by-hour price described above, also called the pool price. No one has to live on it, because they can contract.
 
 **Swap.** A contract fixing the price for an agreed amount of output over an agreed stretch of the day. If the spot price comes in higher the seller pays the difference back, and if lower the buyer tops it up. Either way both sides end up at the fixed price, which is the point.
 
@@ -100,17 +100,17 @@ If you read one entry, read **the bill and the resource cost**. Confusing those 
 
 **The lattice.** All 45 of them together, with their odds. Some runs use a smaller set of nine so a run finishes quickly; totals from a reduced lattice are not comparable with the full one, and anything using one says so.
 
-**Free entry.** The idea that if something is profitable to build, somebody keeps building it until it no longer is. The forward view chases that point one step a year, growing the best technology that still pays and, when none can grow, shrinking the one furthest under water, and it rarely arrives: see **assumed entry** above, and note that the model treats the answer as a signal rather than a settled number.
+**Free entry.** The idea that if something is profitable to build, someone keeps building it until it no longer is. The forward view chases that point one step a year, growing the best technology that still pays and, when none can grow, shrinking the one furthest under water, and it rarely arrives: see **assumed entry** above, and note that the model treats the answer as a signal rather than a settled number.
 
-**Projection years.** The model prices the future at three distances, four, eight and 12 years out, and fills in between them. Four years is far enough that a plant decided today is running, and 12 catches most of its life. The years past 12 are not priced: they pay what a market of these investors pays in the long run, the cost of building the plant plus the caution its most cautious investor demands, which is also the price at which the guess at everybody else's entry stops.
+**Projection years.** The model prices the future at three distances, four, eight and 12 years out, and fills in between them. Four years is far enough that a plant decided today is running, and 12 catches most of its life. The years past 12 are not priced: they pay what a market of these investors pays in the long run, the cost of building the plant plus the caution its most cautious investor demands, which is also the price at which the guess at everyone else's entry stops.
 
 *(The code and the working notes call these "anchors", and also use "anchor" for a contract lane's reference price. They are two different things, and this page avoids the word for both.)*
 
-**Assumed entry.** How much plant investors assume everybody else will build. It matters because a project is worth less in a crowded market, and it is how a market can talk itself out of building as well as into it. What is assumed built by four years out is still there at eight and at 12, so the later projection years are priced with it.
+**Assumed entry.** How much plant investors assume everyone else will build. It matters because a project is worth less in a crowded market, and it is how a market can talk itself out of building as well as into it. What is assumed built by four years out is still there at eight and at 12, so the later projection years are priced with it.
 
 **Hurdle.** What a project must earn each year, per megawatt, to be worth building: its fixed cost, plus whatever the uncertainty costs the investor. A contract lowers the hurdle by removing uncertainty, and that is the channel almost every policy in this model works through.
 
-**Certainty equivalent.** The guaranteed sum an investor would swap an uncertain one for. Somebody offered an even chance of nothing or two million usually prefers a sure eight hundred thousand to a sure million, and the certainty equivalent is that number. The gap between it and the plain average is the price of the risk, and it is what a contract buys away. Here it is taken over the three growth paths, each at the average of its weather and peak futures, because a plant lives on one growth path and through many years of weather.
+**Certainty equivalent.** The guaranteed sum an investor would swap an uncertain one for. Someone offered an even chance of nothing or two million usually prefers a sure eight hundred thousand to a sure million, and the certainty equivalent is that number. The gap between it and the plain average is the price of the risk, and it is what a contract buys away. Here it is taken over the three growth paths, each at the average of its weather and peak futures, because a plant lives on one growth path and through many years of weather.
 
 **Risk aversion.** How strongly an investor prefers a sure thing. The model gives its six firms different amounts of it, and that is most of what separates them.
 
@@ -134,9 +134,9 @@ If you read one entry, read **the bill and the resource cost**. Confusing those 
 
 **Additionality.** Whether a scheme caused something to happen, or paid for something that was going to happen regardless. A zero bid is the signature of the second, and this model shows them rather than hiding them.
 
-**Recycling.** The administrator selling the cover it has bought back to retailers, so consumers get the benefit of what they funded. It sells at the market price for the delivery being sold, because nobody buys a hedge above the market, and it sells each product against the demand for that product: a cap against what a retailer wants in caps and does not already hold, a swap against what it wants in swaps. What it does not recover is the amount the award added on top of that price, which is the bid.
+**Recycling.** The administrator selling the cover it has bought back to retailers, so consumers get the benefit of what they funded. It sells at the market price for the delivery being sold, because no one buys a hedge above the market, and it sells each product against the demand for that product: a cap against what a retailer wants in caps and does not already hold, a swap against what it wants in swaps. What it does not recover is the amount the award added on top of that price, which is the bid.
 
-**Warehousing.** Holding on to cover nobody bought, rather than dumping it. A cap whose market premium is zero, because no recent year priced scarcity, has no buyer and is held; what it pays out in a scarce year then lands on the levy.
+**Warehousing.** Holding on to cover no one bought, rather than dumping it. A cap whose market premium is zero, because no recent year priced scarcity, has no buyer and is held; what it pays out in a scarce year then lands on the levy.
 
 **Counterparty.** The other side of a contract. Every contract here has exactly two parties and moves money between them without creating any, which is a property the model tests rather than assumes.
 

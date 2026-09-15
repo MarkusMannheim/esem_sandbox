@@ -1,6 +1,6 @@
 """The forward view: what investors think the next 12 years look like.
 
-Nobody in this model forecasts by solving anything. They enumerate a small set of
+No one in this model forecasts by solving anything. They enumerate a small set of
 futures, dispatch each one, and average the answers at the probabilities they
 attach to them. That is the whole of the forward view, and it is enumerated rather
 than sampled so the same settings always give the same picture: no seed enters
@@ -45,7 +45,7 @@ PROJECTED_ENTRY_UNIT = "projected_entry"
 
 
 def entry_candidates(settings: Settings) -> tuple[TechCost, ...]:
-    """What the projection may assume somebody else builds.
+    """What the projection may assume someone else builds.
 
     Every technology that can be built, not one named in advance. Naming one
     forces the projection to price replacement capacity at that technology's
@@ -56,7 +56,7 @@ def entry_candidates(settings: Settings) -> tuple[TechCost, ...]:
     This is only affordable because the test is per megawatt-year. A test that
     divided a fixed cost by a duty cycle has to know the duty cycle first, which
     is why the divided form ends up hard-coded to the one technology whose duty
-    cycle somebody measured.
+    cycle someone measured.
     """
     return tuple(settings.tech_costs)
 
@@ -287,7 +287,7 @@ class Anchor:
 
 
 def _projected_entry_unit(mw: float, tech: TechCost, year: int) -> Unit:
-    """The plant the projection assumes somebody else builds.
+    """The plant the projection assumes someone else builds.
 
     It is a real row in the anchor fleet, not a subtraction from demand, so it
     competes on the stack at its own offer and its effect on the price is whatever
@@ -382,7 +382,7 @@ class EntryBelief:
 
 @dataclass
 class EntryState:
-    """How much plant the projection assumes somebody else builds, by anchor and
+    """How much plant the projection assumes someone else builds, by anchor and
     by technology.
 
     Per technology, and that is the whole point. A single assumed technology
@@ -478,7 +478,7 @@ def update_projected_entry(state: EntryState, anchors: list[Anchor],
     obvious guess. This is only affordable because the test is per megawatt-year: a
     test that divides a fixed cost by a duty cycle has to know the duty cycle
     first, which is why the divided form ends up hard-coded to the one technology
-    whose duty cycle somebody measured.
+    whose duty cycle someone measured.
 
     Why it converges in megawatts and not in dollars. Rent is a step function
     of assumed entry, because the price is set by a merit order and a ladder of
@@ -698,7 +698,7 @@ def risk_worlds(rents: np.ndarray, cells: tuple[Cell, ...], weights: np.ndarray,
     Over a plant's life only the growth path is one future: the run draws it once
     and keeps it, and draws the weather shape and the peak band afresh every
     year from the same odds the lattice weights its cells by. A rent that held
-    one shape and one band for 15 or 25 years is a lifetime nobody in this model
+    one shape and one band for 15 or 25 years is a lifetime no one in this model
     can have, and a hurdle charged for its dispersion charges for risk the
     generative process cannot deliver: on the packaged fleet three quarters of a
     peaker's premium and almost all of a battery's came from the band axis alone.

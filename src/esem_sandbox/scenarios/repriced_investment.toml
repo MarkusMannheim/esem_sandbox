@@ -1,7 +1,7 @@
 # The other end of the bracket on how much a market builds.
 #
 # Under the default rule every producer prices its project against one forecast drawn
-# before anybody decided anything, so nobody sees anybody and everybody builds the
+# before anyone decided anything, so no one sees anyone and everyone builds the
 # maximum the year allows. This rule redraws the forecast after each producer decides,
 # so the second one is offered a market containing the first.
 #

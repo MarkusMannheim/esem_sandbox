@@ -14,7 +14,7 @@ python tools/doc_figures.py           # the offer stack, the cap, the forward vi
 
 `comparison.txt` is the second command's own output, so it has to be redirected. Without the `tee` it is the one file here that does not update, and it goes stale silently while everything around it changes.
 
-`comparison.csv` and `comparison.txt` are one paired run: 20 years, one seed, both legs on the same weather sequence. Read the two cost lines together. The scheme moves the bill down by $8.26bn and the resource cost up by $0.53bn, and the $8.79bn between them is a transfer from generators to consumers rather than a saving by anybody. The two lines disagree in direction on this seed, which is why both are printed and never one: the bill alone would call a scheme that consumed $0.53bn of real resources an eight-billion-dollar saving.
+`comparison.csv` and `comparison.txt` are one paired run: 20 years, one seed, both legs on the same weather sequence. Read the two cost lines together. The scheme moves the bill down by $8.26bn and the resource cost up by $0.53bn, and the $8.79bn between them is a transfer from generators to consumers rather than a saving by anyone. The two lines disagree in direction on this seed, which is why both are printed and never one: the bill alone would call a scheme that consumed $0.53bn of real resources an eight-billion-dollar saving.
 
 Underneath the total, the scheme avoids $0.44bn of outage and spends $0.97bn more on fuel, fixed costs and capital to do it. Whether that trade is worth taking is a question about the value of lost load, which is a regulatory figure here and not a measurement.
 

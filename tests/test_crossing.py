@@ -63,7 +63,7 @@ def test_a_steeper_curve_trades_less_when_the_two_sides_disagree():
 
 
 def test_when_the_two_sides_agree_the_spread_does_not_move_the_volume():
-    """A property of mirror-image curves, stated so nobody reads the spread as a
+    """A property of mirror-image curves, stated so no one reads the spread as a
     volume lever where it is not one. If both sides value the block identically and
     step away from it symmetrically, every slice below the midpoint crosses and
     every slice above it does not, whatever the steps are worth. Volume is then set

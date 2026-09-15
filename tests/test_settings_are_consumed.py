@@ -64,7 +64,7 @@ CONSUMED = {
     "screen_multiple_of_spot": "esem.screen, the sanity ceiling",
     "screen_floor_per_mwh": "esem.screen, its floor in a cheap year",
     "recycling_window_years": "esem.recycle, how many delivery years are offered",
-    "recycling_conduct": "esem.recycle, what happens to volume nobody buys",
+    "recycling_conduct": "esem.recycle, what happens to volume no one buys",
     "fire_sale_fraction": "esem.recycle, the price under fire-sale conduct",
     "overhead_per_year": "esem.levy_per_mwh, what the administrator costs to run",
     "reserve_margin": "simulate.run, the reported margin gap (never the volume)",
