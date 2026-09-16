@@ -8,7 +8,7 @@ A least-cost model asks what an electricity system should contain. It minimises 
 
 This model asks who would build it. Each firm faces an income it cannot predict, values that income below its average because it is uncertain, and commits to an investment only when what it expects to earn covers what the plant costs to own. No one is obliged to build anything, so the answer is what a market delivers rather than what a central planner would order.
 
-The distance between those two answers is what about electricity policy is really about. A gas peaker in this model costs about $136,000 per megawatt-year to own, and the firms want $331,000 to $357,000 before building one. About three-fifths of the bar is caution rather than cost, and a least-cost model cannot see that gap because no one in it is cautious.
+The distance between those two answers is what the argument about electricity policy is really about. A gas peaker in this model costs about $136,000 per megawatt-year to own, and the firms want $331,000 to $357,000 before building one. About three-fifths of the bar is caution rather than cost, and a least-cost model cannot see that gap because no one in it is cautious.
 
 That is also why a contract can cause plant to be built. A 12-year contract on all of a plant's output removes uncertainty rather than paying for it, and the bar falls by about a sixth; the three-year swaps that retailers buy on their own account move it by a few per cent. The same money handed over as a subsidy would do less.
 
