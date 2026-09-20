@@ -40,46 +40,54 @@ def test_surplus_clears_at_the_floor(settings):
     np.testing.assert_array_equal(got, [-10.0, -10.0])
 
 
-def test_must_run_coal_offers_at_its_own_price_not_a_wind_farms(settings):
-    """A coal band avoiding a shutdown and a wind farm forgoing certificates are
-    different economics, so they are different numbers. They were the same constant."""
+def test_must_run_coal_offers_below_wind_and_solar(settings):
+    """A coal band avoiding a shutdown bids below zero; wind and solar offer at
+    their running cost, which is zero. The band is the last thing to withdraw."""
     prices, caps, _ = _offer_stack(list(settings.fleet), settings,
                                    {"water_value": 40.0})
     must_run = settings.dispatch["must_run_offer_per_mwh"]
     assert prices[0] == must_run
     assert caps[0] > 0
-    wind_offer = next(u.srmc_per_mwh for u in settings.fleet if u.technology == "wind")
-    assert must_run != wind_offer, "these must not collapse back to one constant"
+    assert must_run < 0.0
+    for u in settings.fleet:
+        if u.technology in ("wind", "solar"):
+            assert u.srmc_per_mwh == 0.0, (
+                "wind and solar offer at their recorded variable cost: the model "
+                "carries no certificate price, so nothing justifies a bid below zero"
+            )
 
 
-def test_surplus_is_priced_by_the_plant_on_the_margin_of_curtailment(settings, bundle):
-    """The surplus price varies with how deep the surplus is. One constant would
-    leave a fifth of the year at a single identical negative value."""
+def test_a_surplus_hour_clears_at_zero_until_wind_and_solar_have_withdrawn(settings, bundle):
+    """Wind and solar withdraw at zero. The coal band's offer is reached only in
+    an hour where rooftop and the must-run band alone exceed the load, so every
+    wind and solar megawatt has already gone; on the packaged fleet that is a
+    handful of hours against well over a thousand at zero."""
     res = _year(settings, bundle, 0)
-    negative = res.price[res.price < 0]
-    assert len(negative) > 100, "this system should have plenty of surplus hours"
-    levels = np.unique(negative)
-    assert len(levels) >= 2, (
-        f"only {len(levels)} distinct negative price(s): the curtailment merit order "
-        "has collapsed back to a single constant"
+    must_run = settings.dispatch["must_run_offer_per_mwh"]
+    at_zero = int(np.sum(res.price == 0.0))
+    below = res.price[res.price < 0.0]
+    assert at_zero > 1000, "this system should have plenty of surplus hours at zero"
+    assert set(np.unique(below)) <= {must_run}, (
+        "the only offer below zero is the coal band's"
     )
-    wind = next(u.srmc_per_mwh for u in settings.fleet if u.technology == "wind")
-    solar = next(u.srmc_per_mwh for u in settings.fleet if u.technology == "solar")
-    assert solar in levels and wind in levels, (
-        "both curtailable technologies should set the price in some hour"
-    )
-    assert levels.min() >= settings.market["minimum_price_per_mwh"]
+    assert len(below) < at_zero / 100
 
 
 def test_deeper_surplus_gives_a_lower_price(settings):
     """The ordering is the whole point: the plant willing to accept least is
-    curtailed first, so the price falls as the surplus deepens."""
+    curtailed first, so the price falls as the surplus deepens. Wind and solar
+    share one offer, so they set one level; the coal band sets the next."""
     solar = np.array([100.0, 100.0, 100.0])
     wind = np.array([100.0, 100.0, 100.0])
+    coal_band = np.array([50.0, 50.0, 50.0])
     price = _curtailment_price(np.array([50.0, 150.0, 500.0]),
-                               [(-25.0, solar), (-45.0, wind)],
+                               [(0.0, solar), (0.0, wind), (-60.0, coal_band)],
                                market_floor=-1000.0)
-    np.testing.assert_array_equal(price, [-25.0, -45.0, -1000.0])
+    np.testing.assert_array_equal(price, [0.0, 0.0, -1000.0])
+    price = _curtailment_price(np.array([220.0]),
+                               [(0.0, solar[:1]), (0.0, wind[:1]), (-60.0, coal_band[:1])],
+                               market_floor=-1000.0)
+    np.testing.assert_array_equal(price, [-60.0])
 
 
 def test_eight_capped_hours_trigger_the_administered_cap(settings):
@@ -420,9 +428,10 @@ def test_no_unit_generates_below_its_own_offer(settings, bundle):
 
 
 def test_the_withdrawal_ladder_has_all_of_its_rungs(settings, bundle):
-    """Each negative offer should be able to set the price."""
+    """Each offer in the withdrawal order should be able to set the price: wind
+    and solar at zero, and the coal band below them."""
     res = _year(settings, bundle, 0)
-    levels = set(np.round(np.unique(res.price[res.price < 0]), 1))
+    levels = set(np.round(np.unique(res.price[res.price <= 0]), 1))
     for tech in ("solar", "wind"):
         offer = next(u.srmc_per_mwh for u in settings.fleet if u.technology == tech)
         assert offer in levels, f"{tech}'s offer ${offer:.0f} never sets the price"

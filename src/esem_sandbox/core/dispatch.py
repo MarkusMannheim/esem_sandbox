@@ -74,10 +74,10 @@ def _offer_stack(units: list[Unit], settings: Settings,
     """Offer prices, capacities and labels for everything that sets a price.
 
     A coal unit is split in two: the band it bids hardest to keep running offers at its
-    must-run price, and the rest offers at its own short run cost. Those are
-    different economics from a curtailing wind farm, so they are different numbers:
-    a coal unit bids low to avoid a shutdown and restart, a wind farm bids down to
-    roughly minus the certificate revenue it would forgo.
+    must-run price, and the rest offers at its own short run cost. The band bids
+    below zero to avoid a shutdown and restart. Wind and solar are not in this
+    stack: they offer at their running cost, which is zero, and are priced in the
+    curtailment order when there is more generation than load.
     """
     floor = settings.dispatch["must_run_offer_per_mwh"]
     prices: list[float] = []
@@ -642,9 +642,12 @@ def dispatch_year(settings: Settings, year: int, demand_mw: np.ndarray,
     residual = demand_mw - rooftop - vre_mw
 
     # Curtailment merit order for surplus hours. Rooftop is not in it: it sits behind
-    # the meter, does not bid, and is netted off demand. Utility wind and solar do
-    # bid, and their offers differ, so the surplus price varies with how deep the
-    # surplus is instead of being one constant.
+    # the meter, does not bid, and is netted off demand. Utility wind and solar
+    # offer at their running cost, zero, so a surplus hour clears at zero until
+    # every wind and solar megawatt has withdrawn, and the coal must-run band's
+    # offer below that. The model carries no certificate price, so nothing gives
+    # a wind or solar farm a reason to generate below zero; the order in which
+    # wind and solar withdraw at the same offer is the order of the fleet table.
     labelled_tiers = [(u.unit, u.srmc_per_mwh, unit_profile[u.unit]) for u in vre_units]
     market_floor = settings.market["minimum_price_per_mwh"]
     # The must-run band is the last thing to withdraw, so it is the final tier of

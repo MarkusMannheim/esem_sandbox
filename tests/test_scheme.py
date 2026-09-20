@@ -8,6 +8,7 @@ and which constraint missed it is the output rather than a footnote.
 import pytest
 
 from esem_sandbox.config import load_settings
+from esem_sandbox.core.contracts import CFD
 from esem_sandbox.core.esem import Bid
 from esem_sandbox.core.scheme import (
     BUDGET, BUILD_CEILING, MET, NOTHING_SOUGHT, NO_ELIGIBLE_BIDS, PRICE_CEILING,
@@ -98,15 +99,15 @@ def test_the_counterparty_holds_what_it_buys():
     contracts = scheme_contracts(
         lines, row,
         expected_block_prices={b: 70.0 for b in settings.blocks()},
-        commissioning={"wind": 2033}, settings=settings)
+        commissioning={"wind": 2033}, settings=settings, units={"wind": "p_wind"})
     assert contracts
     for c in contracts:
         assert c.holder == SCHEME_COUNTERPARTY
         assert c.writer == "p"
         assert c.start_year == 2033
         assert c.tenor_years == row.tenor_years
-        assert c.block is not None, (
-            "a scheme contract is written on the blocks the plant generates in")
+        assert c.kind == CFD and c.unit == "p_wind", (
+            "a scheme contract follows the plant's own output")
 
 
 def test_the_packaged_scheme_loads_and_is_one_service(settings):

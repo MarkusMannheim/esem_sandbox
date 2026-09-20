@@ -39,9 +39,10 @@ must_run_offer_per_mwh = -60.0              # a coal band bidding to avoid a shu
 # because this band is marginal in roughly a sixth of the year in a system with
 # this much rooftop solar, so it moves the annual average price more than any
 # other single number here.
-# Wind and solar offers are per unit in fleet.csv, not a single constant here: the
-# price in a surplus hour is set by whichever plant is on the margin of curtailment,
-# so they have to be able to differ.
+# Wind and solar offer at their running cost in fleet.csv, which is zero: the model
+# carries no certificate price, so nothing gives them a reason to generate below
+# zero, and a surplus hour clears at zero until every wind and solar megawatt has
+# withdrawn.
 storage_spread_per_mwh = 8.0                # the round trip a day's spread must cover
 # There is no re-stack loop here, and so no pass ceiling and no convergence
 # tolerance. Storage shaves quantities off the residual, and the residual does not
@@ -186,6 +187,12 @@ crossing_spread = 0.25
 # bilateral book cannot underwrite a 25 year asset however much of the
 # output it covers.
 contract_tenor_years = 12
+# The year of the plant's life an award starts paying in. The scheme covers the
+# years a bilateral book cannot reach: the plant's first three years are hedged in
+# the bilateral market like any other plant's, and the award runs for its tenor
+# from the fourth. A state scheme's contract starts at commissioning instead
+# ([scheme] below), because nothing in a state target says otherwise.
+contract_start_year_of_plant = 4
 # The cost of capital a fully contracted megawatt is financed at. A contracted
 # megawatt is financed as debt would be and an uncontracted one as equity is, so
 # this is the channel through which a long-dated contract lowers what a plant needs

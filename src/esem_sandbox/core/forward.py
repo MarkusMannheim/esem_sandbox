@@ -159,15 +159,9 @@ def rent_per_mw_year(price: np.ndarray, tech: TechCost, settings: Settings,
     availability. It runs when the price covers its cost and not otherwise.
 
     *Variable*: the same positive part, weighted hour by hour by the capacity
-    factor. Note which cost is used. A wind row in ``fleet.csv`` offers at minus
-    $45, but that is a curtailment offer, not a cost: it is what the
-    plant will pay to keep running rather than forfeit a certificate this model
-    does not represent. Using it as the rent basis would credit a candidate wind
-    farm about $138,000 per MW-year of revenue that does not exist here. The cost
-    is the running cost from ``tech_costs.csv``, which is zero, so curtailment is
-    priced rather than scheduled: in a surplus hour the price is below the
-    candidate's cost and it earns nothing, which is what withdrawal means for a
-    plant that takes the price.
+    factor. The running cost is zero, so a surplus hour, which clears at zero,
+    earns the candidate nothing, which is what withdrawal means for a plant that
+    takes the price.
 
     *Storage*: the spread it actually realises, from the same daily scheduler the
     dispatch uses, so a candidate battery is valued by the rule that will govern it
@@ -213,15 +207,12 @@ def incumbent_rents(price: np.ndarray, generation_mwh: dict[str, np.ndarray],
     rent that counted only the hours priced above cost would keep such a plant
     open on money it never earned.
 
-    Only plant whose offer IS a running cost gets a number. A wind or solar row
-    offers below zero, and that offer is what it will pay to keep running rather
-    than forfeit a certificate this model does not represent; a rent measured
-    against it would be an invention rather than a measurement, so those rows are
-    left out and the exit rule that reads this is confined to plant that has one.
+    Storage is left out: its rent is a spread, not a margin over a running cost,
+    and the exit rule that reads this is confined to thermal plant.
     """
     out: dict[str, float] = {}
     for u in units:
-        if u.srmc_per_mwh < 0.0 or u.duration_h is not None or u.capacity_mw <= 0:
+        if u.duration_h is not None or u.capacity_mw <= 0:
             continue
         gen = generation_mwh.get(u.unit)
         if gen is None:
@@ -298,7 +289,7 @@ def _projected_entry_unit(mw: float, tech: TechCost, year: int) -> Unit:
     return Unit(
         unit=f"{PROJECTED_ENTRY_UNIT}_{tech.technology}",
         technology=tech.dispatch_technology, capacity_mw=mw,
-        availability=tech.availability, srmc_per_mwh=tech.offer_per_mwh,
+        availability=tech.availability, srmc_per_mwh=tech.srmc_per_mwh,
         retirement_year=9999, commissioned_year=year, must_run_mw=0.0,
         energy_budget_gwh=None, duration_h=tech.duration_h,
         round_trip_efficiency=tech.round_trip_efficiency,

@@ -159,6 +159,9 @@ class Award:
     price_per_mw_year: float
     strike_per_mwh: float
     commissioning_year: int
+    # The first year the award's contracts settle: the plant's fourth year for a
+    # reliability award, its first three being hedged bilaterally.
+    first_delivery_year: int = 0
 
 
 @dataclass(frozen=True)
@@ -372,7 +375,7 @@ def _new_unit(tech: TechCost, mw: float, name: str, decided_year: int) -> Unit:
         unit=name,
         technology=tech.dispatch_technology,
         capacity_mw=mw, availability=tech.availability,
-        srmc_per_mwh=tech.offer_per_mwh,
+        srmc_per_mwh=tech.srmc_per_mwh,
         retirement_year=commissioned + tech.life_years,
         commissioned_year=commissioned, must_run_mw=0.0, energy_budget_gwh=None,
         duration_h=tech.duration_h,
@@ -498,7 +501,8 @@ def run(settings: Settings, *, ticks: int = 20, start_year: int = 2026,
                             bundle["solar_cf"][shape_year])
 
         # 3. Settlement, then 4. ageing.
-        cashflows = settle_book(settings, state.book, res.price, year)
+        cashflows = settle_book(settings, state.book, res.price, year,
+                                res.generation_mwh)
         state.book = age(state.book, year)
         state.history.append(block_prices(settings, res.price))
         state.cap_payoffs.append(_cap_payoff_per_mw_year(res.price, strike))
@@ -583,9 +587,15 @@ def run(settings: Settings, *, ticks: int = 20, start_year: int = 2026,
             margin_gap = reserve_margin_gap_mw(
                 near, res.firm_capacity_mw, level,
                 float(settings.esem["reserve_margin"]))
+            # The cover the bilateral market gives a plant in the years before
+            # its award starts: what producers have sold forward this year, on
+            # average, since the book is shared out by capacity.
+            achieved = _cover(settings, state, res, year=year)
+            bilateral_cover = float(np.mean(list(achieved.values()))) \
+                if achieved else 0.0
             awards = _auction(settings, state, view, res, year=year,
                               peak_mw=level, lane_mw=lane_mw, built=built_this_year,
-                              tick=t)
+                              tick=t, bilateral_cover=bilateral_cover)
             awarded_this_year = bool(awards)
 
         # 7b. The state scheme, when one is running. Its quantity comes from a
@@ -800,7 +810,8 @@ def _clear(settings: Settings, state: RunState, res: DispatchResult, *,
 
 def _auction(settings: Settings, state: RunState, view: ForwardView,
              res: DispatchResult, *, year: int, peak_mw: float, lane_mw: float,
-             built: dict[str, float], tick: int) -> list[Award]:
+             built: dict[str, float], tick: int,
+             bilateral_cover: float = 0.0) -> list[Award]:
     """One year's lane: eligible new entrants bid, are screened, and clear pay-as-bid.
 
     Bids are the long-run cost of the plant at a cost of capital blended for the
@@ -813,11 +824,18 @@ def _auction(settings: Settings, state: RunState, view: ForwardView,
     arrives after its lead time, which is the whole reason a long-dated contract
     moves anything: it is not a subsidy paid to plant that would have been built, it
     is what lets a plant be built at all.
+
+    The award covers the years a bilateral book cannot reach. It starts in the
+    plant's fourth year (``contract_start_year_of_plant``) and runs for its tenor;
+    the plant's first three years are hedged in the bilateral market like any
+    other plant's, at ``bilateral_cover``, the share of output the market's
+    producers have sold forward this year.
     """
     if lane_mw <= 0:
         return []
     near = view.nearest
     tenor = int(settings.esem["contract_tenor_years"])
+    start_year_of_plant = int(settings.esem["contract_start_year_of_plant"])
     producers = [a for a in state.roster if a.kind == PRODUCER]
     if not producers:
         return []
@@ -856,7 +874,9 @@ def _auction(settings: Settings, state: RunState, view: ForwardView,
         # that the market might, and the certainty equivalent is where that lives.
         # A scheme priced on expectations would report itself as free.
         exposure = residual_exposure(settings, tech.life_years,
-                                     award_years=tenor, award_cover=1.0)
+                                     swap_cover=bilateral_cover,
+                                     award_years=tenor, award_cover=1.0,
+                                     award_start_year=start_year_of_plant)
         rents, weights = view.risk_distribution(tech, settings)
         a = cara_coefficient(representative_aversion, exposure, settings)
         bankable = cara_certainty_equivalent(rents, weights, a)
@@ -886,6 +906,8 @@ def _auction(settings: Settings, state: RunState, view: ForwardView,
         tech, _cap, _firm = priced[line.bid.technology]
         capacity = line.capacity_mw
         commissioning = year + tech.lead_years
+        first_delivery = commissioning + start_year_of_plant - 1
+        name = f"{tech.technology}_{year}_{line.bid.bidder}_awarded"
         # A tenor of zero means no contract at all, so the scheme is an auction and
         # nothing else. That is a documented scenario: it separates what the lane
         # buys from what a long contract does to the cost of capital, by removing
@@ -897,15 +919,15 @@ def _auction(settings: Settings, state: RunState, view: ForwardView,
             payoffs = state.cap_payoffs[-5:] or [0.0]
             written = award_contracts(
                 line, generator=line.bid.bidder,
-                commissioning_year=commissioning, tenor_years=tenor,
+                start_year=first_delivery, tenor_years=tenor,
                 tech=tech, settings=settings,
                 expected_payout_per_mw=float(np.mean(payoffs)),
                 expected_block_prices=near.expected_block_prices,
-                block_mw=award_block_mw(settings, tech, capacity_mw=capacity))
+                block_mw=award_block_mw(settings, tech, capacity_mw=capacity),
+                unit=name)
             state.admin.awards.extend(written)
             state.book.extend(written)
         built[tech.technology] = built.get(tech.technology, 0.0) + capacity
-        name = f"{tech.technology}_{year}_{line.bid.bidder}_awarded"
         unit = _new_unit(tech, capacity, name, year)
         # Booked at the rate the plant is actually financed at: the blend the bid
         # was priced on, since a contracted megawatt borrows as debt does. A
@@ -930,7 +952,8 @@ def _auction(settings: Settings, state: RunState, view: ForwardView,
         out.append(Award(bidder=line.bid.bidder, technology=tech.technology,
                          capacity_mw=capacity, firm_mw=line.firm_mw,
                          price_per_mw_year=line.price_per_mw_year,
-                         strike_per_mwh=strike, commissioning_year=commissioning))
+                         strike_per_mwh=strike, commissioning_year=commissioning,
+                         first_delivery_year=first_delivery))
     return out
 
 
@@ -1040,7 +1063,7 @@ def _commit_scheme_award(settings: Settings, state: RunState, line, row, *,
     state.book.extend(scheme_contracts(
         [sized], row, expected_block_prices=expected_price,
         commissioning={tech.technology: unit.commissioned_year},
-        settings=settings))
+        settings=settings, units={tech.technology: name}))
     state.scheme_awarded[tech.technology] = \
         state.scheme_awarded.get(tech.technology, 0.0) + capacity
 
@@ -1057,11 +1080,11 @@ def _cover(settings: Settings, state: RunState, res: DispatchResult, *,
     for agent in state.roster:
         if agent.kind != PRODUCER:
             continue
-        expected_mwh = sum(
-            float(np.clip(res.generation_mwh.get(u, 0.0), 0.0, None).sum())
-            for u in agent.units)
+        by_unit = {u: float(np.clip(res.generation_mwh.get(u, 0.0), 0.0, None).sum())
+                   for u in agent.units}
         out[agent.name] = achieved_swap_cover(agent, state.book, settings, year + 1,
-                                              expected_mwh)
+                                              sum(by_unit.values()),
+                                              output_by_unit_mwh=by_unit)
     return out
 
 

@@ -9,7 +9,7 @@ import numpy as np
 import pytest
 
 from esem_sandbox.config import load_settings
-from esem_sandbox.core.contracts import CAP, SWAP, Contract, age, settle_book
+from esem_sandbox.core.contracts import CAP, CFD, SWAP, Contract, age, settle_book
 from esem_sandbox.core.report import block_mask
 from esem_sandbox.core.esem import (
     ADMINISTRATOR, Administrator, AwardLine, Bid, award_block_mw, award_contracts,
@@ -276,15 +276,25 @@ def test_the_lane_does_not_pay_twice_for_energy_the_pool_already_pays_for(settin
 
 
 def _award(settings, line, *, generator="m", commissioning_year=2030,
-           tenor_years=12, technology="wind", prices=None):
+           tenor_years=12, technology="wind", prices=None, unit="m_plant"):
     """The contracts one award writes, for a technology named by the caller."""
     tech = settings.tech(technology)
     return award_contracts(
-        line, generator=generator, commissioning_year=commissioning_year,
+        line, generator=generator, start_year=commissioning_year,
         tenor_years=tenor_years, tech=tech, settings=settings,
         expected_payout_per_mw=100_000.0,
         expected_block_prices=prices or {b: 60.0 for b in settings.blocks()},
-        block_mw=award_block_mw(settings, tech, line.capacity_mw))
+        block_mw=award_block_mw(settings, tech, line.capacity_mw), unit=unit)
+
+
+def _expected_output(settings, technology, capacity_mw, n_hours=8760):
+    """An hourly output series that delivers exactly the block volumes an award
+    of this technology is sized on, so a contract on it settles the bid."""
+    out = np.zeros(n_hours)
+    for block, mw in award_block_mw(settings, settings.tech(technology),
+                                    capacity_mw).items():
+        out[block_mask(settings, block, n_hours)] = mw
+    return out
 
 
 def test_an_award_starts_when_the_plant_does_and_not_when_it_is_signed(settings):
@@ -336,28 +346,39 @@ def test_an_award_is_worth_the_bid_and_nothing_else(settings, technology):
         price[0] = strike + 100_000.0     # one hour carrying the expected payout
         flows = settle_book(settings, contracts, price, 2030)
     else:
-        flows = settle_book(settings, contracts, np.full(8760, expected), 2030)
+        # A contract on output settles on what the plant made; delivering the
+        # output the award was sized on pays exactly the bid.
+        metered = {"m_plant": _expected_output(settings, technology, line.capacity_mw)}
+        flows = settle_book(settings, contracts, np.full(8760, expected), 2030,
+                            metered)
     assert flows["m"] == pytest.approx(line.cost, rel=1e-6), (
         f"an award to {technology} has to be worth the bid, over the hours and the "
         "instrument it actually covers"
     )
 
 
-def test_an_award_is_written_on_hours_the_plant_generates_in(settings):
+def test_an_award_is_written_on_what_the_plant_generates(settings):
     """A hedge on hours a plant does not run in is a financial position, not a hedge.
 
-    Solar generates nothing overnight and a peaker generates nothing overnight
-    either, so neither may be handed an overnight swap.
+    A solar farm's award follows its metered output, so it can only ever settle
+    on energy the plant made, at a strike that is the capture price its output is
+    expected to fetch plus the top-up it bid. A peaker's award is a cap on its
+    firm megawatts.
     """
     line = AwardLine(bid=_bid("m", 87_600.0), firm_mw=100.0, capacity_mw=200.0,
                      price_per_mw_year=87_600.0)
-    solar = _award(settings, line, technology="solar")
-    assert solar and all(c.block != "overnight" for c in solar), (
-        "solar was handed a swap on the hours the sun is down"
-    )
-    assert {c.block for c in solar} == {
-        b for b, mw in award_block_mw(settings, settings.tech("solar"),
-                                      line.capacity_mw).items() if mw > 0}
+    prices = {"overnight": 40.0, "morning": 60.0, "solar": 10.0, "peak": 120.0}
+    solar = _award(settings, line, technology="solar", prices=prices)
+    assert len(solar) == 1 and solar[0].kind == CFD and solar[0].unit == "m_plant"
+    assert solar[0].block is None and solar[0].volume_mw == line.capacity_mw
+    volumes = award_block_mw(settings, settings.tech("solar"), line.capacity_mw)
+    hours = {b: float(block_mask(settings, b, 8760).sum()) for b in volumes}
+    mwh = sum(volumes[b] * hours[b] for b in volumes)
+    capture = sum(prices[b] * volumes[b] * hours[b] for b in volumes) / mwh
+    assert solar[0].strike_per_mwh == pytest.approx(capture + line.cost / mwh)
+    assert capture < 60.0, "solar's capture price sits below the flat average"
+    with pytest.raises(ValueError, match="name the plant"):
+        _award(settings, line, technology="solar", unit=None)
     peaker = _award(settings, line, technology="ocgt")
     assert peaker and all(c.kind == CAP for c in peaker), (
         "a peaker's award has to be the instrument it can back, which is a cap"
@@ -375,10 +396,13 @@ def test_the_generator_writes_and_the_administrator_holds(settings):
     cs = _award(settings, line)
     for c in cs:
         assert c.writer == "m" and c.holder == ADMINISTRATOR
-    cheap = settle_book(settings, cs, np.full(8760, 20.0), 2030)
+    metered = {"m_plant": _expected_output(settings, "wind", line.capacity_mw)}
+    cheap = settle_book(settings, cs, np.full(8760, 20.0), 2030, metered)
     assert cheap["m"] > 0, "a low pool price must pay the generator, not charge it"
-    dear = settle_book(settings, cs, np.full(8760, 400.0), 2030)
+    dear = settle_book(settings, cs, np.full(8760, 400.0), 2030, metered)
     assert dear["m"] < 0, "and a high one must claw back"
+    with pytest.raises(ValueError, match="metered output"):
+        settle_book(settings, cs, np.full(8760, 20.0), 2030)
 
 
 # --------------------------------------------------------------------------
@@ -388,13 +412,22 @@ def test_the_generator_writes_and_the_administrator_holds(settings):
 def test_every_contract_the_scheme_writes_nets_to_zero(settings):
     line = AwardLine(bid=_bid("m", 50_000.0), firm_mw=100.0, capacity_mw=200.0,
                      price_per_mw_year=50_000.0)
-    award = _award(settings, line)[0]
-    admin = Administrator(awards=[award])
-    strips = recycle(admin, settings, year=2030, buyers=[("retailer_a", 120.0), ("retailer_b", 80.0)])
     price = np.linspace(10.0, 300.0, 8760)
-    flows = settle_book(settings, [award] + strips, price, 2031)
+    swap = _award(settings, line, technology="battery_4h")[0]
+    admin = Administrator(awards=[swap])
+    strips = recycle(admin, settings, year=2030, buyers=[("retailer_a", 120.0), ("retailer_b", 80.0)])
+    assert strips, "a store's peak swap is recycled"
+    flows = settle_book(settings, [swap] + strips, price, 2031)
     assert sum(flows.values()) == pytest.approx(0.0, abs=1e-6), (
         "a contract moves money; it does not make any"
+    )
+    on_output = _award(settings, line)[0]
+    metered = {"m_plant": _expected_output(settings, "wind", line.capacity_mw)}
+    flows = settle_book(settings, [on_output], price, 2031, metered)
+    assert sum(flows.values()) == pytest.approx(0.0, abs=1e-6)
+    admin = Administrator(awards=[on_output])
+    assert recycle(admin, settings, year=2030, buyers=[("retailer_a", 120.0)]) == [], (
+        "a contract on one plant's output follows that plant and is not recycled"
     )
 
 
@@ -551,7 +584,7 @@ def test_the_conduct_lever_changes_the_price_and_is_checked(settings):
 def test_a_recycled_strip_lasts_one_year(settings):
     line = AwardLine(bid=_bid("m", 50_000.0), firm_mw=100.0, capacity_mw=200.0,
                      price_per_mw_year=50_000.0)
-    admin = Administrator(awards=[_award(settings, line)[0]])
+    admin = Administrator(awards=[_award(settings, line, technology="battery_4h")[0]])
     strips = recycle(admin, settings, year=2030, buyers=[("retailer_a", 100.0)])
     assert all(c.tenor_years == 1 for c in strips)
     window = int(settings.esem["recycling_window_years"])

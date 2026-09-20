@@ -44,13 +44,12 @@ import numpy as np
 from ..config import Settings, TechCost, Unit
 from .agents import Agent, PRODUCER
 from .clearing import cara_certainty_equivalent, cara_coefficient
-from .contracts import Contract, SWAP, hours_of
+from .contracts import CFD, Contract, SWAP, hours_of
 from .forward import ForwardView, interpolated_rent
 
-# Only plant whose offer is a running cost is eligible to exit on economics. A wind
-# row's offer is a curtailment offer, not a cost, so a rent measured against it
-# would be an invention; and a battery's going-forward cost is small enough that an
-# exit rule on it would only ever be noise.
+# Only thermal plant is eligible to exit on economics. A wind or solar farm's
+# going-forward cost is small beside what it earns even in a glut, and a battery's
+# smaller still, so an exit rule on them would only ever be noise.
 EXIT_ELIGIBLE = ("coal", "ccgt", "ocgt")
 
 
@@ -60,15 +59,19 @@ EXIT_ELIGIBLE = ("coal", "ccgt", "ocgt")
 
 def achieved_swap_cover(agent: Agent, book: list[Contract], settings: Settings,
                         year: int, expected_output_mwh: float,
-                        n_hours: int = 8760) -> float:
+                        n_hours: int = 8760,
+                        output_by_unit_mwh: dict[str, float] | None = None
+                        ) -> float:
     """The fraction of a producer's expected output already sold forward at a fixed
     price, weighted by the hours each contract's block actually covers.
 
-    Swaps only. A written cap does not fix the writer's price on its output below
-    the strike, so it is not price-certain cover in the sense that matters to a
-    financier, and it enters no build decision here: the candidate is judged on
-    its energy rent, and the cap lane's premium is priced beside it by the same
-    caution, never added to it.
+    Swaps, and contracts for difference on a plant's output, which fix the price
+    of everything that plant makes (``output_by_unit_mwh`` says how much that is).
+    A written cap does not fix the writer's price on its output below the strike,
+    so it is not price-certain cover in the sense that matters to a financier,
+    and it enters no build decision here: the candidate is judged on its energy
+    rent, and the cap lane's premium is priced beside it by the same caution,
+    never added to it.
 
     A peak-only swap covers six hours in 24, so it is weighted at a quarter. Counting
     it as though it covered the day would overstate cover fourfold.
@@ -77,23 +80,24 @@ def achieved_swap_cover(agent: Agent, book: list[Contract], settings: Settings,
         return 0.0
     covered = 0.0
     for c in book:
-        if c.kind != SWAP or c.writer != agent.name or not c.in_force(year):
+        if c.writer != agent.name or not c.in_force(year):
             continue
-        covered += c.volume_mw * float(hours_of(settings, c, n_hours).sum())
+        if c.kind == SWAP:
+            covered += c.volume_mw * float(hours_of(settings, c, n_hours).sum())
+        elif c.kind == CFD:
+            covered += float((output_by_unit_mwh or {}).get(c.unit or "", 0.0))
     return max(0.0, min(1.0, covered / expected_output_mwh))
 
 
 def residual_exposure(settings: Settings, life_years: int, *,
                       swap_cover: float = 0.0, award_years: int = 0,
-                      award_cover: float = 0.0) -> float:
+                      award_cover: float = 0.0, award_start_year: int = 1) -> float:
     """The share of the project's life still exposed to the spot price.
 
         exposure = 1 - h x D / L
 
     ``h`` is the fraction of output covered and ``D`` the tenor of the cover, in a
-    life of ``L`` years. Three channels can supply cover, and the LARGEST applies
-    rather than their sum, because they cover the same delivery years and adding
-    them would let a producer count one year of certainty twice:
+    life of ``L`` years. Three channels can supply cover:
 
     * a bilateral swap book, at the standard bilateral tenor;
     * a capacity underwrite, which is off by default because the merchant leg is
@@ -101,17 +105,32 @@ def residual_exposure(settings: Settings, life_years: int, *,
       a mild policy leg wearing the merchant label;
     * a long-dated award, which is what the scheme leg supplies.
 
+    Channels that land on the same delivery years do not add: the LARGEST applies,
+    because adding them would let a producer count one year of certainty twice.
+    An award that starts in a later year of the plant's life (``award_start_year``,
+    counted from one at commissioning) covers different years from the book, so
+    the book's cover over the years before it and the award's cover from it are
+    added, each over the years it can reach.
+
     Cover is capped below one: a contract covers a FORECAST of output, and the
     forecast can be wrong, so no producer is ever fully hedged.
     """
     life = max(1, int(life_years))
     cap = float(settings.investment["hedge_fraction_cap"])
-    channels = [
-        min(swap_cover, cap) * min(int(settings.investment["bilateral_contract_years"]), life),
-        cap * min(int(settings.investment["merchant_underwrite_years"]), life),
-        min(award_cover, cap) * min(int(award_years), life),
-    ]
-    return max(0.0, min(1.0, 1.0 - max(channels) / life))
+    bilateral = int(settings.investment["bilateral_contract_years"])
+    underwrite = int(settings.investment["merchant_underwrite_years"])
+    start = max(1, int(award_start_year))
+    if award_years > 0 and start > 1:
+        before = min(life, start - 1)
+        book = [min(swap_cover, cap) * min(bilateral, before),
+                cap * min(underwrite, before)]
+        award = min(award_cover, cap) * min(int(award_years), life - before)
+        covered = max(book) + award
+    else:
+        covered = max(min(swap_cover, cap) * min(bilateral, life),
+                      cap * min(underwrite, life),
+                      min(award_cover, cap) * min(int(award_years), life))
+    return max(0.0, min(1.0, 1.0 - covered / life))
 
 
 # --------------------------------------------------------------------------

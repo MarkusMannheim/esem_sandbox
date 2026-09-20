@@ -224,23 +224,30 @@ def clear_scheme(row: SchemeRow, bids: list[Bid], year: int,
 def scheme_contracts(lines: list[AwardLine], row: SchemeRow, *,
                      expected_block_prices: dict[str, float],
                      commissioning: dict[str, int],
-                     settings: Settings) -> list[Contract]:
+                     settings: Settings,
+                     units: dict[str, str] | None = None) -> list[Contract]:
     """What the scheme signs, held to maturity by its counterparty.
 
     The same instruments a reliability award writes, because what a plant can back
-    does not depend on which body is buying. The difference is what happens next,
-    which is nothing: the counterparty does not recycle, warehouse or fire-sell.
+    does not depend on which body is buying: a contract for difference on a wind
+    or solar farm's metered output (``units`` names the plant per technology), a
+    swap on the peak block for a store. Two things differ. The contract starts at
+    commissioning, where a reliability award starts in the plant's fourth year:
+    nothing in a state target says a plant should carry its first three years on
+    the bilateral market. What happens next is nothing: the counterparty does not
+    recycle, warehouse or fire-sell.
     """
     out: list[Contract] = []
     for line in lines:
         tech = settings.tech(line.bid.technology)
         out.extend(award_contracts(
             line, generator=line.bid.bidder,
-            commissioning_year=commissioning[line.bid.technology],
+            start_year=commissioning[line.bid.technology],
             tenor_years=row.tenor_years, tech=tech, settings=settings,
             holder=SCHEME_COUNTERPARTY,
             expected_block_prices=expected_block_prices,
-            block_mw=award_block_mw(settings, tech, line.capacity_mw)))
+            block_mw=award_block_mw(settings, tech, line.capacity_mw),
+            unit=(units or {}).get(line.bid.technology)))
     return out
 
 
@@ -278,14 +285,14 @@ def load_scheme(settings: Settings) -> SchemeRow | None:
             ) from None
         if tech.cap_eligible:
             # The scheme bids, clears and screens per NAMEPLATE megawatt-year and
-            # writes what it awards as block swaps on expected output. A
-            # cap-eligible plant's award is a cap on firm megawatts at an expected
-            # payout the scheme does not compute, so a scheme naming one would
-            # record nameplate bought and write a contract on a different basis.
+            # writes what it awards on the plant's output. A cap-eligible plant's
+            # award is a cap on firm megawatts at an expected payout the scheme
+            # does not compute, so a scheme naming one would record nameplate
+            # bought and write a contract on a different basis.
             raise ValueError(
                 f"[scheme] technologies names {name!r}, which is cap-eligible; the "
-                "scheme buys nameplate and writes block swaps, so it cannot hold a "
-                "cap-eligible award"
+                "scheme buys nameplate and contracts the plant's output, so it "
+                "cannot hold a cap-eligible award"
             )
     return SchemeRow(
         service=service,

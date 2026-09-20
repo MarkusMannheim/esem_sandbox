@@ -73,22 +73,17 @@ def test_the_peak_band_moves_the_peak_and_not_the_energy():
 # The rent basis
 
 
-def test_a_wind_candidate_is_not_paid_its_curtailment_offer(settings):
-    """fleet.csv offers wind at minus 45 dollars. That is what a plant will
-    pay to keep running rather than forfeit a certificate this model does not
-    represent; it is not a cost, and using it as the rent basis credits a candidate
-    wind farm with revenue that does not exist."""
-    price = np.full(8760, 40.0)
+def test_a_wind_candidate_earns_the_price_on_what_it_generates(settings):
+    """A wind farm's running cost is zero, and it offers at that. Its rent is the
+    price it takes on the energy it makes, and a surplus hour at zero adds
+    nothing: the model carries no certificate price that would pay it to run
+    through one."""
+    price = np.concatenate([np.full(4380, 40.0), np.zeros(4380)])
     cf = np.full(8760, 0.35)
     tech = settings.tech("wind")
-    assert tech.srmc_per_mwh == 0.0, "the candidate table states cost, not offer"
+    assert tech.srmc_per_mwh == 0.0
     rent = rent_per_mw_year(price, tech, settings, cf)
-    assert rent == pytest.approx(40.0 * 0.35 * 8760)
-    offer_basis = float(np.sum(np.clip(price - (-45.0), 0.0, None) * cf))
-    assert offer_basis - rent == pytest.approx(45.0 * 0.35 * 8760, rel=1e-9)
-    assert offer_basis - rent > 130_000, (
-        "using the offer would add about $138,000 per MW-year of invented revenue"
-    )
+    assert rent == pytest.approx(40.0 * 0.35 * 4380)
 
 
 def test_a_price_taker_earns_nothing_in_an_hour_below_its_cost(settings):
@@ -145,8 +140,8 @@ def test_an_incumbent_s_rent_is_booked_on_what_it_generated(settings):
     assert gas.unit not in incumbent_rents(res.price, {}, live), (
         "a unit the dispatch never booked is not measurable"
     )
-    assert not any(u.srmc_per_mwh < 0 for u in live if u.unit in rents), (
-        "a curtailment offer is not a running cost and gets no rent"
+    assert not any(u.duration_h for u in live if u.unit in rents), (
+        "storage earns a spread, not a margin over a running cost, and gets no rent here"
     )
 
 

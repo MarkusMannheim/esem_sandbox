@@ -21,8 +21,9 @@ here by changing a line.
 
 When it is committed. At award, not at commissioning. That is the whole point of
 the instrument: a contract signed today is what lets a plant reach a final investment
-decision today, and the plant arrives after its lead time. The contract is dated to
-start when the plant starts.
+decision today, and the plant arrives after its lead time. The contract is dated
+from the plant's fourth year, the years a bilateral book cannot reach; its first
+three are hedged in the bilateral market like any other plant's.
 
 Who pays. The administrator's net settlement position, plus its overheads,
 divided by the energy consumers actually took, in the same year. No smoothing, no
@@ -38,7 +39,7 @@ from functools import lru_cache
 import numpy as np
 
 from ..config import Settings, TechCost
-from .contracts import CAP, Contract, SWAP
+from .contracts import CAP, CFD, Contract, SWAP
 from .report import block_mask
 from .forward import Anchor
 
@@ -316,28 +317,35 @@ def award_cap_premium(bid_cost: float, firm_mw: float,
     return (bid_cost / firm_mw + expected_payout_per_mw) / float(n_hours)
 
 
-def award_contracts(line: AwardLine, *, generator: str, commissioning_year: int,
+def award_contracts(line: AwardLine, *, generator: str, start_year: int,
                     tenor_years: int, tech, settings: Settings,
                     holder: str = ADMINISTRATOR,
                     expected_payout_per_mw: float = 0.0,
                     expected_block_prices: dict[str, float] | None = None,
-                    block_mw: dict[str, float] | None = None) -> list[Contract]:
-    """The contracts an award writes, dated to start when the plant starts.
+                    block_mw: dict[str, float] | None = None,
+                    unit: str | None = None) -> list[Contract]:
+    """The contracts an award writes, dated from their first delivery year.
 
-    An award writes the instrument the plant could actually back, which is the one it
-    would write in the bilateral market. Plant that can stand behind a scarcity hour
-    writes a cap; plant that sells energy writes swaps on the blocks it generates in.
-    A single swap on one block for every technology is not a hedge for most of them:
-    a peaker and a solar farm both generate nothing overnight.
+    An award writes the instrument the plant could actually back. Plant that can
+    stand behind a scarcity hour writes a cap on its firm megawatts. A wind or solar
+    farm writes a contract for difference on its metered output (``unit`` names
+    the plant), at a strike that is the capture price it expects plus the top-up
+    it bid: no flat volume matches what such a plant makes hour by hour, and a
+    swap on a block would pay on megawatts it had not made while leaving what it
+    did make on the spot price. A store writes a swap on the peak block it
+    discharges into, sized to what it can sustain there.
 
     The generator WRITES and the administrator HOLDS, which is the direction that
     fixes the generator's price. The administrator carries the market position, which
     is what it then recycles to retailers.
 
-    Dated at commissioning, not at award. The contract is what lets the plant reach a
-    final investment decision now, and the plant arrives after its lead time. A
-    contract that started at award would pay for delivery before there was anything
-    to deliver.
+    ``start_year`` is the first year the contract settles, never the year of the
+    award: the contract is what lets the plant reach a final investment decision
+    now, and the plant arrives after its lead time. A contract that started at
+    award would pay for delivery before there was anything to deliver. The
+    reliability scheme dates its awards from the plant's fourth year, the first
+    three being hedged in the bilateral market; a state scheme dates its from
+    commissioning. Each caller says which.
     """
     if tech.cap_eligible:
         # Firm megawatts, because that is the product the lane buys and what the
@@ -349,7 +357,7 @@ def award_contracts(line: AwardLine, *, generator: str, commissioning_year: int,
             kind=CAP, holder=holder, writer=generator,
             strike_per_mwh=float(settings.contracts["cap_strike_per_mwh"]),
             volume_mw=line.firm_mw, premium_per_mwh=premium,
-            start_year=commissioning_year, tenor_years=tenor_years,
+            start_year=start_year, tenor_years=tenor_years,
         )]
 
     prices = expected_block_prices or {}
@@ -360,13 +368,27 @@ def award_contracts(line: AwardLine, *, generator: str, commissioning_year: int,
     annual_mwh = sum(volumes[b] * hours[b] for b in volumes)
     if annual_mwh <= 0:
         return []
-    # The bid arrives as a per-megawatt-hour uplift over what the block is expected
-    # to pay, so the plant receives its expected pool revenue plus the bid.
+    # The bid arrives as a per-megawatt-hour uplift over what the plant's output is
+    # expected to fetch, so the plant receives its expected pool revenue plus the
+    # bid.
     uplift = line.cost / annual_mwh
+    if not tech.duration_h:
+        if not unit:
+            raise ValueError(
+                f"a {tech.technology} award is a contract for difference on the "
+                "plant's output and has to name the plant"
+            )
+        capture = sum(prices.get(b, 0.0) * volumes[b] * hours[b]
+                      for b in volumes) / annual_mwh
+        return [Contract(
+            kind=CFD, holder=holder, writer=generator, unit=unit,
+            strike_per_mwh=capture + uplift, volume_mw=line.capacity_mw,
+            start_year=start_year, tenor_years=tenor_years,
+        )]
     return [Contract(
         kind=SWAP, holder=holder, writer=generator,
         strike_per_mwh=prices.get(b, 0.0) + uplift, volume_mw=volumes[b],
-        start_year=commissioning_year, tenor_years=tenor_years, block=b,
+        start_year=start_year, tenor_years=tenor_years, block=b,
     ) for b in sorted(volumes)]
 
 
@@ -501,6 +523,12 @@ def recycle(admin: Administrator, settings: Settings, *, year: int,
         for (kind, block), slot in sorted(held.items(), key=lambda kv: str(kv[0])):
             available = slot["mw"] - already.get((kind, block), 0.0)
             if available <= 0:
+                continue
+            if kind == CFD:
+                # A contract on one plant's output follows that plant and is held
+                # to maturity; no retailer mandate is written in it. The lane
+                # admits only cap-eligible plant, so none reaches this book.
+                unsold += available
                 continue
             if kind == CAP and not market_cap_premium_per_mwh:
                 unsold += available

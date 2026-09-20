@@ -72,7 +72,9 @@ A plant is built when what it expects to earn, per megawatt per year, covers wha
 
 ### What the scheme writes
 
-An award is the contract the plant could actually back. Plant that can stand behind a scarcity hour writes a cap on its firm megawatts; wind, solar and storage write swaps on the blocks they generate in. A plant bids the top-up it needs, over what it expects to earn in the market, to be worth building, and the ESEM administrator pays that on top of the market's expected price. It then offers the contract back to retailers at the market price, because no one buys a hedge above the market, and so recovers everything except the top-up. The top-up is what consumers pay through the levy: the cost of the capacity, and nothing else.
+An award is the contract the plant could actually back. Plant that can stand behind a scarcity hour writes a cap on its firm megawatts; a wind or solar farm writes a contract for difference on whatever it generates, hour by hour; storage writes a swap on the peak block it discharges into. A plant bids the top-up it needs, over what it expects to earn in the market, to be worth building, and the ESEM administrator pays that on top of the market's expected price. It then offers the contract back to retailers at the market price, because no one buys a hedge above the market, and so recovers everything except the top-up. The top-up is what consumers pay through the levy: the cost of the capacity, and nothing else.
+
+The ESEM's contract covers the years a retailer's book cannot reach. It starts in the plant's fourth year and runs for twelve; the plant's first three years are hedged in the bilateral market like anyone else's. A state scheme's contract starts when its plant does.
 
 ## What the model leaves out, and the costs
 

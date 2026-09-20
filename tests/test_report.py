@@ -96,9 +96,9 @@ def test_quarters_have_real_month_lengths():
     assert q[181 * 24] == 2, "1 July belongs to the third"
 
 
-def test_a_curtailment_offer_is_not_booked_as_a_fuel_bill(settings):
-    """Wind's negative short run cost is an opportunity cost. Multiplying it by
-    output would book a credit and overstate the fleet's net rent."""
+def test_a_wind_farm_has_no_fuel_bill(settings):
+    """Wind's running cost is zero, so its output books no fuel and its net rent
+    is what it sold."""
     price = np.array([50.0, 50.0])
     gen = {"wind_a": np.array([100.0, 100.0])}
     out = unit_revenue(price, gen, settings)["wind_a"]

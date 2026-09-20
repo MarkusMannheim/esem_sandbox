@@ -74,7 +74,9 @@ The two entries that matter most are the bill and the resource cost. Confusing t
 
 **Cap.** Insurance. The seller pays the buyer whenever the spot price rises above an agreed level, and keeps the fee otherwise. A cap does nothing in an ordinary hour and everything in a crisis.
 
-**Strike.** The agreed price a swap fixes at, or the level a cap pays out above.
+**Contract for difference on output.** A swap that follows one plant instead of a fixed quantity: it fixes the price of everything that plant generates, hour by hour, and settles on nothing else. It is what a scheme signs with a wind or solar farm, whose output no fixed quantity matches.
+
+**Strike.** The agreed price a swap or a contract on output fixes at, or the level a cap pays out above.
 
 **Tenor.** How many years a contract runs for.
 
@@ -124,7 +126,7 @@ The code calls these anchors, a word it also uses for a contract lane's referenc
 
 **The two legs.** Every comparison runs twice on identical weather: once with no scheme at all, and once with the scheme switched on. The no-scheme leg is called **merchant**. Using the same weather for both is what makes the difference between them attributable to the scheme rather than to luck.
 
-**What the scheme buys.** Delivered firm megawatts, through an auction, sized on how far short of the reliability standard the system is projected to fall. What it signs is the contract the plant can stand behind: a cap for plant that can cover a scarcity hour, and swaps on the blocks it generates in for everything else.
+**What the scheme buys.** Delivered firm megawatts, through an auction, sized on how far short of the reliability standard the system is projected to fall. What it signs is the contract the plant can stand behind: a cap for plant that can cover a scarcity hour, a contract for difference on output for a wind or solar farm, and a swap on the peak block for a store. The contract starts in the plant's fourth year, its first three being hedged in the bilateral market.
 
 **Award at final investment decision.** The scheme pays only when a plant actually commits to being built, rather than paying for a promise.
 

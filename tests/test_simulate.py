@@ -295,6 +295,66 @@ def test_an_award_commits_a_plant_the_merchant_rule_had_not_committed(settings, 
             assert award.commissioning_year == tick.year + lead
 
 
+def test_a_reliability_award_starts_in_the_plants_fourth_year(settings, small):
+    """The scheme covers the years a bilateral book cannot reach. An award's
+    contracts first settle in the plant's fourth year and run for the tenor from
+    there; the plant's first three years are hedged in the bilateral market like
+    any other plant's. A state scheme's contract starts at commissioning."""
+    from esem_sandbox.core.simulate import ESEM
+    from esem_sandbox.core.scheme import SCHEME_COUNTERPARTY
+
+    start = int(settings.esem["contract_start_year_of_plant"])
+    tenor = int(settings.esem["contract_tenor_years"])
+    assert start == 4
+    scheme = run(settings, ticks=4, seed=SEED, cells=small, leg=ESEM)
+    awards = [a for t in scheme.ticks for a in t.awards]
+    assert awards, "the lane opened and awarded nothing"
+    for award in awards:
+        assert award.first_delivery_year == award.commissioning_year + start - 1
+    held = [c for c in scheme.book if c.holder == "administrator"]
+    assert held, "the administrator holds the awards"
+    for c in held:
+        assert c.start_year - (start - 1) in {a.commissioning_year for a in awards}
+        assert c.tenor_years == tenor
+
+    target = run(settings, ticks=8, seed=SEED, cells=small, scheme=True)
+    signed = [c for c in target.book if c.holder == SCHEME_COUNTERPARTY]
+    assert signed, "the state scheme signed nothing"
+    commissioned = {u.commissioned_year for u in target.fleet
+                    if u.unit.endswith("_scheme")}
+    for c in signed:
+        assert c.start_year in commissioned, (
+            "a state scheme's contract starts when its plant does"
+        )
+
+
+def test_a_state_scheme_award_follows_the_plants_own_output(settings, small):
+    """A wind or solar award is a contract for difference on the plant's metered
+    output: it names a plant the run built, it settles only once that plant is
+    generating, and the producer that wrote it counts it as cover on that plant."""
+    from esem_sandbox.core.contracts import CFD, settle_book
+    from esem_sandbox.core.scheme import SCHEME_COUNTERPARTY
+
+    result = run(settings, ticks=8, seed=SEED, cells=small, scheme=True)
+    signed = [c for c in result.book if c.holder == SCHEME_COUNTERPARTY]
+    assert signed, "the state scheme signed nothing"
+    units = {u.unit: u for u in result.fleet}
+    for c in signed:
+        assert c.kind == CFD
+        assert c.unit in units, "the contract names a plant the run built"
+        assert units[c.unit].unit.endswith("_scheme")
+        assert c.volume_mw == pytest.approx(units[c.unit].capacity_mw)
+        assert c.start_year == units[c.unit].commissioned_year
+    first = min(c.start_year for c in signed)
+    in_force = [t for t in result.ticks if t.year >= first]
+    assert in_force, "run long enough for a scheme plant to be generating"
+    assert any(t.cashflows.get(SCHEME_COUNTERPARTY, 0.0) != 0.0 for t in in_force), (
+        "a contract on output settles once the plant generates"
+    )
+    with pytest.raises(ValueError, match="metered output"):
+        settle_book(settings, signed, np.full(8760, 50.0), first)
+
+
 def test_the_legs_coincide_exactly_when_the_lane_never_opens(settings, small):
     """The coincidence the decomposition probe rests on.
 
@@ -577,7 +637,7 @@ def test_a_capacity_target_buys_capacity_and_not_reliability(settings, small):
     factor of a tenth means.
 
     What moves is the mix the target crowds out, and that is a second-order
-    effect of the same firm factor: the awarded wind offers below zero in a
+    effect of the same firm factor: the awarded wind withdraws at zero in a
     surplus hour like the wind already there, so the market builds less wind and
     solar of its own, on this harness more than the target adds.
     """
@@ -899,25 +959,21 @@ def test_a_recycled_cap_nets_the_bilateral_cap_rung(settings):
 
 
 def test_a_built_plant_offers_on_the_same_basis_as_the_plant_already_there(settings):
-    """The packaged wind and solar farms offer below zero in a surplus hour, a
-    curtailment offer standing for certificate revenue the model does not carry.
-    A plant the model builds offers on the same basis. Offering at the cost row's
-    zero would put two vintages of one technology in the merit order on two bases:
-    the new one curtailed first, and from mid-run setting the surplus price at zero
-    where the packaged plant sets it at minus 25 or minus 45. One offer per
-    technology, whatever the vintage; a peaker still offers its running cost."""
+    """Every vintage of a technology offers at its recorded variable cost: the
+    packaged wind and solar farms, a plant the model builds and the entry the
+    forward view assumes all sit in the merit order on one basis, zero for wind
+    and solar and the running cost for a peaker."""
     from esem_sandbox.core.forward import anchor_fleet
     from esem_sandbox.core.simulate import _new_unit
     fleet_offer = {u.technology: u.srmc_per_mwh for u in settings.fleet
                    if u.technology in ("wind", "solar")}
-    assert fleet_offer["wind"] < 0 and fleet_offer["solar"] < 0
+    assert fleet_offer["wind"] == 0.0 and fleet_offer["solar"] == 0.0
     for name in ("wind", "solar"):
         tech = settings.tech(name)
         built = _new_unit(tech, 600.0, f"{name}_test", 2026)
-        assert built.srmc_per_mwh == fleet_offer[name], name
+        assert built.srmc_per_mwh == fleet_offer[name] == tech.srmc_per_mwh, name
         assumed = [u for u in anchor_fleet(settings.fleet, 2035, {name: 300.0}, settings)
                    if u.unit.startswith("projected_entry")][0]
         assert assumed.srmc_per_mwh == fleet_offer[name], name
     ocgt = settings.tech("ocgt")
     assert _new_unit(ocgt, 200.0, "ocgt_test", 2026).srmc_per_mwh == ocgt.srmc_per_mwh
-    assert ocgt.offer_per_mwh == ocgt.srmc_per_mwh

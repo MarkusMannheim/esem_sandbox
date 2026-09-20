@@ -143,6 +143,31 @@ def test_the_channels_take_the_largest_and_never_the_sum(settings):
     assert both == pytest.approx(award_only)
 
 
+def test_an_award_that_starts_later_adds_to_the_book_before_it(settings):
+    """A reliability award starts in the plant's fourth year, so the bilateral
+    book's three years and the award's twelve land on different delivery years
+    and both count. The award alone covers the same twelve years wherever it
+    starts, as long as the life reaches them; a battery's fifteen do."""
+    cap = settings.investment["hedge_fraction_cap"]
+    alone = residual_exposure(settings, 25, award_years=12, award_cover=1.0,
+                              award_start_year=4)
+    assert alone == pytest.approx(1.0 - cap * 12 / 25)
+    both = residual_exposure(settings, 25, swap_cover=0.5, award_years=12,
+                             award_cover=1.0, award_start_year=4)
+    assert both == pytest.approx(1.0 - (0.5 * 3 + cap * 12) / 25)
+    overlapping = residual_exposure(settings, 25, swap_cover=0.5, award_years=12,
+                                    award_cover=1.0)
+    assert overlapping == pytest.approx(alone), "on the same years the largest applies"
+    battery = residual_exposure(settings, 15, award_years=12, award_cover=1.0,
+                                award_start_year=4)
+    assert battery == pytest.approx(1.0 - cap * 12 / 15)
+    short = residual_exposure(settings, 10, award_years=12, award_cover=1.0,
+                              award_start_year=4)
+    assert short == pytest.approx(1.0 - cap * 7 / 10), (
+        "an award reaches only the years the plant's life has left"
+    )
+
+
 def test_what_a_long_award_buys_that_a_short_book_cannot(settings):
     """The whole point of the tenor. A three-year bilateral book cannot underwrite
     a 25 year asset however much of the output it covers."""
@@ -330,8 +355,8 @@ def test_a_young_gas_plant_in_a_glut_is_kept(settings):
 
 
 def test_a_plant_with_no_measurable_rent_is_never_retired_for_it(settings):
-    """A wind row's offer is a curtailment offer, not a cost, so it gets no rent
-    number at all. Absence of a measurement is not evidence of failure."""
+    """A unit the dispatch never booked gets no rent number at all. Absence of a
+    measurement is not evidence of failure."""
     coal = _coal(settings)
     blind = _view({"ccgt": [1.0] * 3}, unit_rents={})
     assert going_forward_npv_per_mw(coal, blind, settings, 2026) == 0.0

@@ -70,9 +70,9 @@ def unit_revenue(price: np.ndarray, generation_mwh: dict[str, np.ndarray],
         energy = float(np.sum(gen))
         revenue = float(np.sum(gen * price))
         # Fuel is burnt only when generating, and only by plant with a positive
-        # short run cost. A curtailment offer is negative and is an opportunity
-        # cost, not a fuel bill; a store's net energy is negative and would
-        # otherwise book its variable cost as a credit.
+        # short run cost. The coal must-run band's offer below zero is not a fuel
+        # bill; a store's net energy is negative and would otherwise book its
+        # variable cost as a credit.
         run_cost = max(srmc.get(name, 0.0), 0.0)
         cost = float(np.sum(np.clip(gen, 0.0, None))) * run_cost
         out[name] = {

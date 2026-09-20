@@ -34,7 +34,8 @@ _SECTIONS = {
         "technologies", "ceiling_per_mw_year", "budget_per_year", "tenor_years",
     },
     "esem": {
-        "contract_tenor_years", "contracted_wacc", "screen_multiple_of_spot",
+        "contract_tenor_years", "contract_start_year_of_plant", "contracted_wacc",
+        "screen_multiple_of_spot",
         "screen_floor_per_mwh", "recycling_window_years", "recycling_conduct",
         "fire_sale_fraction", "overhead_per_year", "reserve_margin",
     },
@@ -136,18 +137,6 @@ class TechCost:
     firm_factor: float
     duration_h: float | None
     cap_eligible: bool
-    # The price the plant offers at, where that is not its running cost: a wind or
-    # solar farm bids below zero in a surplus hour rather than forfeit certificate
-    # revenue this model does not otherwise carry, and the packaged fleet carries
-    # that offer per technology. A plant the model builds offers on the same basis
-    # as the plant that was already there. Blank means the running cost.
-    curtailment_offer_per_mwh: float | None = None
-
-    @property
-    def offer_per_mwh(self) -> float:
-        """What a unit of this technology offers into the merit order."""
-        return (self.srmc_per_mwh if self.curtailment_offer_per_mwh is None
-                else self.curtailment_offer_per_mwh)
 
     @property
     def dispatch_technology(self) -> str:
@@ -348,7 +337,6 @@ def load_settings(overrides: dict[str, dict[str, Any]] | None = None) -> Setting
             firm_factor=_num(r, "firm_factor", 0.0),
             duration_h=_num(r, "duration_h"),
             cap_eligible=bool(int(_num(r, "cap_eligible", 0))),
-            curtailment_offer_per_mwh=_num(r, "offer_per_mwh"),
         )
         for r in read_csv("tech_costs.csv")
     )

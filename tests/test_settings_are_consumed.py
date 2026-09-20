@@ -60,6 +60,7 @@ CONSUMED = {
     "crossing_steps": "clearing._crossed, how finely each side's curve is cut",
     "crossing_spread": "clearing._crossed, how far each curve reaches from the anchor",
     "contract_tenor_years": "simulate._auction, the tenor an award is written for",
+    "contract_start_year_of_plant": "simulate._auction, the plant year an award starts in",
     "contracted_wacc": "esem.blended_wacc, what a contracted megawatt is financed at",
     "screen_multiple_of_spot": "esem.screen, the sanity ceiling",
     "screen_floor_per_mwh": "esem.screen, its floor in a cheap year",

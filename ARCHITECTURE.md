@@ -4,7 +4,7 @@ The model is a loop over one year at a time. Each year is dispatched hour by hou
 
 ## Where to start
 
-`core/dispatch.py` runs one year, hour by hour, and everything else consumes its output. `core/contracts.py` says what a swap and a cap are and how they settle on those hours. `core/forward.py` builds what investors think the next 4, 8 and 12 years look like. `core/investment.py` decides whether anything gets built. `core/simulate.py` runs those four in order, 20 times. Read them in that order; each needs only the one before it.
+`core/dispatch.py` runs one year, hour by hour, and everything else consumes its output. `core/contracts.py` says what a swap, a cap and a contract on a plant's output are and how they settle on those hours. `core/forward.py` builds what investors think the next 4, 8 and 12 years look like. `core/investment.py` decides whether anything gets built. `core/simulate.py` runs those four in order, 20 times. Read them in that order; each needs only the one before it.
 
 The rest is an input to those (`config.py`, `core/weather.py`), a market they trade in (`core/clearing.py`, `core/agents.py`, `core/crossing.py`), a mechanism switched on top (`core/esem.py`, `core/scheme.py`), or a way of looking at the result (`core/report.py`, `plots.py`, `cli.py`).
 
@@ -17,13 +17,13 @@ The rest is an input to those (`config.py`, `core/weather.py`), a market they tr
 | `core/dispatch.py` | Stacks the offers and prices each hour: a coal unit's must-run band below its running cost, the demand-response ladder, administered pricing, hydro against its annual budget, storage scheduled on quantities |
 | `core/windows.py` | Finds the worst contiguous run of days in a year |
 | `core/report.py` | Blocks, quarters, duration curves, revenue per unit, the calibration check |
-| `core/contracts.py` | Swaps and caps, settled over the full hourly series |
+| `core/contracts.py` | Swaps, caps and contracts for difference on a plant's output, settled over the full hourly series |
 | `core/agents.py` | Six archetypes, separated by risk aversion and exposure |
 | `core/clearing.py` | What each contract lane clears at, what it costs a peaker to stand ready, the one measure of caution the whole model shares, and the market where retailers and producers trade |
 | `core/crossing.py` | The option where buyers and sellers find a price between them instead of both accepting the reference price |
 | `core/forward.py` | 45 possible futures, priced at 4, 8 and 12 years out; what each technology would earn in each; and how much plant investors assume everyone else builds |
 | `core/investment.py` | How much of a project is still exposed to the spot price, what it has to earn to be built, how fast the fleet may change, and when a plant closes |
-| `core/esem.py` | The reliability scheme: how much to buy, what it is worth, when it is committed, who pays |
+| `core/esem.py` | The reliability scheme: how much to buy, what it is worth, when it is committed and when it starts paying, who pays |
 | `core/scheme.py` | A state scheme: a milestone a year, a ceiling, a budget, and why a milestone was missed. It buys nameplate megawatts where the reliability lane buys delivered firm ones, and the two are not addable |
 | `core/simulate.py` | The year loop, and the order its eight steps run in |
 | `plots.py`, `cli.py` | The dashboard, the worst-week and price-duration charts, and three commands |
