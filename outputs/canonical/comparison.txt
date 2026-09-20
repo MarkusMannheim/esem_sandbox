@@ -5,49 +5,49 @@ esem-sandbox: 20 years from 2026, one weather sequence shared by both legs (high
   year           merchant               ESEM   lane MW  levy $/MWh
   2026        0.30 GWh   0.2x      0.30 GWh   0.2x      3711        0.53
   2027        7.69 GWh   5.2x      7.69 GWh   5.2x         0        0.50
-  2028        0.00 GWh   0.0x      0.00 GWh   0.0x         0        1.72
-  2029        2.32 GWh   1.5x      0.00 GWh   0.0x      2148        3.31
-  2030        4.17 GWh   2.6x      0.00 GWh   0.0x         0       -1.48
-  2031        0.00 GWh   0.0x      0.00 GWh   0.0x       247       -0.42
-  2032        0.00 GWh   0.0x      0.00 GWh   0.0x       246        3.83
-  2033        1.77 GWh   1.0x      1.63 GWh   0.9x       622        1.56
-  2034       10.51 GWh   5.5x      0.99 GWh   0.5x       564        2.33
-  2035        4.23 GWh   2.1x      0.11 GWh   0.1x         0        5.25
-  2036        0.67 GWh   0.3x      0.21 GWh   0.1x         0        4.23
-  2037        0.00 GWh   0.0x      0.07 GWh   0.0x         0        4.55
-  2038        0.00 GWh   0.0x      0.00 GWh   0.0x         0        5.00
-  2039        0.96 GWh   0.4x      0.00 GWh   0.0x       837        4.29
-  2040        0.00 GWh   0.0x      0.00 GWh   0.0x      1751        3.25
-  2041        0.00 GWh   0.0x      0.00 GWh   0.0x       853        2.23
-  2042        0.00 GWh   0.0x      0.00 GWh   0.0x       663        1.33
-  2043        0.00 GWh   0.0x      0.00 GWh   0.0x         0        2.22
-  2044        0.00 GWh   0.0x      0.00 GWh   0.0x         0        1.09
-  2045        0.00 GWh   0.0x      0.00 GWh   0.0x         0        0.67
+  2028        0.00 GWh   0.0x      0.00 GWh   0.0x         0        0.48
+  2029        2.32 GWh   1.5x      0.00 GWh   0.0x      2148        0.48
+  2030        4.17 GWh   2.6x      0.00 GWh   0.0x         0        0.46
+  2031        0.00 GWh   0.0x      0.00 GWh   0.0x       247       -0.17
+  2032        0.00 GWh   0.0x      0.00 GWh   0.0x       246        0.53
+  2033        1.77 GWh   1.0x      1.63 GWh   0.9x       560        0.50
+  2034       10.51 GWh   5.5x      0.55 GWh   0.3x       811        1.33
+  2035        4.23 GWh   2.1x      0.18 GWh   0.1x         0        5.10
+  2036        0.00 GWh   0.0x      0.00 GWh   0.0x         0        4.88
+  2037        0.00 GWh   0.0x      0.00 GWh   0.0x         0        4.81
+  2038        0.01 GWh   0.0x      0.00 GWh   0.0x         0        4.79
+  2039        4.60 GWh   1.9x      0.00 GWh   0.0x       590        4.67
+  2040        0.00 GWh   0.0x      0.00 GWh   0.0x      1836        4.57
+  2041        0.00 GWh   0.0x      0.00 GWh   0.0x       960        4.93
+  2042        0.00 GWh   0.0x      0.00 GWh   0.0x       674        3.13
+  2043        0.00 GWh   0.0x      0.00 GWh   0.0x         0        4.55
+  2044        0.00 GWh   0.0x      0.00 GWh   0.0x         0        2.99
+  2045        0.00 GWh   0.0x      0.00 GWh   0.0x       669        2.45
 
                                           merchant            ESEM
-unserved energy                             32.6G           11.0G
-  valued at the price cap                   0.66bn          0.22bn
-wholesale energy cost                     134.13bn        123.06bn
-scheme levy                                 0.00bn          3.25bn
-  the bill, all in                        134.79bn        126.54bn
+unserved energy                             35.6G           10.4G
+  valued at the price cap                   0.72bn          0.21bn
+wholesale energy cost                     137.60bn        128.62bn
+scheme levy                                 0.00bn          3.96bn
+  the bill, all in                        138.32bn        132.78bn
 
-fuel and variable cost                     45.23bn         42.29bn
-fixed cost of the fleet                    18.81bn         19.23bn
-capital of new build                       71.59bn         74.57bn
-  the resource cost, all in               136.29bn        136.82bn
+fuel and variable cost                     47.56bn         43.61bn
+fixed cost of the fleet                    18.59bn         19.04bn
+capital of new build                       68.44bn         72.82bn
+  the resource cost, all in               135.32bn        136.18bn
 
-unsubsidised build, nameplate MW              56,800          39,200
-awarded by the scheme, nameplate                   0          13,750
-  new plant in total                          56,800          52,950
-the same plant as firm MW, on the table        25,400          23,268
-  of which the lane bought, its credit             0          10,285
+unsubsidised build, nameplate MW              55,500          43,450
+awarded by the scheme, nameplate                   0          14,750
+  new plant in total                          55,500          58,200
+the same plant as firm MW, on the table        26,845          26,310
+  of which the lane bought, its credit             0          10,945
 
-the scheme moves the bill by $8.26bn (down) and the resource cost by $0.53bn (up).
-the difference, $8.79bn, is a transfer: more capacity lowers the pool
+the scheme moves the bill by $5.54bn (down) and the resource cost by $0.87bn (up).
+the difference, $6.41bn, is a transfer: more capacity lowers the pool
 price, which moves money from generators to consumers without saving any of it.
 A comparison that showed only the bill would report the transfer as a benefit.
-of that resource-cost move, $0.44bn is outage the scheme avoided
-and -$0.97bn is fuel, fixed costs and capital: what got built
+of that resource-cost move, $0.51bn is outage the scheme avoided
+and -$1.38bn is fuel, fixed costs and capital: what got built
 instead of what would have been. The two add to the move above, and a negative
 figure ran against it.
 unserved energy is valued at the market price cap of $20,300/MWh. That is
