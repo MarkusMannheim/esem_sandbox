@@ -15,15 +15,17 @@ from importlib import resources
 
 import numpy as np
 
-from .config import load_settings
+from .config import SECTIONS, load_settings
 from .core.simulate import ESEM, MERCHANT, run as run_simulation
 from .core.dispatch import dispatch_year
 from .core.report import block_prices, calibration, unit_revenue
 from .core.weather import generate_bundle
 from .core.windows import locate_worst_window
-from . import plots
+from . import explore, plots
 
 DEFAULT_PEAK_MW = 12500.0
+RUN_OPTIONS = ("leg", "ticks", "peak", "seed", "year", "retire", "clearing",
+               "scheme", "investment")
 
 
 def _scenario(path: str | None) -> tuple[dict, dict]:
@@ -64,10 +66,78 @@ def _scenario(path: str | None) -> tuple[dict, dict]:
 
 
 def _check_run(options: dict) -> None:
-    unknown = set(options) - {"leg", "ticks", "peak", "seed", "year", "retire",
-                              "clearing", "scheme", "investment"}
+    unknown = set(options) - set(RUN_OPTIONS)
     if unknown:
         raise ValueError(f"unknown key(s) in [run]: {', '.join(sorted(unknown))}")
+
+
+def _settings_and_options(args: argparse.Namespace):
+    """The settings a command runs on and the options it runs with.
+
+    Three layers, each winning over the one before: the package defaults, the
+    scenario file, and what was typed. ``--set`` changes a setting, the run flags
+    change how the run is made, and both go through the same checks a scenario
+    file does, so a misspelt key fails here rather than leaving a default quietly
+    in place.
+    """
+    overrides, options = _scenario(getattr(args, "scenario", None))
+    args = _apply(args, options)
+    overrides = explore.overrides_from(getattr(args, "set", None), overrides)
+    retire = getattr(args, "retire", None)
+    if isinstance(retire, list):
+        retire = dict(_retirement(item) for item in retire)
+    settings = load_settings(overrides)
+    run_options = dict(
+        ticks=args.ticks, start_year=args.year, peak_mw=args.peak,
+        seed=args.seed, quick=bool(getattr(args, "quick", False)),
+        retire=retire or None,
+        clearing=getattr(args, "clearing", None) or "anchor",
+        scheme=bool(getattr(args, "scheme", False)),
+        investment=getattr(args, "investment", None) or "simultaneous",
+    )
+    return settings, overrides, run_options
+
+
+def _retirement(item: str) -> tuple[str, int]:
+    """``unit=year`` on the command line, as ``retire = { unit = year }`` is in a
+    scenario file."""
+    if "=" not in item:
+        raise SystemExit(f"--retire takes unit=year, got {item!r}")
+    unit, year = item.split("=", 1)
+    return unit.strip(), int(year)
+
+
+def _add_run_options(parser: argparse.ArgumentParser) -> None:
+    """The options simulate, compare and sweep share."""
+    parser.add_argument("--year", type=int, default=2026, help="first year")
+    parser.add_argument("--ticks", type=int, default=20, help="years to run")
+    parser.add_argument("--peak", type=float, default=DEFAULT_PEAK_MW,
+                        help="system peak demand in MW in the first year")
+    parser.add_argument("--seed", type=int, default=None,
+                        help="the weather and growth draw; the same seed gives "
+                             "the same draw")
+    parser.add_argument("--out", default="outputs", help="output directory")
+    parser.add_argument("--scenario",
+                        help=f"a scenario file, or one of: {', '.join(scenario_names())}")
+    parser.add_argument("--set", action="append", metavar="SECTION.KEY=VALUE",
+                        help="change one setting, e.g. investment.risk_premium=0.1 "
+                             "or esem.contract_tenor_years=6; repeatable, and "
+                             "applied after the scenario file")
+    parser.add_argument("--investment", choices=("simultaneous", "sequential"),
+                        default=None,
+                        help="whether firms see each other's decisions within a "
+                             "year: no (simultaneous) or yes (sequential)")
+    parser.add_argument("--clearing", choices=("anchor", "crossing"), default=None,
+                        help="how the bilateral market finds a price: at the "
+                             "published anchor, or by crossing bid curves")
+    parser.add_argument("--scheme", action="store_true", default=False,
+                        help="switch the state renewable scheme on")
+    parser.add_argument("--retire", action="append", metavar="UNIT=YEAR",
+                        help="close a plant early, e.g. coal_b=2028; repeatable")
+    parser.add_argument("--quick", action="store_true", default=False,
+                        help="the forward prices 18 futures instead of 45 (two of "
+                             "the five weather years); minutes become seconds, "
+                             "and the results differ from a full run's")
 
 
 def scenario_names() -> list[str]:
@@ -190,18 +260,14 @@ def _by_technology(builds) -> str:
 
 def simulate(args: argparse.Namespace) -> int:
     """Twenty annual steps of dispatch, contracting, investment and exit."""
-    overrides, options = _scenario(getattr(args, "scenario", None))
-    args = _apply(args, options)
-    settings = load_settings(overrides)
+    settings, _, options = _settings_and_options(args)
     os.makedirs(args.out, exist_ok=True)
-    _working(f"running {args.ticks} years, {getattr(args, 'leg', MERCHANT)} leg...")
-    result = run_simulation(settings, ticks=args.ticks, start_year=args.year,
-                            peak_mw=args.peak, seed=args.seed,
-                            leg=getattr(args, "leg", MERCHANT),
-                            retire=getattr(args, "retire", None),
-                            clearing=getattr(args, "clearing", "anchor"),
-                            scheme=bool(getattr(args, "scheme", False)),
-                            investment=getattr(args, "investment", "simultaneous"))
+    leg = getattr(args, "leg", MERCHANT)
+    _working(f"running {args.ticks} years, {leg} leg...")
+    quick = options.pop("quick")
+    result = run_simulation(settings, leg=leg,
+                            cells=explore.quick_cells(settings) if quick else None,
+                            **options)
     standard = settings.reliability["standard_use_fraction"]
 
     rows = []
@@ -284,26 +350,9 @@ def compare(args: argparse.Namespace) -> int:
     them is the mechanism and nothing else. A leg that drew its own weather would
     report the difference between two climates as the effect of a policy.
     """
-    overrides, options = _scenario(getattr(args, "scenario", None))
-    args = _apply(args, options)
-    settings = load_settings(overrides)
+    settings, _, options = _settings_and_options(args)
     os.makedirs(args.out, exist_ok=True)
-    legs = {}
-    for i, leg in enumerate((MERCHANT, ESEM), start=1):
-        _working(f"running the {leg} leg, {args.ticks} years "
-                 f"({i} of 2, several minutes each)...")
-        legs[leg] = run_simulation(
-            settings, ticks=args.ticks, start_year=args.year,
-            peak_mw=args.peak, seed=args.seed, leg=leg,
-            retire=getattr(args, "retire", None),
-            clearing=getattr(args, "clearing", "anchor"),
-            scheme=bool(getattr(args, "scheme", False)),
-            investment=getattr(args, "investment", "simultaneous"))
-    if legs[MERCHANT].draw != legs[ESEM].draw:
-        raise AssertionError(
-            "the two legs saw different weather; a comparison between them would be "
-            "a comparison of climates rather than of mechanisms"
-        )
+    legs = explore.run_pair(settings, progress=_working, **options)
     standard = settings.reliability["standard_use_fraction"]
     voll = settings.market["market_price_cap_per_mwh"]
 
@@ -429,6 +478,64 @@ def compare(args: argparse.Namespace) -> int:
     return 0
 
 
+SWEEP_COLUMNS = (
+    ("merchant_unserved_gwh", "unserved, merchant", "GWh", 1.0),
+    ("esem_unserved_gwh", "unserved, scheme", "GWh", 1.0),
+    ("bill_move", "bill move", "$bn", 1e-9),
+    ("resource_cost_move", "resource cost move", "$bn", 1e-9),
+    ("merchant_built_mw", "new plant, merchant", "MW", 1.0),
+    ("esem_built_mw", "new plant, scheme, unsubsidised", "MW", 1.0),
+    ("awarded_mw", "awarded by the scheme", "MW", 1.0),
+    ("levy", "levy over the run", "$bn", 1e-9),
+)
+
+
+def sweep(args: argparse.Namespace) -> int:
+    """One setting over several values, both legs each time, one draw throughout.
+
+    The rows differ in one number and in nothing else, so a column that moves is
+    the effect of that number on this draw. Which is the point and the caveat: one
+    draw. A row that changes sign on another seed is telling you about the seed.
+    """
+    settings, base, options = _settings_and_options(args)
+    section, key = (args.parameter.split(".", 1) + [""])[:2]
+    if key not in SECTIONS.get(section, ()):
+        raise SystemExit(
+            f"{args.parameter!r} is not a setting. PARAMETERS.md lists the ones "
+            "that can be swept, as section.key."
+        )
+    values = [explore.parse_value(v) for v in args.values]
+    os.makedirs(args.out, exist_ok=True)
+    rows = explore.sweep(args.parameter, values, base=base, progress=_working,
+                         **options)
+    path = os.path.join(args.out, "sweep.csv")
+    with open(path, "w", newline="", encoding="utf-8") as fh:
+        writer = csv.DictWriter(fh, fieldnames=list(rows[0]))
+        writer.writeheader()
+        writer.writerows(rows)
+
+    print(f"esem-sandbox: {args.parameter} at {len(values)} values, "
+          f"{args.ticks} years each, one weather draw shared by every row"
+          f"{' (quick lattice)' if options['quick'] else ''}\n")
+    width = max(len(str(v)) for v in values) + 2
+    print(f"{'':<34}" + "".join(f"{str(v):>{max(width, 12)}}" for v in values))
+    for column, label, unit, scale in SWEEP_COLUMNS:
+        cells = "".join(f"{row[column] * scale:>{max(width, 12)},.2f}"
+                        if unit == "$bn" else
+                        f"{row[column] * scale:>{max(width, 12)},.1f}"
+                        for row in rows)
+        print(f"{label + ', ' + unit:<34}{cells}")
+    print("\nbill and resource cost moves are merchant less scheme: positive means "
+          "the scheme\nlowers them. One draw; see the sweep on another seed before "
+          "reading a sign.")
+    with plots.theme("dark"):
+        plots.sweep(rows, args.parameter,
+                    os.path.join(args.out, "sweep_dark.png"))
+    picture = plots.sweep(rows, args.parameter, os.path.join(args.out, "sweep.png"))
+    print(f"wrote {path}\n      {picture}")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="esem-sandbox")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -439,23 +546,21 @@ def main(argv: list[str] | None = None) -> int:
     r.add_argument("--out", default="outputs", help="output directory")
     r.set_defaults(func=run)
     m = sub.add_parser("simulate", help="run the market forward, year by year")
-    m.add_argument("--year", type=int, default=2026, help="first year")
-    m.add_argument("--ticks", type=int, default=20)
-    m.add_argument("--peak", type=float, default=DEFAULT_PEAK_MW)
-    m.add_argument("--seed", type=int, default=None)
-    m.add_argument("--out", default="outputs")
+    _add_run_options(m)
     m.add_argument("--leg", choices=(MERCHANT, ESEM), default=MERCHANT,
                    help="the market on its own, or with the scheme switched on")
-    m.add_argument("--scenario", help=f"a scenario file, or one of: {', '.join(scenario_names())}")
     m.set_defaults(func=simulate)
     c = sub.add_parser("compare", help="run both legs on the same weather")
-    c.add_argument("--year", type=int, default=2026)
-    c.add_argument("--ticks", type=int, default=20)
-    c.add_argument("--peak", type=float, default=DEFAULT_PEAK_MW)
-    c.add_argument("--seed", type=int, default=None)
-    c.add_argument("--out", default="outputs")
-    c.add_argument("--scenario", help=f"a scenario file, or one of: {', '.join(scenario_names())}")
+    _add_run_options(c)
     c.set_defaults(func=compare)
+    s = sub.add_parser("sweep", help="one setting over several values, both legs "
+                                     "each time")
+    s.add_argument("parameter", metavar="SECTION.KEY",
+                   help="the setting to sweep, e.g. investment.risk_premium")
+    s.add_argument("values", nargs="+", metavar="VALUE",
+                   help="the values to run it at")
+    _add_run_options(s)
+    s.set_defaults(func=sweep)
     args = parser.parse_args(argv)
     # Remember what was actually parsed, so _apply can tell a given flag from a
     # defaulted one without consulting the process.

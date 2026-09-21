@@ -6,7 +6,7 @@ The model is a loop over one year at a time. Each year is dispatched hour by hou
 
 `core/dispatch.py` runs one year, hour by hour, and everything else consumes its output. `core/contracts.py` says what a swap, a cap and a contract on a plant's output are and how they settle on those hours. `core/forward.py` builds what investors think the next 4, 8 and 12 years look like. `core/investment.py` decides whether anything gets built. `core/simulate.py` runs those four in order, 20 times. Read them in that order; each needs only the one before it.
 
-The rest is an input to those (`config.py`, `core/weather.py`), a market they trade in (`core/clearing.py`, `core/agents.py`, `core/crossing.py`), a mechanism switched on top (`core/esem.py`, `core/scheme.py`), or a way of looking at the result (`core/report.py`, `plots.py`, `cli.py`).
+The rest is an input to those (`config.py`, `core/weather.py`), a market they trade in (`core/clearing.py`, `core/agents.py`, `core/crossing.py`), a mechanism switched on top (`core/esem.py`, `core/scheme.py`), or a way of looking at the result (`core/report.py`, `plots.py`, `explore.py`, `cli.py`).
 
 ## What each piece does
 
@@ -26,7 +26,8 @@ The rest is an input to those (`config.py`, `core/weather.py`), a market they tr
 | `core/esem.py` | The reliability scheme: how much to buy, what it is worth, when it is committed and when it starts paying, who pays |
 | `core/scheme.py` | A state scheme: a milestone a year, a ceiling, a budget, and why a milestone was missed. It buys nameplate megawatts where the reliability lane buys delivered firm ones, and the two are not addable |
 | `core/simulate.py` | The year loop, and the order its eight steps run in |
-| `plots.py`, `cli.py` | The dashboard, the worst-week and price-duration charts, and three commands |
+| `explore.py` | Changing one thing: a typed `section.key=value` into the override the loader checks, both legs on one draw, a pair reduced to the numbers a comparison turns on, and a sweep of one setting over several values |
+| `plots.py`, `cli.py` | The dashboard, the worst-week, price-duration and sweep charts, and four commands |
 | `tools/` | The scripts that produce the numbers and charts in the documents |
 
 ## What a year looks like

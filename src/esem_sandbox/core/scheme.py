@@ -31,7 +31,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from ..config import Settings
-from .contracts import Contract, SWAP
+from .contracts import Contract
 from .esem import (AwardLine, Bid, award_block_mw, award_contracts,
                    clear_pay_as_bid)
 

@@ -529,3 +529,63 @@ def dashboard(legs: dict, settings, path: str) -> str:
     fig.savefig(path, dpi=130, facecolor=SURFACE, bbox_inches="tight")
     plt.close(fig)
     return path
+
+
+def sweep(rows: list[dict], parameter: str, path: str) -> str:
+    """One setting at several values, three panels: what it did to reliability,
+    to the bill and the resource cost, and to what got built.
+
+    The values sit on a category axis rather than a number line, because a sweep
+    can be over a word (a recycling conduct) as easily as over a number, and a
+    reader compares the columns rather than reading a slope.
+    """
+    labels = [str(r["value"]) for r in rows]
+    x = np.arange(len(rows))
+    fig, axes = plt.subplots(3, 1, figsize=(7.5, 12.0), facecolor=SURFACE)
+    for ax in axes:
+        _style(ax)
+        ax.set_xticks(x)
+        ax.set_xticklabels(labels)
+        ax.set_xlabel(parameter)
+
+    ax = axes[0]
+    for leg in ("merchant", "esem"):
+        ax.plot(x, [r[f"{leg}_unserved_gwh"] for r in rows], lw=2.2,
+                color=LEG_COLOUR[leg], label=LEG_LABEL[leg], marker=LEG_MARKER[leg],
+                markersize=6, markeredgecolor=SURFACE, markeredgewidth=1.2)
+    ax.set_ylabel("Unserved energy over the run, GWh")
+    ax.set_ylim(bottom=0)
+    titled(ax, "Reliability")
+
+    ax = axes[1]
+    width = 0.36
+    ax.bar(x - width / 2, [r["bill_move"] / 1e9 for r in rows], width,
+           color=SERIES[0], label="The bill, what consumers pay")
+    ax.bar(x + width / 2, [r["resource_cost_move"] / 1e9 for r in rows], width,
+           color=SERIES[1], label="The resource cost, what the economy gives up")
+    ax.axhline(0, color=INK_MUTED, lw=1.0)
+    ax.set_ylabel("Saved by the scheme, $bn (negative: spent)")
+    titled(ax, "Cost: merchant less scheme")
+
+    ax = axes[2]
+    ax.bar(x - width / 2, [r["merchant_built_mw"] for r in rows], width,
+           color=LEG_COLOUR["merchant"], label="Merchant, unsubsidised")
+    ax.bar(x + width / 2, [r["esem_built_mw"] for r in rows], width,
+           color=LEG_COLOUR["esem"], label="With the scheme, unsubsidised")
+    ax.bar(x + width / 2, [r["awarded_mw"] for r in rows], width,
+           bottom=[r["esem_built_mw"] for r in rows], color=SERIES[2],
+           label="With the scheme, awarded")
+    ax.set_ylabel("New plant over the run, MW")
+    titled(ax, "What got built")
+
+    for ax in axes:
+        # Headroom above the tallest bar or line, so the legend never sits on
+        # the data it names.
+        lo, hi = ax.get_ylim()
+        ax.set_ylim(lo, hi + 0.32 * (hi - lo))
+        ax.legend(frameon=False, fontsize=8.5, labelcolor=INK_2, loc="upper left",
+                  ncol=2 if ax is axes[2] else 1)
+    finish(fig)
+    fig.savefig(path, dpi=130, facecolor=SURFACE)
+    plt.close(fig)
+    return path

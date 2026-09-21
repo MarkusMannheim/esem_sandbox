@@ -215,13 +215,22 @@ def test_compare_forwards_everything_a_scenario_asked_for():
     the property is that the call passes the options on, and that is visible.
     """
     import inspect
-    from esem_sandbox import cli
+    from esem_sandbox import cli, explore
 
-    source = inspect.getsource(cli.compare)
+    # Both commands build their options in one place and hand them to the run
+    # as keywords, so the property is that the one place names every option and
+    # the run's signature accepts it.
+    source = inspect.getsource(cli._settings_and_options)
+    accepts = inspect.signature(explore.run_pair).parameters
     for option in ("retire", "clearing", "scheme", "investment"):
-        assert f'"{option}"' in source or f"{option}=" in source, (
-            f"cli.compare does not forward {option!r}, so a scenario naming it is "
-            "silently ignored"
+        assert f"{option}=" in source, (
+            f"cli._settings_and_options does not forward {option!r}, so a "
+            "scenario naming it is silently ignored"
+        )
+        assert option in accepts, f"run_pair does not take {option!r}"
+    for command in (cli.simulate, cli.compare, cli.sweep):
+        assert "_settings_and_options(args)" in inspect.getsource(command), (
+            f"{command.__name__} does not go through _settings_and_options"
         )
 
 

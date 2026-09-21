@@ -12,7 +12,7 @@ from dataclasses import dataclass, field
 from importlib import resources
 from typing import Any
 
-_SECTIONS = {
+SECTIONS = {
     "market": {
         "market_price_cap_per_mwh", "administered_price_cap_per_mwh",
         "cumulative_price_threshold", "cumulative_price_window_hours",
@@ -266,7 +266,7 @@ def load_settings(overrides: dict[str, dict[str, Any]] | None = None) -> Setting
     with (_data_dir() / "settings.toml").open("rb") as fh:
         raw = tomllib.load(fh)
 
-    for section, keys in _SECTIONS.items():
+    for section, keys in SECTIONS.items():
         if section not in raw:
             raise ValueError(f"settings.toml is missing the [{section}] section")
         unknown = set(raw[section]) - keys
@@ -279,16 +279,16 @@ def load_settings(overrides: dict[str, dict[str, Any]] | None = None) -> Setting
             raise ValueError(
                 f"missing key(s) in [{section}]: {', '.join(sorted(missing))}"
             )
-    unknown_sections = set(raw) - set(_SECTIONS)
+    unknown_sections = set(raw) - set(SECTIONS)
     if unknown_sections:
         raise ValueError(
             f"unknown section(s): {', '.join(sorted(unknown_sections))}"
         )
 
     for section, values in (overrides or {}).items():
-        if section not in _SECTIONS:
+        if section not in SECTIONS:
             raise ValueError(f"unknown settings section: {section}")
-        bad = set(values) - _SECTIONS[section]
+        bad = set(values) - SECTIONS[section]
         if bad:
             raise ValueError(
                 f"unknown key(s) in [{section}]: {', '.join(sorted(bad))}"

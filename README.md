@@ -34,47 +34,16 @@ pip install git+https://github.com/MarkusMannheim/esem_sandbox.git
 esem-sandbox run        # dispatch and price five weather years
 esem-sandbox simulate   # run the market forward, 20 years
 esem-sandbox compare    # the same 20 years with and without the scheme
+esem-sandbox sweep investment.risk_premium 0 0.25 0.5   # one setting at several values, both legs each time
 ```
 
-There is no solver, no licence key and no data to download. The two runtime dependencies are numpy and matplotlib.
+There is no solver, no licence key and no data to download. The two runtime dependencies are numpy and matplotlib. Any setting can be changed for one run with `--set section.key=value`, and `--quick` trades the forward view's 45 futures for 18 so a comparison takes seconds; [PARAMETERS.md](PARAMETERS.md) lists every setting, what it does and what it moves.
 
-## What the model does
+## How it works
 
-### Scarcity pricing
+Every hour, the plant available is stacked cheapest first and the price is the offer of the last unit needed; when there is not enough plant the price climbs through the demand-response rungs to the market price cap, so almost all of a peaker's income arrives in a handful of hours. Swaps and caps settle against those hours, and how much cover gets traded comes from inside the model: two retailers hedge to a mandate, four producers write what they have, and what a plant has sold forward is the cover that lowers its own bar. Every year the model dispatches 45 possible futures at three distances and hands each firm a spread of what a megawatt would earn. A firm builds when the certain sum it would swap that spread for covers what the plant costs to own, and the gap between the two is caution; a contract lowers the bar by removing the uncertainty, which is the channel every policy here works through. The scheme sizes what it buys on the projected shortfall against the reliability standard, pays a plant the top-up it bids, awards at final investment decision, sells the cover back to retailers at the market price and charges consumers the rest.
 
-Every hour, the plant available is stacked cheapest first and the price is the offer of the last unit needed. In most hours that is the running cost of a coal or gas unit, tens of dollars a megawatt hour. When there is not enough plant, the price climbs through the demand-response rungs, customers who have agreed to be interrupted at a price, and on to the market price cap of $20,300/MWh. The stack below is the packaged fleet's; the rungs sit in it wherever their price falls, so a customer who will stop at $300 is called before the peaker that offers at $480.
-
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="outputs/canonical/price_stack_dark.png">
-  <img alt="The offer stack, cheapest first, with the demand-response rungs and the price cap above it" src="outputs/canonical/price_stack.png">
-</picture>
-
-Almost all of a peaking plant's income arrives in the few hours at the top of that stack, so the year is modelled hour by hour, all 8,760 of them, with the cumulative price threshold and the administered cap that follow it in the real market. Hydro and storage are not on the stack: hydro is spread across the year against its water budget, and storage fills the day's trough and shaves its peak.
-
-### Contract settlement
-
-Swaps and caps settle against the 8,760 hours, not against an average. A cap written at $300/MWh pays on the hours above $300 and on no others, so its value comes almost entirely from a handful of intervals.
-
-### The forward view, rebuilt every year
-
-No agents in the model forecast a price. Every year of the run, the model writes down 45 possible futures, five weather patterns by three demand growth paths by three peak severities, each with fixed odds, and dispatches every one of them in full at 4, 8 and 12 years ahead. That is 135 years of hourly dispatch behind every investment decision, and at least 2,700 over a 20-year run.
-
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="outputs/canonical/forward_view_dark.png">
-  <img alt="45 futures priced at three distances, and what they pay a peaker" src="outputs/canonical/forward_view.png">
-</picture>
-
-What comes out is a distribution of potential outcomes rather than a number: what a megawatt of each technology would earn in each of those futures. The investment rule works on this spread.
-
-### The investment rule
-
-A plant is built when what it expects to earn, per megawatt per year, covers what it costs to own, per megawatt per year. Both sides are on that same basis, so no assumption about how often a plant runs enters the comparison. The investor is cautious rather than neutral: it values an uncertain income at less than its average, by an amount that shrinks as more of the plant's output is sold forward.
-
-### What the scheme writes
-
-An award is the contract the plant could actually back. Plant that can stand behind a scarcity hour writes a cap on its firm megawatts; a wind or solar farm writes a contract for difference on whatever it generates, hour by hour; storage writes a swap on the peak block it discharges into. A plant bids the top-up it needs, over what it expects to earn in the market, to be worth building, and the ESEM administrator pays that on top of the market's expected price. It then offers the contract back to retailers at the market price, because no one buys a hedge above the market, and so recovers everything except the top-up. The top-up is what consumers pay through the levy: the cost of the capacity, and nothing else.
-
-The ESEM's contract covers the years a retailer's book cannot reach. It starts in the plant's fourth year and runs for twelve; the plant's first three years are hedged in the bilateral market like anyone else's. A state scheme's contract starts when its plant does.
+[HOW_IT_WORKS.md](HOW_IT_WORKS.md) follows one year through those steps, with the figures, what to look at in a run and which setting moves each one.
 
 ## What the model leaves out, and the costs
 
@@ -91,27 +60,16 @@ Because of the above list, the model runs on numpy and matplotlib, and a 20-year
 
 Two things are planned and not built: contract volumes that vary by season, and a version that runs in a web browser without installing anything.
 
-## What the model brackets rather than settles
+## What one run shows, and what it does not
 
-Some quantities the model can only bracket: it can show the range they fall in and cannot say where in the range the truth sits. The largest of them is how much a market builds. That depends on whether investors can see each other's decisions, and the model has two rules for it that differ in nothing else. Under the first, each firm prices its project against a forecast that contains none of the other firms' projects, so no one sees anyone and everyone builds up to the annual limit. Under the second, the forecast is redrawn after each firm decides, so everyone sees everyone at once and the first decision of a year removes the scarcity rent the rest were counting on. Real investors are neither. The two rules bracket the amount built, the bracket is wide, and this is the reason capacity adequacy is argued about.
+Some quantities the model can only bracket. How much a market builds depends on whether investors can see each other's decisions, and the model's two rules for that differ in nothing else and bracket the amount built; the bracket is wide because reliability is not proportional to capacity, so a small disagreement about what to build becomes a large one about whether the lights stay on. A build ceiling paces construction, and doubling it removes the scheme's whole reliability advantage on every seed tested, so the sensitivity is reported rather than a preferred number.
 
-The bracket matters because reliability is not proportional to capacity. Take firm plant away from the packaged fleet in small steps and dispatch the same weather year each time: the load in the worst hours is steep, so each megawatt removed exposes many more hours than the last one did.
-
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="outputs/canonical/reliability_curve_dark.png">
-  <img alt="Unserved energy against firm capacity" src="outputs/canonical/reliability_curve.png">
-</picture>
-
-Take a few per cent of firm plant away and blackouts multiply, so a small disagreement about what to build becomes a large one about whether the lights stay on.
-
-A second thing the model brackets is the scheme's own worth, because it depends on the future the market turns out to be in. Every run draws its weather sequence and its demand growth path from a seed. There are three growth paths, low, central and high, at 0.5, 1.9 and 3.3 per cent a year, drawn with equal odds, and the forward view keeps those odds whatever path the run is on. One run is therefore one draw, and what it shows is that draw's. Ten draws of the same comparison show the scheme buying reliability on eight of them and paying for it in real resources on all but one of those, while on two draws the market alone sheds less. Each row below is one draw. It splits the scheme's effect on the total resource cost into the outage it avoided, valued at the price cap, and what it saved or spent on plant and fuel; the diamond is the two together.
+The scheme's own worth depends on the future the market turns out to be in. Every run draws its weather and its demand growth path from a seed, so one run is one draw. Ten draws of the same comparison show the scheme buying reliability on eight of them and paying for it in real resources on all but one of those, while on two draws the market alone sheds less. Each row below is one draw. It splits the scheme's effect on the total resource cost into the outage it avoided, valued at the price cap, and what it saved or spent on plant and fuel; the diamond is the two together.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="outputs/canonical/ten_seeds_dark.png">
   <img alt="Outage avoided and plant and fuel spent, per weather draw, grouped by growth path" src="outputs/canonical/ten_seeds.png">
 </picture>
-
-A third bracket sits underneath every reliability figure here. The model paces construction with an annual limit on how many projects of one technology can start at once, and that limit is a choice rather than a measurement. Doubling it removes the procurement scheme's whole reliability advantage on every seed tested. Neither value is more correct than the other, which is why the sensitivity is reported rather than a preferred number.
 
 Read the chain of cause and effect rather than the size of any number. Every figure here is illustrative.
 
@@ -119,7 +77,11 @@ Every number and chart on this page is produced by something you can run. `tools
 
 ## Reading it
 
+[HOW_IT_WORKS.md](HOW_IT_WORKS.md) follows one year of the model step by step, with what to look at and what moves it.
+
 [ARCHITECTURE.md](ARCHITECTURE.md) is the map: what each piece does, what a year looks like, and where to start reading.
+
+[PARAMETERS.md](PARAMETERS.md) lists every setting a reader can change, and how.
 
 [GLOSSARY.md](GLOSSARY.md) explains the terms.
 

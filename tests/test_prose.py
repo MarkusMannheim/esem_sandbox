@@ -39,7 +39,7 @@ TICS = {
         r"(?i)\b(glimpse into|delve|dive into|stark|seamless|robust solution|tapestry)\b",
 }
 
-DOCS = ["README.md", "ARCHITECTURE.md", "KNOWN_LIMITATIONS.md", "GLOSSARY.md",
+DOCS = ["README.md", "HOW_IT_WORKS.md", "ARCHITECTURE.md", "KNOWN_LIMITATIONS.md", "GLOSSARY.md", "PARAMETERS.md",
         "DATA_SOURCES.md", "outputs/canonical/README.md"]
 
 
