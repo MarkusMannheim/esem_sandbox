@@ -12,7 +12,14 @@ esem-sandbox sweep investment.risk_premium 0 0.125 0.25 0.5     # one setting, s
 esem-sandbox compare --scenario short_tenor --quick               # a packaged scenario, on the quick lattice
 ```
 
-`sweep` runs both legs at every value on one weather draw and prints one table: unserved energy under each leg, what the scheme does to the bill and to the resource cost, what got built and what the levy came to. `--quick` prices 18 futures in the forward view instead of 45, so a comparison takes seconds rather than minutes; its numbers differ from a full run's and should be read as a first look.
+`sweep` runs both legs at every value on one weather draw and prints one table: unserved energy under each leg, what the scheme does to the bill and to the resource cost, what got built and what the levy came to. It draws the same table as three panels. The one below sweeps the award's tenor over six, twelve and eighteen years on the canonical draw; `outputs/canonical/sweep_tenor/` holds the table behind it.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="outputs/canonical/sweep_tenor/sweep_dark.png">
+  <img alt="The award's tenor at three values: reliability, the two cost moves, and what got built" src="outputs/canonical/sweep_tenor/sweep.png">
+</picture>
+
+`--quick` prices 18 futures in the forward view instead of 45, so a comparison takes seconds rather than minutes; its numbers differ from a full run's and should be read as a first look.
 
 A scenario file is a TOML file with a `[run]` table for how the run is made and any settings section it wants to change. The eight packaged ones are in `src/esem_sandbox/scenarios/` and are the shortest way to see the format.
 
