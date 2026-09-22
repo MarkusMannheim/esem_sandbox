@@ -685,7 +685,11 @@ def _panel_auction(ax, esem) -> None:
     for y in zero_years:
         ax2.annotate("bid zero", (y, 0), textcoords="offset points", xytext=(0, 6),
                      ha="center", fontsize=7.5, color=INK_2)
-    ax2.set_ylim(bottom=0)
+    # Headroom on both axes, so the legend sits above the first year's bar and
+    # the bid line rather than on them.
+    for axis in (ax, ax2):
+        lo, hi = axis.get_ylim()
+        axis.set_ylim(0, max(hi, 1e-9) * 1.4)
     ax2.set_ylabel("Bid, \\$000 per MW-year")
     titled(ax, "The scheme's auction, each year")
     _years(ax)
