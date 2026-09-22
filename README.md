@@ -87,7 +87,7 @@ Every number and chart on this page is produced by something you can run. `tools
 
 [KNOWN_LIMITATIONS.md](KNOWN_LIMITATIONS.md) says what the model leaves out, what it gets wrong, and which of its results are easy to misread.
 
-[notebooks/walkthrough.ipynb](notebooks/walkthrough.ipynb) runs the model end to end and can be opened in Colab.
+[notebooks/walkthrough.ipynb](notebooks/walkthrough.ipynb) runs the model live in the same order, changes one setting at the end of every section, and closes with a comparison you configure. It opens in Colab.
 
 ## Licence
 

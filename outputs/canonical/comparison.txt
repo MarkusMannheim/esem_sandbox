@@ -1,5 +1,3 @@
-running the merchant leg, 20 years (1 of 2, several minutes each)...
-running the esem leg, 20 years (2 of 2, several minutes each)...
 esem-sandbox: 20 years from 2026, one weather sequence shared by both legs (high growth, 3.3% a year)
 
   year           merchant               ESEM   lane MW  levy $/MWh
@@ -64,3 +62,4 @@ copy sits under outputs/canonical/ten_seeds.csv.
 A stylised fleet. Illustrative, and not a forecast of anything.
 wrote outputs/canonical/comparison.csv
       outputs/canonical/dashboard.png
+      outputs/canonical/market_view.png

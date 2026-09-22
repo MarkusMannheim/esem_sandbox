@@ -41,6 +41,13 @@ What holds across draws is the ordering by growth. On the three low-growth draws
 
 `dashboard.png` is the same paired run as eight panels: the fleet at the end, the reliability outcome against the standard, price duration, every build against the test it passed, the two cost views with the transfer between them named, what the lane asked for and got, what consumers paid, and what a cap cost.
 
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="market_view_dark.png">
+  <img alt="The market behind the outcome, six panels" src="market_view.png">
+</picture>
+
+`market_view.png` is the same pair read from the market that produced it: the time-of-day prices contracts are written on, how much of each producer's output is sold forward, what the forward view expected of each year against what the year delivered, the scheme's auction with the price each award bid, who the contracts paid, and what was decided each year. Both come out of the compare command.
+
 The most useful rows are the first few, where both legs shed exactly the same energy: on this seed 0.30 GWh in 2026 and 7.69 GWh in 2027, identical to the last decimal. The plant awarded in 2026 has not been built yet. A procurement scheme is an instrument about the future, and it cannot fix a year that arrives before its plant does. Those rows coincide on both legs no matter which seed you run, and how much they shed is the only part of that which changes.
 
 Two caveats before quoting the cost lines.

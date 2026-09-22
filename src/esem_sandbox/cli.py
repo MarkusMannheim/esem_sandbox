@@ -472,9 +472,13 @@ def compare(args: argparse.Namespace) -> int:
     with plots.theme("dark"):
         plots.dashboard(legs, settings,
                         os.path.join(args.out, "dashboard_dark.png"))
+        plots.market_view(legs, settings,
+                          os.path.join(args.out, "market_view_dark.png"))
     picture = plots.dashboard(legs, settings,
                               os.path.join(args.out, "dashboard.png"))
-    print(f"wrote {path}\n      {picture}")
+    market = plots.market_view(legs, settings,
+                               os.path.join(args.out, "market_view.png"))
+    print(f"wrote {path}\n      {picture}\n      {market}")
     return 0
 
 

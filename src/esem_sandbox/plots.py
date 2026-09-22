@@ -589,3 +589,195 @@ def sweep(rows: list[dict], parameter: str, path: str) -> str:
     fig.savefig(path, dpi=130, facecolor=SURFACE)
     plt.close(fig)
     return path
+
+
+def _leg_style(name: str) -> dict:
+    """Solid for the market on its own, dashed for the scheme leg, so the two
+    legs can share a colour when the colour is carrying something else."""
+    return {"ls": "-" if name == "merchant" else "--",
+            "lw": 2.0 if name == "merchant" else 1.6}
+
+
+def _panel_block_prices(ax, legs, settings) -> None:
+    """The four time-of-day blocks, year by year. Colour is the block; the
+    scheme leg is dashed."""
+    blocks = list(settings.blocks())
+    for name, result in legs.items():
+        years = [t.year for t in result.ticks]
+        for i, block in enumerate(blocks):
+            ax.plot(years, [t.block_prices[block] for t in result.ticks],
+                    color=SERIES[i + 2], label=block if name == "merchant" else None,
+                    **_leg_style(name))
+    ax.set_ylabel("Average price in the block, \\$/MWh")
+    titled(ax, "Time-of-day prices (dashed: with the scheme)")
+    _years(ax)
+    ax.legend(frameon=False, fontsize=8, labelcolor=INK_2, ncol=2)
+
+
+def _panel_cover(ax, legs) -> None:
+    """Each producer's contracted share of its output, which is what lowers its
+    own bar. Colour is the producer; the scheme leg is dashed."""
+    producers = list(legs["merchant"].ticks[0].swap_cover)
+    for name, result in legs.items():
+        years = [t.year for t in result.ticks]
+        for i, producer in enumerate(producers):
+            ax.plot(years, [100.0 * t.swap_cover.get(producer, 0.0)
+                            for t in result.ticks],
+                    color=SERIES[i + 2],
+                    label=producer.replace("_", " ") if name == "merchant" else None,
+                    **_leg_style(name))
+    ax.set_ylim(0, 100)
+    ax.set_ylabel("Output sold forward, per cent")
+    titled(ax, "Contract cover by producer (dashed: with the scheme)")
+    _years(ax)
+    ax.legend(frameon=False, fontsize=8, labelcolor=INK_2, ncol=2)
+
+
+def _panel_forecast(ax, legs, standard, offset: int) -> None:
+    """What the forward expected of a year, drawn in that year, against what the
+    year delivered. Colour is the leg; the expectation is the hollow marker."""
+    for name, result in legs.items():
+        years = [t.year for t in result.ticks]
+        realised = [t.unserved_fraction / standard for t in result.ticks]
+        ax.plot(years, realised, color=LEG_COLOUR[name], lw=2.0,
+                marker=LEG_MARKER[name], markersize=5, markeredgecolor=SURFACE,
+                label=f"{LEG_LABEL[name]}, realised")
+        ahead = [t.year + offset for t in result.ticks]
+        expected = [t.expected_unserved_fraction / standard for t in result.ticks]
+        ax.plot(ahead, expected, color=LEG_COLOUR[name], lw=1.2, ls=":",
+                marker=LEG_MARKER[name], markersize=5, markerfacecolor="none",
+                label=f"{LEG_LABEL[name]}, expected {offset} years earlier")
+    ax.axhline(1.0, color=INK_MUTED, lw=1.2, ls="--")
+    ax.set_ylabel("Unserved energy, times the standard")
+    titled(ax, "What the forward view expected, and what happened")
+    _years(ax)
+    ax.legend(frameon=False, fontsize=8, labelcolor=INK_2)
+
+
+def _panel_auction(ax, esem) -> None:
+    """Each year's awards: the megawatts contracted and the price they bid, with
+    a zero bid marked, since a zero bid is a plant that needed nothing."""
+    years = [t.year for t in esem.ticks]
+    awarded = [sum(a.capacity_mw for a in t.awards) for t in esem.ticks]
+    ax.bar(years, awarded, color=SERIES[1], width=0.7, edgecolor=SURFACE,
+           label="Awarded, MW")
+    ax.set_ylabel("Awarded, nameplate MW")
+    ax2 = ax.twinx()
+    ax2.set_facecolor("none")
+    for side in ("top", "left"):
+        ax2.spines[side].set_visible(False)
+    ax2.spines["right"].set_color(GRID)
+    ax2.tick_params(colors=INK_2, labelsize=10, length=3, color=GRID)
+    ax2.yaxis.label.set_color(INK_2)
+    ax2.yaxis.label.set_fontsize(10)
+    bid_years, bids, zero_years = [], [], []
+    for t in esem.ticks:
+        mw = sum(a.capacity_mw for a in t.awards)
+        if mw <= 0:
+            continue
+        price = sum(a.price_per_mw_year * a.capacity_mw for a in t.awards) / mw
+        bid_years.append(t.year)
+        bids.append(price / 1000.0)
+        if all(a.price_per_mw_year <= 0 for a in t.awards):
+            zero_years.append(t.year)
+    ax2.plot(bid_years, bids, color=SERIES[0], lw=1.8, marker="o", markersize=5,
+             markeredgecolor=SURFACE, label="Bid, \\$000 per MW-year")
+    for y in zero_years:
+        ax2.annotate("bid zero", (y, 0), textcoords="offset points", xytext=(0, 6),
+                     ha="center", fontsize=7.5, color=INK_2)
+    ax2.set_ylim(bottom=0)
+    ax2.set_ylabel("Bid, \\$000 per MW-year")
+    titled(ax, "The scheme's auction, each year")
+    _years(ax)
+    h1, l1 = ax.get_legend_handles_labels()
+    h2, l2 = ax2.get_legend_handles_labels()
+    ax.legend(h1 + h2, l1 + l2, frameon=False, fontsize=8, labelcolor=INK_2,
+              loc="upper left")
+
+
+def _panel_settlement(ax, legs) -> None:
+    """Contract settlement, netted and summed over the run so far, by kind of
+    party: what retailers paid producers for cover, and what the administrator
+    carried. The scheme leg is dashed."""
+    groups = ("retailers", "producers", "the administrator")
+    for name, result in legs.items():
+        years = [t.year for t in result.ticks]
+        kind_of = {a.name: a.kind + "s" for a in result.roster}
+        kind_of["administrator"] = "the administrator"
+        for i, group in enumerate(groups):
+            if group == "the administrator" and name == "merchant":
+                continue            # no administrator in the market on its own
+            running, series = 0.0, []
+            for t in result.ticks:
+                running += sum(v for party, v in t.cashflows.items()
+                               if kind_of.get(party) == group)
+                series.append(running / 1e9)
+            ax.plot(years, series, color=SERIES[i + 2],
+                    label=group if name == "esem" else None, **_leg_style(name))
+    ax.axhline(0, color=INK_MUTED, lw=1.0)
+    ax.set_ylabel("Net contract settlement, cumulative \\$bn")
+    titled(ax, "Who the contracts paid (dashed: with the scheme)")
+    _years(ax)
+    ax.legend(frameon=False, fontsize=8, labelcolor=INK_2)
+
+
+def _panel_builds(ax, legs) -> None:
+    """What each leg built or was awarded in each year, by technology group,
+    as a pair of stacked bars per year."""
+    width = 0.38
+    for j, (name, result) in enumerate(legs.items()):
+        years = np.array([t.year for t in result.ticks], dtype=float)
+        x = years + (j - 0.5) * width
+        base = np.zeros(len(years))
+        for group in TECH_ORDER:
+            mw = np.array([
+                sum(b.capacity_mw for b in t.builds if TECH_GROUP.get(b.technology, b.technology) == group)
+                + sum(a.capacity_mw for a in t.awards if TECH_GROUP.get(a.technology, a.technology) == group)
+                for t in result.ticks])
+            if mw.sum() <= 0:
+                continue
+            ax.bar(x, mw, width, bottom=base, color=TECH_COLOUR[group],
+                   edgecolor=SURFACE, linewidth=0.6,
+                   label=group if j == 0 else None,
+                   hatch=None if name == "merchant" else "//")
+            base = base + mw
+    ax.set_ylabel("Decided in the year, nameplate MW")
+    titled(ax, "What was decided, each year (hatched: with the scheme)")
+    _years(ax)
+    ax.legend(frameon=False, fontsize=8, labelcolor=INK_2, ncol=3)
+
+
+def market_view(legs: dict, settings, path: str) -> str:
+    """Six more panels on a paired run: what the dashboard leaves out.
+
+    The dashboard reads the outcome. This reads the market that produced it: the
+    time-of-day prices contracts are written on, how much of each producer's
+    output is sold forward, what the forward view expected against what came, the
+    scheme's auction, who the contracts paid, and what was decided each year.
+    """
+    standard = settings.reliability["standard_use_fraction"]
+    offset = int(list(settings.forward["anchor_offsets"])[0])
+    fig, axes = plt.subplots(3, 2, figsize=(12.5, 13.5), facecolor=SURFACE)
+    fig.subplots_adjust(hspace=0.38, wspace=0.26, top=0.935, bottom=0.045)
+    flat = axes.ravel()
+    for ax in flat:
+        _style(ax)
+    _panel_block_prices(flat[0], legs, settings)
+    _panel_cover(flat[1], legs)
+    _panel_forecast(flat[2], legs, standard, offset)
+    _panel_auction(flat[3], legs["esem"])
+    _panel_settlement(flat[4], legs)
+    _panel_builds(flat[5], legs)
+
+    horizon = len(legs["merchant"].ticks)
+    fig.suptitle(f"The market behind the outcome, {horizon} years, with and "
+                 "without the procurement scheme",
+                 fontsize=17, color=INK, x=0.011, ha="left", y=0.985)
+    fig.text(0.011, 0.957,
+             f"{legs['merchant'].draw.growth_path} demand growth at "
+             f"{legs['merchant'].draw.annual_growth:.1%} a year, one weather sequence "
+             "shared by both legs.", fontsize=11, color=INK_2, ha="left")
+    fig.text(0.011, 0.012, CAPTION, fontsize=8.5, color=INK_MUTED, ha="left")
+    fig.savefig(path, dpi=130, facecolor=SURFACE, bbox_inches="tight")
+    plt.close(fig)
+    return path

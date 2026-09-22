@@ -27,7 +27,7 @@ The rest is an input to those (`config.py`, `core/weather.py`), a market they tr
 | `core/scheme.py` | A state scheme: a milestone a year, a ceiling, a budget, and why a milestone was missed. It buys nameplate megawatts where the reliability lane buys delivered firm ones, and the two are not addable |
 | `core/simulate.py` | The year loop, and the order its eight steps run in |
 | `explore.py` | Changing one thing: a typed `section.key=value` into the override the loader checks, both legs on one draw, a pair reduced to the numbers a comparison turns on, and a sweep of one setting over several values |
-| `plots.py`, `cli.py` | The dashboard, the worst-week, price-duration and sweep charts, and four commands |
+| `plots.py`, `cli.py` | The dashboard and the market view, the worst-week, price-duration and sweep charts, and four commands |
 | `tools/` | The scripts that produce the numbers and charts in the documents |
 
 ## What a year looks like

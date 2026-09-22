@@ -39,6 +39,18 @@ def test_the_dashboard_draws_every_panel(tmp_path, settings, legs):
     assert path.endswith("dashboard.png")
 
 
+def test_the_market_view_draws_every_panel_on_both_grounds(tmp_path, settings, legs):
+    """The six panels behind the outcome: block prices, cover, forecast against
+    realised, the auction, settlement by party and what was decided. Drawn on both
+    grounds, because the dark one once inherited a white label on a pale fill."""
+    path = plots.market_view(legs, settings, str(tmp_path / "market_view.png"))
+    assert (tmp_path / "market_view.png").stat().st_size > 50_000
+    assert path.endswith("market_view.png")
+    with plots.theme("dark"):
+        plots.market_view(legs, settings, str(tmp_path / "market_view_dark.png"))
+    assert (tmp_path / "market_view_dark.png").stat().st_size > 50_000
+
+
 def test_every_colour_comes_from_the_theme_s_own_matplotlib_cycle():
     """One palette per ground, and matplotlib supplies both.
 

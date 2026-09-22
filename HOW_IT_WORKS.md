@@ -163,6 +163,13 @@ What to look at: `comparison.txt` is the full account of one pair, and `ten_seed
 
 ## Reading a run
 
-`esem-sandbox compare` writes `comparison.csv`, one row a year with both legs' unserved energy, the lane, the awards and the levy, and `dashboard.png`, eight panels in the order the year runs: capacity by technology, unserved energy against the standard, the price-duration curve of the year the legs differ most in, every build against its hurdle, the two cost lines, the lane against the shortfall it was sized on, the levy, and the cap premium. `esem-sandbox simulate` writes `run_summary.csv` for one leg, with a row a year: prices by block, unserved energy, the forward's expectation, the assumed entry, firm capacity, what was built, exit notices and the peaker's missing money.
+`esem-sandbox compare` writes `comparison.csv`, one row a year with both legs' unserved energy, the lane, the awards and the levy, and two pictures. `dashboard.png` reads the outcome, eight panels in the order the year runs: capacity by technology, unserved energy against the standard, the price-duration curve of the year the legs differ most in, every build against its hurdle, the two cost lines, the lane against the shortfall it was sized on, the levy, and the cap premium. `market_view.png` reads the market that produced it: the time-of-day prices contracts are written on, how much of each producer's output is sold forward, what the forward view expected of each year against what the year delivered, the scheme's auction with the price each award bid, who the contracts paid, and what was decided each year.
 
-The [notebook](notebooks/walkthrough.ipynb) runs all of this live, section by section, and ends with a comparison you can change one setting at a time. [PARAMETERS.md](PARAMETERS.md) lists every setting; [GLOSSARY.md](GLOSSARY.md) explains the terms; [KNOWN_LIMITATIONS.md](KNOWN_LIMITATIONS.md) says what the model leaves out and which of its results are easy to misread.
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="outputs/canonical/market_view_dark.png">
+  <img alt="The market behind the outcome, six panels" src="outputs/canonical/market_view.png">
+</picture>
+
+`esem-sandbox simulate` writes `run_summary.csv` for one leg, with a row a year: prices by block, unserved energy, the forward's expectation, the assumed entry, firm capacity, what was built, exit notices and the peaker's missing money.
+
+The [notebook](notebooks/walkthrough.ipynb) runs all of this live in the same order, changes one setting at the end of every section, and closes with a comparison you configure and a sweep. [PARAMETERS.md](PARAMETERS.md) lists every setting; [GLOSSARY.md](GLOSSARY.md) explains the terms; [KNOWN_LIMITATIONS.md](KNOWN_LIMITATIONS.md) says what the model leaves out and which of its results are easy to misread.
